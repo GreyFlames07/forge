@@ -1,0 +1,44 @@
+# Canonical implementation/progress.yaml shape.
+# Written continuously by the forge-implement orchestrator as subagents
+# complete. Checkpointed to disk after every subagent completion so
+# resume is safe after interruption.
+
+plan_ref:             "<spec-dir>/implementation-plan.yaml"
+plan_generated_at:    "<ISO-8601>"
+progress_updated_at:  "<ISO-8601>"
+parallelism:          4     # --parallelism value in effect
+
+# Mirrors the unit list from the plan; tracks status and attempts.
+units:
+  - id:            "<entity_id>"
+    status:        "done"              # pending | in_flight | done | failed | blocked | architecture_conflict
+    started_at:    "<ISO-8601>"
+    completed_at:  "<ISO-8601>"
+    attempts:
+      test_writer:  1                  # how many test-writer runs
+      implementer:  1                  # how many implementer runs
+    tests_count:   14
+    tests_passed:  14
+    tests_failed:  0
+    coverage:
+      line_pct:    94
+      branch_pct:  88
+    # On failure only:
+    # failure_reason:    "<short description>"
+    # stashed_attempts:  "implementation/attempts/<id>/"
+    # blocking_deps:     []             # other units blocked by this failure
+
+# Populated after main loop finishes (Step 5).
+rollup:
+  full_project_tests:
+    ran_at:   "<ISO-8601>"
+    passed:   "<N>"
+    failed:   "<M>"
+    command:  "<the test command>"
+  full_project_build:
+    ran_at:   "<ISO-8601>"
+    status:   "pass"                   # or "fail"
+    command:  "<the build command>"
+  coverage:
+    line_pct:   "<X>"
+    branch_pct: "<Y>"

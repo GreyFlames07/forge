@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# macOS
+.DS_Store
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Runtime state produced by forge init in target projects
+# (these only appear if someone runs `forge init` INSIDE this repo — which isn't the point of
+# this repo; forge init is for target projects. Excluded for safety.)
+/.claude/
+/.codex/
+/.forge/

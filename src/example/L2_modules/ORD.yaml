@@ -1,0 +1,48 @@
+module:
+  id:          ORD
+  name:        Orders
+  description: >
+    Manages order lifecycle — placement, validation, status tracking.
+    Publishes order.placed events consumed by PAY. Does not handle
+    payment or fulfillment itself.
+
+  tech_stack:
+    language:            typescript
+    language_version:    "5.4"
+    runtime:             node
+    runtime_version:     "20.x"
+    frameworks:          [nestjs@10, prisma@5]
+    mandatory_libraries: []
+
+  owned_atoms:
+    - atm.ord.validate_order
+
+  owned_artifacts: []
+
+  persistence_schema:
+    datastores:      []
+    storage_buckets: []
+    caches:          []
+    ownership:       exclusive
+    shared_with:     []
+
+  interface:
+    entry_points: []
+
+  access_permissions:
+    env_vars:         [DATABASE_URL]
+    filesystem:       []
+    network:          []
+    secrets:          []
+    external_schemas: []
+
+  dependency_whitelist:
+    modules: []
+
+  policies: []
+
+  changelog:
+    - version:     "0.1.0"
+      date:        "2026-04-10"
+      change_type: added
+      description: "Initial orders module stub."

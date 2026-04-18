@@ -1,0 +1,31 @@
+artifact:
+  id:           art.usr.labeled_emails_v3
+  owner_module: USR
+  description: >
+    Labeled dataset for email validity classifier training.
+    Email addresses with is_valid labels from historical signup
+    data and manual review.
+
+  format: parquet
+  schema: reg.data.LabeledEmailRecord
+
+  provenance:
+    produced_by:      atm.usr.label_emails_batch
+    source_artifacts: [art.usr.raw_email_logs_v2]
+    produced_on:      "2026-01-15"
+
+  storage:
+    location:          "s3://company-data/usr/labeled_emails/v3/"
+    access_policy:     read_only
+    access_allowed_to: [atm.usr.email_validity_classifier]
+
+  consumers:
+    - atm.usr.email_validity_classifier
+
+  retention_policy: "Keep for 2 years per data retention policy."
+
+  changelog:
+    - version:     "3.0.0"
+      date:        "2026-01-15"
+      change_type: added
+      description: "v3 with expanded labels."

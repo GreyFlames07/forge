@@ -1,0 +1,87 @@
+atom:
+  id:           atm.pay.charge_card
+  kind:         PROCEDURAL
+  owner_module: PAY
+  description: >
+    Charges a registered payment method for a given amount.
+    Uses Stripe as payment processor. Idempotent via client-supplied
+    idempotency key. Emits payment.completed event on success.
+
+  spec:
+    input:
+      customer_id:
+        type:     uuid
+        nullable: false
+      amount_cents:
+        type:        bigint
+        nullable:    false
+        description: "Charge amount in USD cents."
+      idempotency_key:
+        type:     uuid
+        nullable: false
+
+    output:
+      success:
+        charge_id:
+          type:     uuid
+          nullable: false
+        amount_charged:
+          type:     bigint
+          nullable: false
+      errors: [PAY.VAL.001, PAY.VAL.002, PAY.NET.001, PAY.EXT.003]
+
+    side_effects: [WRITES_DB, EMITS_EVENT, CALLS_EXTERNAL]
+
+    invariants:
+      pre:
+        - "input.amount_cents > 0"
+        - "input.amount_cents <= const.MAX_CHARGE_CENTS"
+      post:
+        - "on success: charges table contains row with output.charge_id"
+        - "on success: event payment.completed emitted exactly once"
+
+    logic:
+      - 'WHEN input.amount_cents <= 0 THEN RETURN PAY.VAL.001'
+      - 'WHEN input.amount_cents > const.MAX_CHARGE_CENTS THEN RETURN PAY.VAL.001'
+      - 'LET customer = CALL atm.usr.fetch_customer WITH { id: input.customer_id }'
+      - 'WHEN customer IS NULL THEN RETURN PAY.VAL.002'
+      - 'LET existing = CALL atm.pay.find_by_idempotency_key WITH { key: input.idempotency_key }'
+      - 'WHEN existing IS NOT NULL THEN RETURN { charge_id: existing.id, amount_charged: existing.amount_cents }'
+      - 'TRY: LET stripe_result = CALL external.stripe.charge WITH { customer: customer.stripe_id, amount: input.amount_cents } CATCH TIMEOUT: RETURN PAY.NET.001 CATCH DECLINED: RETURN PAY.EXT.003'
+      - 'CALL atm.pay.persist_charge WITH { stripe_result, idempotency_key: input.idempotency_key }'
+      - 'EMIT payment.completed WITH { charge_id: stripe_result.id, amount: input.amount_cents }'
+      - 'RETURN { charge_id: stripe_result.id, amount_charged: input.amount_cents }'
+
+    failure_modes:
+      - trigger: "input.amount_cents <= 0 or exceeds MAX_CHARGE_CENTS"
+        error:   PAY.VAL.001
+      - trigger: "customer not found"
+        error:   PAY.VAL.002
+      - trigger: "Stripe API timeout"
+        error:   PAY.NET.001
+      - trigger: "Stripe declined charge"
+        error:   PAY.EXT.003
+
+  verification:
+    property_assertions:
+      - "output.amount_charged <= input.amount_cents"
+    example_cases:
+      - input:    { customer_id: "c_123", amount_cents: 1000, idempotency_key: "key_001" }
+        expected: success
+      - input:    { customer_id: "c_nonexistent", amount_cents: 1000, idempotency_key: "key_002" }
+        expected: PAY.VAL.002
+      - input:    { customer_id: "c_123", amount_cents: -500, idempotency_key: "key_003" }
+        expected: PAY.VAL.001
+    edge_cases:
+      - "amount_cents is exactly MAX_CHARGE_CENTS"
+      - "idempotency_key already exists (dedup path)"
+      - "Stripe returns 503 during charge"
+
+  convention_overrides: []
+  policy_overrides:     []
+
+  changelog:
+    - version:     "0.1.0"
+      date:        "2026-04-10"
+      change_type: added
+      description: "Initial charge card atom."

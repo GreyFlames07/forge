@@ -1,0 +1,392 @@
+# forge-audit — Framework
+
+This document describes the **mental model** for `forge-audit`: the role-shift from creator skills to challenger skill, the seven audit passes, the severity model, historical tracking, and the batch-review mechanics. It is **not** the SKILL.md; it is the source of truth from which any skill artifact is authored.
+
+Audiences:
+- An LLM or agent that executes the process
+- An engineer authoring the `SKILL.md` from this framework
+- A human facilitator running audit without an AI
+
+---
+
+## 1. What `forge-audit` is
+
+**Purpose.** Stress-test completed specs for gaps, contradictions, drift, and risk — **before implementation begins**. Not a creator skill; a challenger skill. Reads the spec corpus (or a requested scope), runs seven audit passes, compiles a severity-ranked findings report with proposed inline edits, lets the human approve/skip edits in batch, and escalates persistent findings across runs.
+
+**Role contrast with the three creator skills:**
+
+| | discover / decompose / forge-atom | **forge-audit** |
+|---|---|---|
+| Role | Interviewer (Socratic, extractive) | Challenger / reviewer (adversarial) |
+| Writes | Creates specs | Edits existing specs (clarifications, added edge_cases, policy proposals) |
+| Primary output | Spec files | Audit report + inline spec edits |
+| Interview feel | Elicitation | Code-review |
+| Invocation scope | One atom / module | Project-wide default, narrowable |
+| Question shape | "What does this do?" | "What's wrong with this?" |
+
+**Specific outputs at exit:**
+
+| Artifact | Contains | Purpose |
+|---|---|---|
+| `audit-YYYY-MM-DD.md` (new each run) | Full findings list with evidence, severity, proposed edits, approval status | Durable record of this audit's state |
+| `audit-history.md` (maintained across runs) | Every finding ever surfaced with persistence count, resolution status | Enables severity escalation for recurring findings |
+| Edited spec files (conditional on human approval) | Added `edge_cases`, corrected `side_effects`, aligned drift, updated changelogs | Applies fixes that resolve findings |
+
+---
+
+## 2. Operating principles
+
+Inherits the universal principles — one concept per turn (during interactive review), confirm before writing, cite specific references by name. Specific to audit:
+
+1. **Challenger, not creator.** Audit never creates new atoms, types, errors, constants, modules, flows, or journeys. If a finding *needs* a new entity, the audit's proposed fix is to **route the human back** to the appropriate creator skill (e.g., "create missing atom via `/forge-decompose` then `/forge-atom`").
+2. **Severity is proposed, not enforced.** Agent assigns severity from heuristics (§5). Human may disagree during review; the skill respects the human's override.
+3. **Batch presentation, individual approval.** Findings are compiled into one report, presented in one summary, but human approves edits one-by-one (or en bloc by severity class). Never apply edits without explicit approval.
+4. **Historical awareness escalates recurring findings.** An issue flagged three audits in a row moves up a severity tier. The rationale: if it's still there after multiple gates, it's become a real risk, not an artifact.
+5. **Report file is the canonical artifact.** Whatever the chat summary says, the report file is the authoritative record. Links from history back to specific reports must stay valid.
+6. **Auto-triggered audits announce and defer.** When audit fires automatically (after the last atom of the last module is elicited), it compiles the report and summarizes in chat with a deferrable engagement prompt — never blocks forward motion by forcing immediate review.
+7. **Scope adapts to what's complete.** Manual audits with no `--scope` run against whatever specs exist; auto-triggered audits are project-wide because by definition all atoms are elicited by that point.
+
+---
+
+## 3. When it runs
+
+### Manual invocation
+
+- `/forge-audit` — project-wide scope (default), full tier (both quick passes 1–5 AND risk/policy passes 6–7)
+- `/forge-audit --scope <module>` — scope narrowed to one module
+- `/forge-audit --scope <atom>` — scope narrowed to one atom (useful for spot-checking after revision)
+- `/forge-audit --tier quick` — only passes 1–5 (completeness + consistency + hygiene + reachability), skip the slower risk interrogation and policy coverage passes
+
+### Auto-trigger
+
+Fires exactly once per project: at the completion of the last atom of the last unfilled module. Concretely: after `forge-atom` writes a stub's spec and detects that `forge list --kind atom --ids-only` has zero atoms with empty `spec` blocks remaining. The triggering skill announces:
+
+> *"All project atoms are now elicited — auto-triggering project-wide full audit."*
+
+Auto-trigger characteristics:
+- **Scope**: project-wide (guaranteed by the trigger condition)
+- **Tier**: full (this is the implementation gate)
+- **Interactivity**: report generated, chat summary presented, human chooses engage-now vs defer. Never blocks.
+
+### Tier selection logic
+
+- **Quick tier** (passes 1–5): fast sanity check, ~10–30 s of tool use. Use for mid-project check-ins, spot-checks after spec revisions, or when the human just wants "any obvious problems?"
+- **Full tier** (passes 1–7): thorough pre-implementation gate, ~30–90 s. Use for the auto-trigger, end-of-project review, or when the human explicitly asks for an exhaustive audit.
+
+Agent defaults to full tier for manual invocation unless the human passes `--tier quick` or the scope is a single atom (in which case quick is fine — risk interrogation and policy coverage are project-wide concerns).
+
+---
+
+## 4. The seven audit passes
+
+Each pass is a deterministic scan against the spec corpus. Findings accumulate; severity is assigned per pass's heuristics.
+
+### Pass 1 — Completeness (quick tier)
+
+**What it detects:** specs that don't satisfy their own structural requirements.
+
+**Checks:**
+- For each atom in scope: `forge context <atom>` exit status. Exit 2 (unresolved refs) → **blocking** finding with the list of unresolved ids.
+- For each atom: required fields per `kind` are present (PROCEDURAL must have `input`, `output`, `side_effects`, `invariants`, `logic`, `failure_modes`; DECLARATIVE must have `target`, `desired_state`, `reconciliation`; etc.). Missing required fields → **blocking**.
+- For each atom: verification floors met per L1. `property_assertions` below `L1.verification.floors.min_property_assertions` → **high**. Same for edge_cases and example_cases.
+- For each atom: changelog has at least one entry with a valid date. Missing → **medium**.
+
+### Pass 2 — Internal consistency (quick tier)
+
+**What it detects:** contradictions within a single atom's spec.
+
+**Checks:**
+- **side_effects vs. logic.** Parse `logic` for action keywords: if logic contains `INSERT/UPDATE/DELETE` but `side_effects` lacks `WRITES_DB` → **high**. If `EMIT <event>` but no `EMITS_EVENT` → **high**. If `CALL external.<x>.<y>` but no `CALLS_EXTERNAL` → **high**. If `READ FROM <table>` but no `READS_DB` → **medium**.
+- **invariants reference declared fields only.** Every field path in `invariants.pre` and `invariants.post` must exist in the atom's `input` or `output.success`. Undefined field references → **high**.
+- **failure_modes ↔ output.errors.** Every error in `output.errors` should appear in at least one `failure_modes` trigger (reverse: every `failure_modes.error` should be in `output.errors`). Asymmetry → **high**.
+- **logic path coverage.** Every error code returned via `RETURN <error>` should exist in `output.errors`. Escape hatches return codes not declared in output.errors → **high** (silent failure surface).
+
+### Pass 3 — Cross-spec consistency (quick tier)
+
+**What it detects:** contradictions between atoms, or between atoms and their surrounding constraints. Same seven check classes as forge-atom's consistency probes, but run across *every atom in scope*.
+
+**Checks (the forge-atom seven, applied project-wide):**
+
+| # | Check | Project-wide form |
+|---|---|---|
+| 3a | Policy | For every policy × every atom in applicable module: evaluate `applies_when`; verify `mandatory_behavior.before/after_success/after_failure` is honored in atom's logic |
+| 3b | Sibling atom | Within each module: cross-reference invariants that touch shared types for contradictions |
+| 3c | Called-atom contract | For every `CALL <atom>` in any logic block: verify this atom's error handling covers the callee's declared `failure_modes` |
+| 3d | L1 convention | For every atom: declared markers vs L1 `security.resource_authorization`, `audit.triggers`, `idempotency.key_source` |
+| 3e | Access-permission | For every `external.X.*`, `env.X`, network call in atom logic: verify against module's `access_permissions` whitelist |
+| 3f | Type invariant | For every atom producing a typed output: check logic branches don't produce values that violate the output type's invariants |
+| 3g | Event contract | For every `EMIT <event>`: compare emitted payload shape to consumers' declared expected payload types |
+
+**Severity:** 3a/3c/3d → **blocking** (policy violations and contract breaks cause real bugs). 3b/3f/3g → **high**. 3e → **blocking** if access is missing (schema-level violation).
+
+### Pass 4 — L0 hygiene (quick tier)
+
+**What it detects:** unused or near-duplicate L0 entries.
+
+**Checks:**
+- **Orphan types.** For each `L0.types` entry: count consumers (atoms referencing it via input, output, invariants, logic field paths; tables referencing it via `datastores[].type`). Zero consumers → **medium** ("orphan type — consolidate with existing or delete").
+- **Orphan errors.** For each `L0.errors` entry: count atoms that return it via `output.errors` or `failure_modes.error`. Zero → **medium**.
+- **Orphan constants.** For each `L0.constants` entry: count references in atom logic/invariants. Zero → **medium**; single consumer → **low** ("consider demoting to local value").
+- **Near-duplicate types.** For types with same `kind: entity`: compute field-set Jaccard similarity. ≥0.8 overlap and names are different → **medium** ("consider consolidating `reg.X.Y` and `reg.X.Z`").
+- **Near-duplicate errors.** Errors in the same category whose `message` has high text similarity → **low**.
+
+### Pass 5 — L4 reachability (quick tier)
+
+**What it detects:** atoms that exist but are never invoked.
+
+**Checks:**
+- Build the invocation graph: for each atom, note which atoms CALL it (from logic) and which entry_points invoke it (from L2 `interface.entry_points[].invokes`) and which flow/journey sequences reference it.
+- For each atom: determine if reachable from any entry point via the invocation graph.
+- Unreachable atoms → **high** ("dead code: defined but never invoked").
+- **Exception**: compensation-only atoms (referenced only as `compensation:` in saga flows, never as `invoke:`) are reachable and flagged as **informational/low** (not high), since they exist for a structural reason.
+
+### Pass 6 — Risk interrogation (full tier)
+
+**What it detects:** atoms that have implicit risk profiles their specs don't address.
+
+**Checks (per-atom adversarial probes):**
+- **Concurrency safety.** Atoms with `WRITES_DB` on a datastore that other atoms also write to: does the spec address concurrent-modification semantics (optimistic locking, row-level locks, CAS, version columns)? Missing → **high**. Surface as a proposed `edge_case`.
+- **Partial-failure recovery.** Atoms with ≥2 side-effect markers (e.g., WRITES_DB + CALLS_EXTERNAL): does the spec address what happens when the first effect succeeds and the second fails? Missing → **high**.
+- **Idempotency.** Atoms with `CALLS_EXTERNAL` + `WRITES_DB`: is there an idempotency key declared? Does the caller flow retry? If retry expected and no idempotency key → **blocking** (directly causes bugs under retry).
+- **Cache staleness.** Atoms with `READS_CACHE`: does the spec address how stale reads are handled? Missing → **medium**.
+- **Clock skew.** Atoms with `READS_CLOCK`: does the spec tolerate clock drift, or assume wall-clock correctness? Missing → **low** (often fine, but worth flagging).
+
+Findings proposed as new `edge_cases` or new `property_assertions` with specific wording.
+
+### Pass 7 — Policy coverage (full tier)
+
+**What it detects:** atoms whose side-effects warrant governance no policy provides.
+
+**Checks:**
+- **Sensitive markers unguarded.** For each atom with "sensitive" markers — heuristics: `WRITES_DB` on datastore containing type names like `Charge`, `Payment`, `Credential`, `Session`, `Token`; `CALLS_EXTERNAL` to payment providers (Stripe/Braintree/etc. recognized from L0 `external_schemas`); atoms writing PII fields (email, ssn, phone) — check if any policy in the module's `policies` list has an `applies_when` that matches this atom. Unguarded sensitive atoms → **high** (not blocking because absence of policy doesn't mean absence of security; it means absence of *documented* security).
+- Propose new policy scaffolds; do not create. Recommend human invokes `/forge-discover` with policy-addition scope (future work; for now, manually edit L2_policies/).
+
+### Pass orchestration
+
+Passes run in order 1 → 7. Each pass produces findings that may reference findings from prior passes (e.g., a Pass 3 policy check may surface in more detail because Pass 1 flagged the atom as incomplete). The skill assembles findings with stable IDs (e.g., `FND-001`, `FND-002`) and cross-references where applicable.
+
+---
+
+## 5. Severity model
+
+Four tiers with clear semantics:
+
+| Severity | Meaning | Examples |
+|---|---|---|
+| **Blocking** | Implementation cannot proceed without resolution — the spec is incorrect or incomplete in a way that will cause bugs | Unresolved atom references; missing idempotency key on retry-expected atom; policy violations; schema-invalid spec |
+| **High** | Strong recommendation to fix — the spec will work but has material quality issues | Verification floor not met; sibling drift; orphan types in active modules; dead atoms |
+| **Medium** | Worth reviewing before implementation — not wrong, but suboptimal | Near-duplicate types; constants with single consumer; missing edge_case for known concurrency pattern |
+| **Low** | Informational — stylistic or minor hygiene | Changelog date format inconsistency; near-duplicate error messages; policy-proposable atom in non-sensitive path |
+
+### Severity escalation from history
+
+When a finding appears in `audit-history.md` from a prior run:
+- Same finding flagged in 2 consecutive audits → bump severity one tier (low → medium → high → blocking)
+- Same finding flagged in 3+ consecutive audits → escalate with explicit note: *"this finding has persisted across N audits. Escalating to blocking."*
+
+Rationale: if an issue survives multiple gates without being addressed, it's becoming an ambient risk. Escalation forces attention.
+
+### Severity override
+
+When the human engages with findings during interactive review, they may override the agent's severity:
+- *"This `medium` is actually blocking — we can't launch without fixing it."* → agent re-tags.
+- *"This `blocking` is a known acceptable risk for now — demote to medium."* → agent re-tags and records rationale in audit-history.
+
+Overrides are recorded in the audit report and in history so subsequent audits know.
+
+---
+
+## 6. Historical tracking — `audit-history.md`
+
+Persistent record of every finding ever surfaced, with resolution status.
+
+**Purpose:**
+- Enable severity escalation for persistent findings.
+- Give the human a long-term view of spec quality trends.
+- Avoid re-surfacing findings the human has explicitly marked as known risks (future work — for now, recording only, no filtering).
+
+**Structure:** see §10 for schema. Each finding has a stable ID across runs (hashed from scope + pass + location + fingerprint), status (open / resolved / known-risk), and a run history showing when it was flagged and with what severity.
+
+**Maintenance:**
+- On each audit run: for each finding in the new report, look up by stable ID in history.
+  - New finding → add entry with `status: open`, initial severity, this run's report link.
+  - Recurring finding → append to run history, check persistence count for escalation.
+  - Previously-resolved finding that reappears → flag: *"this was resolved in audit-<date>; it's back. Regression?"*
+- On fix application: when a proposed edit is approved and applied, mark the corresponding finding as `resolved` in history, record the resolution commit/changelog reference.
+
+---
+
+## 7. Sub-phase structure
+
+### Sub-phase 0 — Scope + tier + state load
+
+- Parse invocation: manual flags (`--scope`, `--tier`) or auto-triggered.
+- Load `audit-history.md` if it exists.
+- Run `forge list --spec-dir <dir>` to count atoms, modules, L0 entries — establishes baseline counts.
+- Announce: *"Running forge-audit. Scope: `<scope>`. Tier: `<quick|full>`. `<N>` atoms in scope."*
+
+### Sub-phase 1 — Execute passes
+
+- Run selected tier's passes (1–5 or 1–7) in order.
+- Each pass emits a list of findings with: stable ID, pass number, location, description, evidence, proposed severity, proposed fix (if applicable).
+- Cross-reference findings with history: escalate persistence, flag regressions.
+
+### Sub-phase 2 — Compile report
+
+- Sort findings by severity (blocking → high → medium → low) within each pass.
+- Generate `audit-YYYY-MM-DD.md` following the template in §10.
+- Chat summary: *"Audit complete. `<N>` findings (`<K>` blocking, `<H>` high, `<M>` medium, `<L>` low). Report at `<path>`."*
+
+### Sub-phase 3 — Interactive review (conditional)
+
+Human chooses: engage now, or defer until later.
+
+If engage:
+1. Agent walks findings in severity order (blocking first, always).
+2. For each finding:
+   - Show finding, evidence, proposed edit (with diff preview if applicable).
+   - Human options: `approve` / `skip` / `defer` / `override-severity`.
+   - Approve → agent applies edit (writes to spec file with changelog entry). Marks finding `resolved` in history.
+   - Skip → leaves finding open. Next audit will re-flag.
+   - Defer → same as skip, but tagged `deferred-<date>` so human sees they've been sitting.
+   - Override-severity → re-tag; continue review.
+3. After final finding: summarize resolutions.
+
+If defer:
+- Report file is preserved.
+- Next time human runs `/forge-audit`, skill detects the prior unreviewed report and asks: *"Found unreviewed audit from `<date>`. Review that before running a new one?"*
+
+### Sub-phase 4 — Handover
+
+- Update `audit-history.md` with all findings' statuses.
+- **If blocking findings remain open:** *"Implementation should not proceed. `<K>` blocking findings remain. Resolve before running `/forge-implement`."*
+- **Else:** *"Ready for implementation. `<N>` non-blocking findings remain; address when convenient. Next: `/forge-implement`."*
+
+---
+
+## 8. Batch review mechanics
+
+"Batch" means: the report is assembled once and presented as a whole, but individual findings require individual approval. Three variants during review:
+
+**Interactive sequential** (default):
+Walk each finding in severity order. Human approves/skips/defers per finding.
+
+**Bulk-approve by severity**:
+Human can say: *"approve all `low` severity en bloc"* or *"approve all with `auto-fixable: true` tag"*. Agent applies the set, reports outcomes, continues with remaining findings.
+
+**Review-only**:
+Human reads the report, makes no decisions. All findings stay `open` in history. Re-enter interactive review any time with *"resume audit review"* — agent picks up from the report's unresolved items.
+
+---
+
+## 9. What `forge-audit` does NOT produce
+
+| Not produced | Why |
+|---|---|
+| New atoms | Creating atoms is decompose/forge-atom's job; audit routes the human back |
+| New types / errors / constants | forge-atom creates these during elicitation; audit can propose consolidations but never creates |
+| New modules | Discover's job |
+| New policies | Policy creation is a future skill (policy-elicitation) or manual edit; audit proposes the scaffold in findings but doesn't write policy files |
+| New flows / journeys | Composition-level; outside audit's scope |
+
+The enforced discipline: **audit clarifies and gates; it does not create.**
+
+---
+
+## 10. Artifact schemas
+
+### `audit-YYYY-MM-DD.md` — report file
+
+```markdown
+# forge-audit report — <scope> — <tier>
+
+Generated: <ISO-8601 timestamp>
+Scope: <project-wide | module:<MOD> | atom:<atom_id>>
+Tier: <quick | full>
+Atoms scanned: <N>
+Passes run: <list>
+
+## Summary
+
+<K> findings total
+- <K_b> blocking
+- <K_h> high
+- <K_m> medium
+- <K_l> low
+
+<optional one-line state: "Ready for implementation" | "Blocking findings present — hold implementation">
+
+---
+
+## Findings
+
+### FND-001 [BLOCKING] <one-line description>
+
+**Pass:** <N — name>
+**Location:** <file:line | entity_id>
+**Persisted:** <new | recurring: N audits | regression from <date>>
+
+**Evidence:**
+<excerpt or reference showing the issue>
+
+**Proposed fix:**
+<description of the fix>
+
+<optional diff preview>
+```diff
+- old line
++ new line
+```
+
+**Approval status:** <pending | approved | skipped | deferred | overridden-to-<severity>>
+
+---
+
+### FND-002 ...
+
+(every finding, sorted: blocking first, then high, medium, low; within a severity, sorted by pass number then alphabetically by location)
+```
+
+### `audit-history.md` — persistent tracking
+
+```markdown
+# forge-audit history
+
+Last updated: <ISO-8601 timestamp>
+Total findings ever surfaced: <N>
+Open: <K_open>  Resolved: <K_resolved>  Known risk: <K_known>
+
+---
+
+## <finding_stable_id> — <one-line description>
+
+**First flagged:** <date>
+**Last flagged:** <date>
+**Status:** open | resolved | known-risk | regressed
+**Runs:** <count>
+**Severity history:** <date>:low → <date>:medium → <date>:high  (shows escalation)
+**Resolution:** <if status=resolved: date + how resolved + commit/changelog ref>
+**Known-risk rationale:** <if status=known-risk: why accepted, review-after date>
+
+---
+
+(entries for every finding ever surfaced, ordered by stable_id)
+```
+
+Stable IDs are derived as `hash(pass_number + location + finding_fingerprint)[:8]` — deterministic, so the same issue across runs gets the same ID.
+
+---
+
+## 11. Compatibility
+
+Format-agnostic. The skill artifact at `.agents/skills/forge-audit/SKILL.md` references this framework under `references/framework.md` for progressive disclosure — load on demand for pass-specific detection heuristics, severity escalation rules, or report schemas.
+
+---
+
+## 12. Open design questions (for future iteration)
+
+- **Auto-fixable findings.** Some findings could be auto-applied without human approval (e.g., changelog date format fixes, whitespace drift). Should audit support an `--auto-apply-trivial` flag that applies all `low` severity fixes without prompting? Current design says no — every fix needs approval. Revisit after use.
+- **Policy creation from coverage gaps.** Pass 7 proposes new policies but doesn't create them. Should there be a `forge-policy` skill or should audit itself open a policy-creation sub-flow? Current design defers.
+- **Cross-audit regression alerting.** If a finding was resolved in audit N, then reappears in audit N+2, that's a regression. Current design flags it visually; a future version could surface regressions at the top of the chat summary.
+- **Parallel audits.** For large projects, running passes in parallel would speed up `forge-audit` significantly. Current design is sequential for simplicity.
+- **Audit during elicitation.** Currently audit is post-elicitation. A future version could run lightweight passes (1, 4) continuously during forge-atom to catch issues at creation time.

@@ -1,0 +1,60 @@
+atom:
+  id:           atm.usr.email_validity_classifier
+  kind:         MODEL
+  owner_module: USR
+  description: >
+    ML classifier predicting whether an email is likely valid and
+    deliverable. Pre-check before sending verification emails.
+
+  spec:
+    input_distribution:
+      email:
+        type:     string
+        nullable: false
+      source:
+        type:     reg.usr.SignupSource
+        nullable: false
+
+    output_distribution:
+      is_valid:
+        type:     boolean
+        nullable: false
+      confidence:
+        type:        number
+        nullable:    false
+        description: "0.0 to 1.0"
+
+    acceptable_bounds:
+      precision:      ">= 0.95"
+      recall:         ">= 0.90"
+      p99_latency_ms: "<= 50"
+
+    training_contract:
+      data_source:           art.usr.labeled_emails_v3
+      min_samples:           100000
+      drift_check_frequency: weekly
+      retrain_trigger:       "precision drops below 0.93"
+
+    fallback:
+      when:   "confidence < 0.8"
+      invoke: atm.usr.validate_email
+
+  verification:
+    property_assertions:
+      - "output.confidence is between 0.0 and 1.0 inclusive"
+    example_cases: []
+    edge_cases:
+      - "email with unusual TLD"
+      - "email from signup source not in training data"
+    bounds_verification:
+      - "Run against holdout set monthly; assert precision >= 0.95, recall >= 0.90"
+      - "Measure p99 latency under production load; assert <= 50ms"
+
+  convention_overrides: []
+  policy_overrides:     []
+
+  changelog:
+    - version:     "0.1.0"
+      date:        "2026-04-10"
+      change_type: added
+      description: "Initial email classifier."

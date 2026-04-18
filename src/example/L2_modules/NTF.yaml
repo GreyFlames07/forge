@@ -1,0 +1,47 @@
+module:
+  id:          NTF
+  name:        Notifications
+  description: >
+    Sends transactional notifications via email and other channels.
+    Stateless — delegates delivery to SendGrid.
+
+  tech_stack:
+    language:            typescript
+    language_version:    "5.4"
+    runtime:             node
+    runtime_version:     "20.x"
+    frameworks:          [nestjs@10]
+    mandatory_libraries: []
+
+  owned_atoms:
+    - atm.ntf.send_order_confirmation
+
+  owned_artifacts: []
+
+  persistence_schema:
+    datastores:      []
+    storage_buckets: []
+    caches:          []
+    ownership:       exclusive
+    shared_with:     []
+
+  interface:
+    entry_points: []
+
+  access_permissions:
+    env_vars:         [SENDGRID_API_KEY]
+    filesystem:       []
+    network:          [api.sendgrid.com]
+    secrets:          [sendgrid_api_key]
+    external_schemas: [sendgrid]
+
+  dependency_whitelist:
+    modules: []
+
+  policies: []
+
+  changelog:
+    - version:     "0.1.0"
+      date:        "2026-04-10"
+      change_type: added
+      description: "Initial notifications module."

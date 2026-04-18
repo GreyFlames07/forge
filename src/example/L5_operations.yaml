@@ -1,0 +1,35 @@
+# Example L5 Operations for a payments-enabled app.
+
+deployment:
+  platform:
+    cloud:              aws
+    primary_region:     us-east-1
+    additional_regions: [us-west-2]
+    default_compute:    ecs-fargate
+  environments: [dev, staging, prod]
+  default_strategy: canary
+  canary_weights:   [5, 25, 50, 100]
+  rollback:
+    automatic_on:
+      - "error_rate > 5% for 5min"
+      - "p99_latency > 2x baseline for 10min"
+    manual_allowed: true
+
+rate_limiting:
+  default:
+    requests_per_minute: 60
+    burst:               100
+  per_auth_method:
+    bearer:
+      requests_per_minute: 600
+      burst:               1000
+    api_key:
+      requests_per_minute: 1200
+      burst:               2000
+  scope: per_actor
+
+event_semantics:
+  delivery:            at_least_once
+  ordering:            fifo_per_key
+  default_parallelism: 10
+  ordering_key_field:  customer_id

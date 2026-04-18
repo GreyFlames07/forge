@@ -21,7 +21,7 @@ The agent drives the interview. The specs drive the code.
 
 ## What it is
 
-A six-layer YAML spec system, a Python CLI for context assembly, and **seven agent skills** that take a human from a vague product idea to working, audited, implementable code — with the agent asking questions and the human answering, not the reverse.
+A six-layer YAML spec system, a Python CLI for context assembly, and **eight agent skills** that take a human from a vague product idea to working, audited, hardened, implementable code — with the agent asking questions and the human answering, not the reverse.
 
 Built on the premise that **people explain systems well under questioning but poorly when cold-prompted**. forge inverts the default "human prompts agent → agent implements" loop into "agent interviews human → structured spec emerges → agent implements from spec".
 
@@ -41,6 +41,8 @@ Runs in **Claude Code**, **OpenAI Codex CLI**, and any **agentskills.io-compatib
   forge-atom        →  complete specs   (one atom at a time — three interview shapes)
     ↓
   forge-audit       →  quality gate     (seven audit passes, severity-ranked findings)
+    ↓
+  forge-armour      →  security hardening (trust model, policies, abuse-case review)
     ↓
   forge-implement   →  code + tests     (parallel subagents, test-before-impl isolation)
     ↓
@@ -62,7 +64,7 @@ uv venv --python 3.13 .venv && uv pip install -e . pytest
 ./scripts/install-skills.sh install
 ```
 
-This wires the `forge` binary into `~/.local/bin/` and symlinks the seven skills into `~/.claude/skills/`, `~/.codex/skills/`, and `~/.agents/skills/` — discoverable by every supported client.
+This wires the `forge` binary into `~/.local/bin/` and symlinks the eight skills into `~/.claude/skills/`, `~/.codex/skills/`, and `~/.agents/skills/` — discoverable by every supported client.
 
 ### Verify
 
@@ -103,12 +105,12 @@ forge init
       ✓ .forge/
       ✓ 6 spec subdirectories
       ✓ 12 schema templates → .forge/templates/
-      ✓ 21/21 skill symlinks → .claude/skills/, .codex/skills/, .agents/skills/
+      ✓ 24/24 skill symlinks → .claude/skills/, .codex/skills/, .agents/skills/
 
     ───── Next steps ─────
 
       Set the spec dir (add to your shell rc to persist):
-        export FORGE_SPEC_DIR=/Users/you/my-idea/.forge
+        export FORGE_SPEC_DIR="/Users/you/my-idea/.forge"
 
       Start a session in this directory:
         claude │ codex │ any agentskills.io client
@@ -139,7 +141,7 @@ Full CLI guide: [`docs/cli-guide.md`](docs/cli-guide.md).
 
 ---
 
-## The seven skills
+## The eight skills
 
 | Skill | Role | Input | Output |
 |---|---|---|---|
@@ -147,6 +149,7 @@ Full CLI guide: [`docs/cli-guide.md`](docs/cli-guide.md).
 | **forge-decompose** | Structural extractor | One bounded module | Exhaustive atom stubs (four-pass extraction) |
 | **forge-atom** | Contract specifier | One atom stub | Complete L3 spec + L0 cascades + module completions |
 | **forge-audit** | Challenger / reviewer | Completed specs | Severity-ranked findings with inline edits; seven audit passes |
+| **forge-armour** | Security challenger | Audited specs | Security hardening pass, trust-model capture, approved project/module/atom security edits |
 | **forge-implement** | Orchestrator | Audited spec corpus | Code + tests, dep-graph parallel, test-before-impl isolation |
 | **forge-test-writer** | Subagent | One entity + level | Unit/integration/system tests with audit doc |
 | **forge-implementer** | Subagent | One entity | Implementation code, blind to tests |
@@ -183,11 +186,12 @@ forge/
 │   ├── cli/              Python CLI package (the forge command)
 │   ├── templates/        L0-L5 schema templates (symlinked into projects by forge init)
 │   └── example/          Working example spec corpus (used by tests)
-├── .agents/skills/       The 7 forge skills (installed into agent clients)
+├── .agents/skills/       The 8 forge skills (installed into agent clients)
 │   ├── forge-discover/
 │   ├── forge-decompose/
 │   ├── forge-atom/
 │   ├── forge-audit/
+│   ├── forge-armour/
 │   ├── forge-implement/
 │   ├── forge-test-writer/
 │   └── forge-implementer/
@@ -226,8 +230,9 @@ forge find charge                       # search across entities
 1. Create `.agents/skills/<name>/SKILL.md` with [agentskills.io](https://agentskills.io) frontmatter (`name`, `description`).
 2. Add the skill to `SKILLS=()` in `scripts/install-skills.sh`.
 3. Add the skill to `SKILL_NAMES` in `src/cli/commands/init.py`.
-4. `./scripts/install-skills.sh install` to wire up globally.
-5. In any existing projects: `forge init --force` to refresh their skill symlinks.
+4. Add a framework doc under `docs/skills/<name>/framework.md` if the skill has a substantial mental model.
+5. `./scripts/install-skills.sh install` to wire up globally.
+6. In any existing projects: `forge init --force` to refresh their skill symlinks.
 
 ### Uninstall
 

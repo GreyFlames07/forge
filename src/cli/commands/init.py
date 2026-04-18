@@ -119,6 +119,7 @@ SKILL_NAMES = (
     "forge-decompose",
     "forge-atom",
     "forge-audit",
+    "forge-armour",
     "forge-implement",
     "forge-test-writer",
     "forge-implementer",
@@ -223,7 +224,7 @@ def run(args: argparse.Namespace) -> int:
     print(_divider("Next steps"))
     print()
     print(_dim("  Set the spec dir ") + _dim("(add to your shell rc to persist):"))
-    print(f"    {_bold('export FORGE_SPEC_DIR=' + str(spec_dir))}")
+    print(f"    {_bold('export FORGE_SPEC_DIR=\"' + str(spec_dir) + '\"')}")
     print()
     print(_dim("  Start a session in this directory:"))
     print(f"    {_bold(_color(_FIRE_PRIMARY, 'claude'))}  "
@@ -234,12 +235,14 @@ def run(args: argparse.Namespace) -> int:
     print(f"    {_bold('“I want to build a tool that does X”')}")
     print(f"    {_bold('“Decompose the PAY module into atoms”')}")
     print(f"    {_bold('“Audit the specs before implementation”')}")
+    print(f"    {_bold('“Harden the specs for security before implementation”')}")
     print()
     print(_dim("  Claude Code also supports slash-command shortcuts:"))
     print(f"    {_color(_FIRE_PRIMARY, '/forge-discover')}  "
           + _color(_FIRE_PRIMARY, "/forge-decompose")  + "  "
           + _color(_FIRE_PRIMARY, "/forge-atom")       + "  "
           + _color(_FIRE_PRIMARY, "/forge-audit")      + "  "
+          + _color(_FIRE_PRIMARY, "/forge-armour")     + "  "
           + _color(_FIRE_PRIMARY, "/forge-implement"))
     print()
 

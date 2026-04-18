@@ -12,6 +12,9 @@
 **Spec-driven agent development.**
 The agent drives the interview. The specs drive the code.
 
+[![CI](https://github.com/GreyFlames07/forge/actions/workflows/ci.yml/badge.svg)](https://github.com/GreyFlames07/forge/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 </div>
 
 ---
@@ -235,6 +238,23 @@ forge find charge                       # search across entities
 Removes all global skill symlinks and the `forge` CLI binary. Does not touch project-local `.forge/` directories (those are owned by each project).
 
 ---
+
+## Contributing
+
+Pull requests welcome. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for:
+
+- Branching and commit conventions (Conventional Commits)
+- Local dev setup
+- PR requirements and CI expectations
+- Release process
+
+The repo uses standard open-source governance: no direct pushes to `main`, PRs require code-owner approval, CI must be green, history stays linear.
+
+Changes are tracked in [`CHANGELOG.md`](CHANGELOG.md) following [Keep a Changelog](https://keepachangelog.com).
+
+## Security
+
+Security issues: see [`SECURITY.md`](SECURITY.md). Do not open public issues for vulnerabilities.
 
 ## License
 

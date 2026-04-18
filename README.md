@@ -18,7 +18,7 @@ The CLI (`forge` command) provides context assembly primitives (`list`, `inspect
 
 ```bash
 # 1. Clone
-git clone https://github.com/WillDefina/forge.git
+git clone https://github.com/GreyFlames07/forge.git
 cd forge
 
 # 2. Create a venv + install the CLI

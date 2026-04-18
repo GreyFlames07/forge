@@ -6,8 +6,9 @@ description: >
   optionally git commits. Activates on phrases like "implement the
   project", "build the code", "let's implement", "run forge-implement",
   or after forge-audit completes cleanly with no open blocking findings.
-  Orchestrates two subagent types (forge-test-writer and forge-
-  implementer) in parallel per the dependency graph, enforcing strict
+  Dispatches the forge-test-writer and forge-implementer skills via
+  Task subagents (subagent_type: general-purpose; skill name invoked
+  in the prompt) in parallel per the dependency graph, enforcing strict
   test-before-implementation isolation. Tests cover unit, integration,
   and system levels. Does NOT modify specs — specs are frozen at run
   start. Does NOT make implementation decisions — those live in the
@@ -119,8 +120,11 @@ while any unit has status in {pending, in_flight}:
 For each unit, spawn subagents sequentially (test-writer first, then implementer). Maintain in-memory state; checkpoint after each subagent completes.
 
 **Stage 1 — Test-writer:**
-- Spawn `forge-test-writer` subagent (Task tool) with inputs:
-  - `entity_id`, `level` (unit for atoms; integration for flows; system for journeys), `target_test_file`, `target_audit_file`, `architecture` (block from plan).
+- Spawn a Task subagent to execute the `forge-test-writer` skill. **`forge-test-writer` is a skill, not a Task `subagent_type`** — invoke the Task tool with `subagent_type: "general-purpose"` and in the prompt instruct the agent to follow the `forge-test-writer` skill directive (the spawned agent will load it from its skill registry via description-matching).
+- The prompt MUST be self-contained (Task subagents inherit no shell state — no `$FORGE_SPEC_DIR`, no CWD assumptions):
+  - Absolute `spec_dir` path (pass via `--spec-dir` in every `forge` call, or `export FORGE_SPEC_DIR=<path>` at the top of the prompt).
+  - `entity_id`, `level` (unit for atoms; integration for flows; system for journeys), absolute `target_test_file`, absolute `target_audit_file`, `architecture` (block from plan).
+  - Explicit write-files instruction: *"Write the test file to `<target_test_file>` and the audit matrix to `<target_audit_file>`."*
 - Wait for completion. Subagent returns: `test_file`, `audit_file`, `tests_count`, `framework`.
 
 **Stage 2 — Red phase (D3):**
@@ -130,9 +134,12 @@ For each unit, spawn subagents sequentially (test-writer first, then implementer
 - Max 2 test-writer retries. On exhaustion: mark unit `failed` with reason "test-writer produced trivial tests"; block dependents; continue with rest.
 
 **Stage 3 — Implementation-writer:**
-- Spawn `forge-implementer` subagent with inputs:
-  - `entity_id`, `kind` (atom kind / flow / journey), `target_source_file`, `architecture`.
+- Spawn a Task subagent with `subagent_type: "general-purpose"`; the prompt instructs it to follow the `forge-implementer` skill. Same dispatch semantics as Stage 1 — self-contained prompt, no inherited shell state.
+- Inputs in the prompt:
+  - Absolute `spec_dir` path.
+  - `entity_id`, `kind` (atom kind / flow / journey), absolute `target_source_file`, `architecture`.
   - On retry, include `retry_feedback` (sanitized; see stage 4).
+  - Explicit write-files instruction.
 - Subagent's prompt does not mention tests. It never reads test files.
 - Wait for completion. Subagent returns: `source_files`, `lines_written`, `architecture_conflict` flag.
 
@@ -234,6 +241,8 @@ On `/forge-implement` invocation when `progress.yaml` exists:
 ## Gotchas
 
 - **Subagent isolation is structural.** Task tool spawns fresh sessions — subagent contexts cannot see each other. Do not try to pass large spec content in subagent prompts; they run `forge context` themselves.
+- **Skills ≠ Task subagent_types.** `forge-test-writer` and `forge-implementer` are skills, not Task `subagent_type` values. Always spawn with `subagent_type: "general-purpose"` and tell the agent *in the prompt* to follow the named skill. Calling `Task(subagent_type="forge-test-writer")` fails with "agent type not found".
+- **Subagents inherit no env.** `$FORGE_SPEC_DIR`, CWD, and shell aliases don't cross the Task boundary. Every subagent prompt must include the absolute `spec_dir` path and pass it explicitly (`--spec-dir <path>`) to every `forge` invocation, or set `FORGE_SPEC_DIR=<path>` inline before each call.
 - **Never tell the implementer tests exist.** Its prompt mentions only the target source file + spec id + architecture + (on retry) spec-linked hints. No test file paths, no test names, no coverage reports.
 - **Test-writer's audit file must have a row per spec element.** Verify the audit file before accepting the test-writer's output. If any spec element is missing from the audit matrix, re-spawn the test-writer with that gap called out.
 - **Architecture-conflict is final for the unit.** No retries. The human has to edit the architecture section of the plan and resume. The whole point of J3 is this short-circuits garbage-in-garbage-out loops.

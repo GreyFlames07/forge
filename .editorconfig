@@ -1,0 +1,26 @@
+root = true
+
+[*]
+indent_style = space
+indent_size = 4
+end_of_line = lf
+charset = utf-8
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Markdown preserves trailing whitespace (matters for ASCII banners, manual
+# line breaks via two trailing spaces, etc.)
+[*.md]
+trim_trailing_whitespace = false
+
+# Python follows PEP 8 four-space indent (already the default, here for clarity)
+[*.py]
+indent_size = 4
+
+# YAML is 2-space by convention
+[*.{yaml,yml}]
+indent_size = 2
+
+# Shell scripts
+[*.sh]
+indent_size = 4

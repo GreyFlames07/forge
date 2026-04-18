@@ -238,7 +238,7 @@ Removes all global skill symlinks and the `forge` CLI binary. Does not touch pro
 
 ## License
 
-See `LICENSE`. If none is present, the default is "all rights reserved" — add one (MIT is a reasonable default for dev tools) before distributing.
+MIT — see [`LICENSE`](LICENSE).
 
 ---
 

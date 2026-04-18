@@ -10,9 +10,13 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 
 - `forge-implement` SKILL.md: clarified that `forge-test-writer` and `forge-implementer` are skills, not Task `subagent_type` values. Orchestrators must spawn `subagent_type: "general-purpose"` and invoke the skill by name in the prompt. Also documents that subagents inherit no env (no `$FORGE_SPEC_DIR`, no CWD) — prompts must pass the absolute spec-dir path explicitly.
+- `FORGE_SPEC_DIR` export in README quick-start and `forge init` output now wraps the path in double quotes so it is valid for directories containing spaces.
 
 ### Added
 
+- `forge-armour`, a post-`forge-audit` security hardening skill that captures the project trust model, runs an 8-pass security review, proposes project/module/atom-level spec hardening, and only writes approved changes.
+- `forge-armour` templates for `security-profile.md`, `armour-YYYY-MM-DD.md`, and `armour-history.md`.
+- Framework documentation for `forge-armour` under `docs/skills/forge-armour/framework.md`.
 - GitHub Actions CI workflow running `pytest` on push and pull request.
 - `CONTRIBUTING.md` with branching strategy, Conventional Commits guide, and release process.
 - `CODEOWNERS` mapping the repository to `@GreyFlames07` for review enforcement.
@@ -22,6 +26,7 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- README, install flow, and `forge init` output now include `forge-armour` as the recommended post-audit security hardening pass before implementation.
 - README rewritten in forge visual style with ASCII banner, pipeline diagram, and tables.
 - Branch protection enabled on `main`: requires pull request, code-owner review, linear history. Admin bypass retained for solo-maintainer flows.
 

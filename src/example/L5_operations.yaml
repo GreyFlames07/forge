@@ -33,3 +33,65 @@ event_semantics:
   ordering:            fifo_per_key
   default_parallelism: 10
   ordering_key_field:  customer_id
+
+observability:
+  stack: prometheus-alertmanager-grafana
+  defaults:
+    latency_p99_ms:       500
+    error_budget_percent: 1.0
+    trace_sample_rate:    0.1
+  modules:
+    PAY:
+      sla:
+        latency_p99_ms:       200
+        error_budget_percent: 0.5
+      metrics:
+        - name:    pay_requests_total
+          type:    counter
+          labels:  [atom, status, currency]
+        - name:    pay_latency_seconds
+          type:    histogram
+          buckets: [0.05, 0.1, 0.2, 0.5, 1.0]
+      traces:
+        sample_rate: 0.5
+      alerts:
+        - name:     pay_high_error_rate
+          expr:     'rate(pay_requests_total{status="error"}[5m]) / rate(pay_requests_total[5m]) > 0.005'
+          severity: critical
+          for:      5m
+          annotations:
+            summary: "PAY module error rate exceeds 0.5% budget"
+            runbook: "https://runbooks.internal/pay-error-rate"
+        - name:     pay_high_latency
+          expr:     'histogram_quantile(0.99, rate(pay_latency_seconds_bucket[5m])) > 0.2'
+          severity: warning
+          for:      10m
+          annotations:
+            summary: "PAY p99 latency exceeds 200ms SLA"
+      atom_overrides:
+        atm.pay.charge_card:
+          sla:
+            latency_p99_ms:       100
+            error_budget_percent: 0.1
+          traces:
+            sample_rate: 1.0
+    USR:
+      sla:
+        latency_p99_ms:       300
+        error_budget_percent: 1.0
+      metrics:
+        - name:    usr_signups_total
+          type:    counter
+          labels:  [status, method]
+        - name:    usr_latency_seconds
+          type:    histogram
+          buckets: [0.1, 0.25, 0.5, 1.0, 2.5]
+      traces:
+        sample_rate: 0.1
+      alerts:
+        - name:     usr_signup_failure_spike
+          expr:     'rate(usr_signups_total{status="error"}[10m]) > 0.1'
+          severity: warning
+          for:      5m
+          annotations:
+            summary: "USR signup failure rate elevated"

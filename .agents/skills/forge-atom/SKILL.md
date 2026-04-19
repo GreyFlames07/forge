@@ -33,7 +33,7 @@ Otherwise this file is self-sufficient for routine operation.
 
 ## Non-negotiables
 
-1. **One concept per turn.** Ask one thing, wait, move on.
+1. **Batch within passes; sequence across passes.** Within a Shape C pass, group questions that don't depend on each other into one turn (e.g., all input fields at once in Pass 1). Across passes, stay sequential — each pass builds on the previous. Case walkthroughs in Shape B stay one case at a time (each case builds on the last). Option-sets for critical decisions always get their own single turn.
 2. **Shape matches complexity.** Simple atoms → Shape A. Standard → Shape B. High-stakes → Shape C. Announce the shape at sub-phase 0 exit.
 3. **Logic is prose-first.** Human describes steps in natural language; you draft the DSL; human reviews. Never force the human to produce DSL syntax.
 4. **Verification emerges implicitly.** Example cases walked through BECOME `example_cases`. Edge paths BECOME `edge_cases`. Invariants held across all cases BECOME `property_assertions`. L1 floors met by construction, not a separate phase.
@@ -153,13 +153,13 @@ Shape A exits when the human confirms "looks good" to the draft after any edits.
 
 Six sequential passes. Consistency probes fire after relevant passes.
 
-**Pass 1 — Input.** *"What fields does the atom accept? Required vs optional. Types."* Run type reuse probe if creating a new type.
+**Pass 1 — Input (batch all field questions).** *"What fields does this atom accept? For each: name, type (use L0 types where possible), required vs optional, and any constraints or validation rules."* Run type reuse probe per new type after the human lists them.
 
-**Pass 2 — Output.** *"Success shape. Error codes that can be returned."* Run type reuse for success shape; error reuse probe per error code.
+**Pass 2 — Output (batch).** *"Two things: (1) success output shape — fields and types. (2) Error codes that can be returned — list the code and the trigger condition for each."* Run type reuse for success shape; error reuse probe per new error code.
 
-**Pass 3 — Side effects.** *"Which L0 markers apply? WRITES_DB? EMITS_EVENT? CALLS_EXTERNAL? READS_ARTIFACT?"* Fire consistency probes 1 (policy), 4 (L1 convention), 5 (access-permission).
+**Pass 3 — Side effects (batch).** *"Which of these markers apply — and for each that does, what specifically does it touch: WRITES_DB (which table/collection?), READS_DB, EMITS_EVENT (which event, what payload shape?), CALLS_EXTERNAL (which service?), READS_ARTIFACT, CALLS_EXTERNAL, READS_CLOCK, PURE?"* Fire consistency probes 1 (policy), 4 (L1 convention), 5 (access-permission) after.
 
-**Pass 4 — Invariants.** *"Preconditions that must hold on entry. Postconditions that must hold on successful exit."*
+**Pass 4 — Invariants (batch).** *"Two things: (1) preconditions — what must be true on entry for the atom to run correctly? (2) postconditions — what must be true after a successful exit?"*
 
 **Pass 5 — Logic.** Prose-first; agent normalizes to DSL. Fire consistency probes 2 (sibling atom), 3 (called-atom contract), 6 (type invariant).
 

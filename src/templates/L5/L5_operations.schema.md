@@ -11,12 +11,13 @@
 ## Top-level structure
 
 ```yaml
-deployment:       { ... }   # L5.1
-rate_limiting:    { ... }   # L5.2
-event_semantics:  { ... }   # L5.3
+deployment:       { ... }   # L5.1 — mandatory
+rate_limiting:    { ... }   # L5.2 — mandatory
+event_semantics:  { ... }   # L5.3 — mandatory
+observability:    { ... }   # L5.4 — optional
 ```
 
-All three sections mandatory.
+Sections L5.1–L5.3 are mandatory. `observability` is optional — omit until the stack is decided.
 
 ---
 
@@ -79,9 +80,56 @@ Project-wide defaults for event-driven flow. `delivery` sets the default guarant
 
 ---
 
+## L5.4 — observability
+
+```yaml
+observability:                              # optional
+  stack: <string>                           # observability backend, e.g., prometheus-alertmanager-grafana
+  defaults:
+    latency_p99_ms:       <integer>         # project-wide SLA floor; module SLAs narrow from this
+    error_budget_percent: <number>          # % of requests allowed to fail per rolling window
+    trace_sample_rate:    <number>          # 0.0–1.0
+  modules:
+    <MODULE_ID>:
+      sla:
+        latency_p99_ms:       <integer>     # overrides defaults.latency_p99_ms for this module
+        error_budget_percent: <number>      # overrides defaults.error_budget_percent
+      metrics:
+        - name:    <string>                 # Prometheus metric name, snake_case
+          type:    counter | gauge | histogram | summary
+          labels:  [<string>, ...]
+          buckets: [<number>, ...]          # histogram only; ascending positive numbers
+      traces:
+        sample_rate: <number>              # overrides defaults.trace_sample_rate for this module
+      alerts:
+        - name:     <string>
+          expr:     <string>               # PromQL expression
+          severity: critical | warning | info
+          for:      <duration>             # e.g., 5m, 10m
+          annotations:
+            summary: <string>
+            runbook: <string>              # optional URL
+      atom_overrides:
+        <atom_id>:                         # must be an atom owned by this module
+          sla:
+            latency_p99_ms:       <integer>
+            error_budget_percent: <number>
+          traces:
+            sample_rate: <number>
+```
+
+The entire `observability` section is optional. When present:
+- `stack` is required — identifies the observability backend so `forge-observe` can generate the right config format.
+- `defaults` provides project-wide baselines; module-level values narrow them (a module SLA may not be looser than the project default).
+- `modules` keys must match module IDs declared in L2.
+- `atom_overrides` keys must match atom IDs declared in L3 whose `owner_module` matches the containing module key.
+- `metrics`, `traces`, `alerts`, and `atom_overrides` are all independently optional within a module block.
+
+---
+
 ## Validation rules
 
-1. All three sections present.
+1. All three mandatory sections present (deployment, rate_limiting, event_semantics).
 2. `deployment.environments` is non-empty.
 3. If `deployment.default_strategy == canary`, `canary_weights` is present, non-empty, monotonically non-decreasing, and ends at `100`.
 4. `deployment.default_strategy` is one of `rolling`, `canary`, `blue_green`, `recreate`.
@@ -93,3 +141,12 @@ Project-wide defaults for event-driven flow. `delivery` sets the default guarant
 10. If `event_semantics.ordering == fifo_per_key`, `ordering_key_field` is non-empty.
 11. `event_semantics.default_parallelism` is a positive integer.
 12. `deployment.platform` is optional. When present, each sub-field (`cloud`, `primary_region`, `additional_regions`, `default_compute`) is individually optional. Values are non-empty strings when included. No fixed enum for any sub-field.
+13. If `observability` is present, `observability.stack` is a non-empty string.
+14. `observability.defaults.latency_p99_ms`, when present, is a positive integer.
+15. `observability.defaults.error_budget_percent`, when present, is a number in the range (0, 100].
+16. `observability.defaults.trace_sample_rate`, when present, is a number in [0.0, 1.0].
+17. Each key in `observability.modules` must match a module ID declared in L2.
+18. Each `metrics[*].type` is one of `counter`, `gauge`, `histogram`, `summary`.
+19. `histogram` metrics must declare `buckets` — a non-empty list of ascending positive numbers.
+20. Alert `severity` is one of `critical`, `warning`, `info`.
+21. Each key in `atom_overrides` must match an atom ID declared in L3 whose `owner_module` matches the containing module key.

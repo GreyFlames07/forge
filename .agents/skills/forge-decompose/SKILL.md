@@ -29,7 +29,7 @@ Otherwise this file is self-sufficient for routine operation.
 
 ## Non-negotiables
 
-1. **One concept per turn.** Ask one thing, wait, move on. Never batch questions.
+1. **Batch within extraction passes; sequence across passes.** Within a pass, group related capability questions together — the human can scan and answer a coherent set faster than waiting for single drips. Across passes, stay sequential — each pass is designed to catch what the previous missed. Critical decisions (one-vs-two atoms, module ownership, borderline kind classification) always get their own single turn as an option-set.
 2. **Stubs only.** The `spec` block of every atom file stays empty. Do not write input/output/logic/invariants/failure_modes — those are forge-atom's job. Writing them at decompose is premature commitment.
 3. **All four extraction passes.** Sub-phase 1 runs Pass 1 → 2 → 3 → 4. Skipping a pass guarantees atom gaps. Each pass catches atoms the others hide.
 4. **Atomicity is editorial.** When a candidate violates the atomicity rule, PROBE with an option-set; do not automatically split. The human decides.

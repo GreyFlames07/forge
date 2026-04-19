@@ -14,6 +14,10 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added (post 0.1.0)
 
+- L5.4 `observability` block integrated into `L5_operations.yaml` (not a new file): per-module SLA defaults with per-atom overrides, Prometheus metric declarations (counter/gauge/histogram/summary), trace sample rates, PromQL alert rules with severity and evaluation window. Schema (validation rules 13–21), authoring guide (Section 4), and example corpus (`PAY` + `USR` modules) all updated.
+- `forge-validate` Phase 4: reads `observability` from L5, asserts live probe latencies against resolved SLA, checks `/metrics` endpoint for declared metric presence, and validates alert PromQL syntax. New `--skip-observability` flag. Report summary table gains an Observability row.
+- Batching refactor across all interviewing skills: `forge-discover`, `forge-atom`, and `forge-decompose` non-negotiable #1 updated from "one concept per turn" to "batch within sub-phases, sequence across them". Sub-phase question sequences reorganised into explicit batches where questions are independent of each other.
+
 - `forge-validate` skill: post-implementation validator that checks source code against L3 spec contracts (static analysis), maps test suite results back to spec elements (test mapping), and fires synthetic live probes against the running system with exact contract assertion, LLM-reasoned behavioral assertion, and log-verified side effect checking. Produces `validation-report.md` in the spec dir.
 - `docs/skills/forge-validate/framework.md`: full mental model covering phase mechanics, probe construction, exact vs behavioral assertion, side effect verification, and CI usage.
 

@@ -30,7 +30,7 @@ Otherwise, this file is self-sufficient for routine operation.
 
 ## Non-negotiables
 
-1. **One concept per turn.** Never batch questions. Ask one thing, wait for the answer, move on. Humans answer the easiest of a batched set and lose the rest.
+1. **Batch within sub-phases; sequence across them.** Group questions that don't depend on each other into one turn — the human answers all at once rather than waiting through one-at-a-time prompts. Questions where answer B requires answer A stay sequential. Critical decisions (cloud, compute, persistence, event semantics, deployment strategy, auth posture) always get their own turn as an option-set — never batch a cascading choice with a routine one.
 2. **Extractive, not generative.** Do NOT invent modules, capabilities, or features. Do NOT say "you probably need a User module" before the human has named user-related capabilities. Surface what the human already knows.
 3. **Adapt every question to the domain model.** See `## The domain model (short-term memory)` below. Generic questions get generic answers; domain-grounded questions get spec-worthy ones.
 4. **Confirm by restating before writing.** "So: when X happens, the system does Y. Right?" — then write to disk. Silence is not agreement.
@@ -87,12 +87,18 @@ Each sub-phase below has: seed questions (generic templates you start from), ada
 
 **Before any questions:** copy `assets/discovery-notes.template.md` to `<spec-dir>/discovery-notes.md` (or whatever root the human is working from). All sub-phase 0 output writes into this file.
 
-**Seed questions (ask one at a time, in roughly this order, adapting each):**
+**Seed questions — batch into three turns:**
+
+**Turn 1 — orientation (none depend on each other):**
 1. "In one or two sentences, what is this?"
 2. "What's the pain? Tell me about a specific recent time it happened."
 3. "Who specifically feels this pain? How often?"
+
+**Turn 2 — solution (after you know what and who):**
 4. "How do they solve it today?"
 5. "What's meaningfully better about your solution? Be specific — 'faster' doesn't count."
+
+**Turn 3 — shape and scope (independent of each other):**
 6. "Is this a tool someone opens daily, a background service, a one-time workflow, or a platform?"
 7. "Six months in, how do you know it worked?"
 8. "What are you explicitly NOT building? Who is NOT a target user?"
@@ -120,7 +126,7 @@ Each sub-phase below has: seed questions (generic templates you start from), ada
 
 **Purpose.** Ground the thesis in a concrete user session and extract the capability inventory. Still no structured YAML — only `discovery-notes.md`.
 
-**Seed questions:**
+**Seed questions — batch all four (none depend on each other):**
 1. "Walk me through one typical [target user] session start to finish."
 2. "What kinds of changes will this system undergo every week? Every quarter? Every year?"
 3. "If this system had one critical failure mode that must never happen, what would it be?"
@@ -251,11 +257,13 @@ Also update `discovery-notes.md` with a `Module map` ASCII diagram showing modul
 
 **Purpose.** Populate `L0_registry.yaml` with the project-wide skeleton: `naming_ledger`, `error_categories`, `external_schemas`, `side_effect_markers`. Types, errors, and constants are left empty — they emerge from atoms in later skills.
 
-**Seed questions (mostly confirmations of defaults — CRITICAL decisions flagged below):**
+**Seed questions — batch all four (independent confirmations):**
 1. "Default atom ID regex is `^atm\.[a-z]{3}\.[a-z_]+$` — fit, or custom?" (iterate over the 10 naming_ledger classes)
 2. "Standard error categories: VAL, SYS, BUS, SEC, NET, DAT, CFG, EXT — any domain-specific ones to add?"
 3. "From sub-phase 1, I have these external integrations: [list]. Confirm, and give me the auth method for each (bearer / api_key / oauth2 / hmac / mtls / none)."
 4. "Default side-effect markers (PURE, READS_DB, WRITES_DB, EMITS_EVENT, CALLS_EXTERNAL, READS_ARTIFACT, ...) — any custom markers your domain needs?"
+
+Ask all four at once. Process answers individually — if any trigger follow-up (e.g., a new error category needs a name), handle that before moving to L1.
 
 **Adaptation rules:**
 - External integrations list comes from sub-phase 1 — don't re-ask, only confirm and fill in auth methods.
@@ -314,12 +322,28 @@ Also update `discovery-notes.md` with a `Module map` ASCII diagram showing modul
 - **Deployment strategy** — rolling / canary / blue-green / recreate; present options unless already clear.
 - **Event delivery semantics** — at-most-once / at-least-once / exactly-once; present options (especially exactly-once: usually only justified when duplicate delivery has serious consequences — money movement, inventory changes, safety-critical actions).
 
-**Routine decisions (propose default):**
+**Routine decisions — batch together (propose defaults for all, human adjusts):**
 - Environments list (default `[dev, staging, prod]`)
 - Rate limits per auth method
 - Event ordering (fifo_per_key vs unordered) and ordering key field
 - Canary weights (if canary chosen)
 - Rollback automatic triggers
+- Observability stack (default `prometheus-alertmanager-grafana`; ask only if not PAG)
+- Observability defaults: latency_p99_ms (propose 500ms), error_budget_percent (propose 1.0), trace_sample_rate (propose 0.1)
+- Per-module SLA targets: for each module, propose a latency budget derived from its description and the overall system shape (e.g., payment-critical modules get 200ms; background workers get 1000ms). Present as a table: "Here are proposed per-module SLAs — adjust any."
+
+Present all routine decisions in one turn as a proposed block. Example:
+
+> *"Routine platform decisions — proposed defaults (adjust any):*
+> *- Environments: [dev, staging, prod]*
+> *- Rate limits: 60 rpm default, 600 bearer, 1200 api_key, per_actor scope*
+> *- Event ordering: fifo_per_key on customer_id*
+> *- Canary weights: [5, 25, 50, 100]*
+> *- Rollback: error_rate > 5% for 5min, p99 > 2x baseline for 10min*
+> *- Observability: prometheus-alertmanager-grafana*
+> *- SLA defaults: p99 500ms, error budget 1%, trace rate 10%*
+> *- Per-module SLAs: PAY 200ms / 0.5%, USR 300ms / 1%, [others 500ms / 1%]*
+> *Confirm or adjust each."*
 
 **Adaptation rules:**
 - If sub-phase 0 pain involved data consistency or transactional integrity → lean toward at-least-once or exactly-once; flag this bias when presenting options.
@@ -328,7 +352,7 @@ Also update `discovery-notes.md` with a `Module map` ASCII diagram showing modul
 - If external integrations in sub-phase 3 have strict rate limits → propose conservative outbound rate limits.
 - **After cloud and compute are decided**, revisit every `L2_modules/*.yaml` drafted in sub-phase 2 without `managed_services`. Ask: "For module X, which managed services does it use now that we're on [cloud]?" Update those module files.
 
-**Write** `<spec-dir>/L5_operations.yaml` with all three sections. Include `deployment.platform` only if cloud/compute were established.
+**Write** `<spec-dir>/L5_operations.yaml` with all four sections. Include `deployment.platform` only if cloud/compute were established. Include `observability` with at minimum `stack` and `defaults`; populate per-module blocks for any module whose SLA was discussed. Leave `metrics`, `alerts`, and `atom_overrides` empty at discover — those are filled progressively during `forge-atom`.
 
 **Exit when:** File parses. All L2 modules have populated `managed_services` (no deferred entries in `open_questions`).
 

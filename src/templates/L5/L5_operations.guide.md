@@ -111,7 +111,7 @@ Distinct from L1.1 observability: L1.1 declares the _logging frame_ for atoms (l
 ### Fields
 
 **`stack`**
-- Free-form string identifying the observability backend. Use `prometheus-alertmanager-grafana` for the open-source PAG stack. Other valid values: `datadog`, `grafana-cloud`, `newrelic`, `opentelemetry` (stack-agnostic collector). `forge-observe` uses this to pick the right output format when generating config files.
+- Free-form string identifying the observability backend. Use `prometheus-alertmanager-grafana` for the open-source PAG stack. Other valid values: `datadog`, `grafana-cloud`, `newrelic`, `opentelemetry` (stack-agnostic collector). `forge-validate` Phase 4 reads this field; the planned `forge-observe` skill will use it to pick the right output format when generating config files.
 
 **`defaults`**
 - Project-wide baselines all modules inherit unless they declare tighter values.
@@ -122,7 +122,7 @@ Distinct from L1.1 observability: L1.1 declares the _logging frame_ for atoms (l
 **`modules.<MODULE_ID>`**
 - Per-module observability block. Keys are the 3-letter module IDs from L2.
 - `sla` — tighten (never loosen) the project defaults for this module.
-- `metrics` — Prometheus metrics this module should emit. Declare intent here; `forge-observe` generates the recording rules and instrumentation guide.
+- `metrics` — Prometheus metrics this module should emit. Declare intent here; `forge-validate` Phase 4 checks the running system emits them. The planned `forge-observe` skill will generate recording rules and an instrumentation guide from this block.
   - `type: counter` — monotonically increasing (requests, errors, events emitted).
   - `type: gauge` — arbitrary up/down value (queue depth, active connections).
   - `type: histogram` — distribution with configurable buckets. Required for latency. Must declare `buckets`.
@@ -135,13 +135,14 @@ Distinct from L1.1 observability: L1.1 declares the _logging frame_ for atoms (l
 
 Fill `stack` and `defaults` during `forge-discover` sub-phase 5 (platform posture). Fill module-level blocks progressively as modules are decomposed — you don't need to know all metrics upfront. Fill `atom_overrides` at `forge-atom` time when an atom's contract surface makes the per-atom SLA obvious (e.g., a card-charge atom is obviously tighter than a balance-read atom).
 
-### Interaction with forge-validate and forge-observe
+### Interaction with forge-validate (and the planned forge-observe)
 
 `forge-validate` Phase 4 reads this section to:
 - Check live probe latencies against the resolved SLA (module default → atom override wins).
 - Scrape `/metrics` if exposed and verify declared metric names and labels exist.
+- Validate alert PromQL syntax statically.
 
-`forge-observe` reads the full section to generate:
+The planned `forge-observe` skill (not yet built) will read the full section to generate:
 - `observability/prometheus/rules.yaml` — recording + alert rules.
 - `observability/alertmanager/alerts.yaml` — routing and grouping config.
 - `observability/grafana/dashboard.json` — per-module dashboard scaffold.

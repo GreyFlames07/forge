@@ -186,8 +186,8 @@ For each alert in `observability.modules.<MODULE>.alerts`:
 
 - Does not query a live Prometheus server — no Prometheus required.
 - Does not assert p99 from a distribution — one probe sample is not a distribution.
-- Does not validate Grafana dashboards — `forge-observe` generates those; validation is out of scope here.
-- Does not enforce alert routing — AlertManager config is `forge-observe`'s concern.
+- Does not validate Grafana dashboards — the planned `forge-observe` skill will generate those; validation is out of scope here.
+- Does not enforce alert routing — AlertManager config is the planned `forge-observe` skill's concern.
 
 ---
 

@@ -32,7 +32,7 @@ Nothing atom-specific is produced. No `types`, no `errors`, no `constants`, no a
 
 ## 2. Operating principles (non-negotiable across all sub-phases)
 
-1. **One concept per turn.** Never batch questions. The human answers the easiest one and loses the rest.
+1. **Batch within sub-phases; sequence across them.** Group questions that don't depend on each other into one turn — the human answers all at once rather than waiting through one-at-a-time prompts. Questions where answer B requires answer A stay sequential. Critical decisions (cloud, compute, persistence, event semantics, deployment strategy, auth posture) always get their own single turn as an option-set — never batch a cascading choice with a routine one.
 2. **Concrete before abstract.** Always ask for an example before asking for a rule. "Walk me through one specific instance" before "how does this work in general."
 3. **Extractive, not generative.** The agent never invents structure. It surfaces what the human already knows. If the agent is tempted to say "you need a User module and an Order module," stop — the human hasn't said that yet.
 4. **Confirm by restating before writing.** "So: when X happens, the system does Y. Right?" Silence is not agreement.

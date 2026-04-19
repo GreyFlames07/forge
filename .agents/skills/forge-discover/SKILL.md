@@ -328,7 +328,7 @@ Ask all four at once. Process answers individually — if any trigger follow-up 
 - Event ordering (fifo_per_key vs unordered) and ordering key field
 - Canary weights (if canary chosen)
 - Rollback automatic triggers
-- Observability stack (default `prometheus-alertmanager-grafana`; ask only if not PAG)
+- Observability stack (no default — ask: *"What observability backend does this project use?"*)
 - Observability defaults: latency_p99_ms (propose 500ms), error_budget_percent (propose 1.0), trace_sample_rate (propose 0.1)
 - Per-module SLA targets: for each module, propose a latency budget derived from its description and the overall system shape (e.g., payment-critical modules get 200ms; background workers get 1000ms). Present as a table: "Here are proposed per-module SLAs — adjust any."
 
@@ -340,7 +340,7 @@ Present all routine decisions in one turn as a proposed block. Example:
 > *- Event ordering: fifo_per_key on customer_id*
 > *- Canary weights: [5, 25, 50, 100]*
 > *- Rollback: error_rate > 5% for 5min, p99 > 2x baseline for 10min*
-> *- Observability: prometheus-alertmanager-grafana*
+> *- Observability stack: [answer from human]*
 > *- SLA defaults: p99 500ms, error budget 1%, trace rate 10%*
 > *- Per-module SLAs: PAY 200ms / 0.5%, USR 300ms / 1%, [others 500ms / 1%]*
 > *Confirm or adjust each."*

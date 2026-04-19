@@ -35,7 +35,7 @@ event_semantics:
   ordering_key_field:  customer_id
 
 observability:
-  stack: prometheus-alertmanager-grafana
+  stack: datadog
   defaults:
     latency_p99_ms:       500
     error_budget_percent: 1.0

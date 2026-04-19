@@ -59,7 +59,7 @@ def test_init_creates_spec_structure_and_symlinks():
         assert agents.is_dir()
 
         for skill in ("forge-discover", "forge-decompose", "forge-atom",
-                      "forge-audit", "forge-implement",
+                      "forge-audit", "forge-armour", "forge-implement",
                       "forge-test-writer", "forge-implementer"):
             assert (claude / skill).is_symlink(), f"missing claude link for {skill}"
             assert (codex  / skill).is_symlink(), f"missing codex link for {skill}"

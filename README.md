@@ -119,6 +119,7 @@ forge init
         "I want to build a tool that does X"
         "Decompose the PAY module into atoms"
         "Audit the specs before implementation"
+        "Harden the specs for security before implementation"
 ```
 
 Open an agent session in that directory and describe your idea in natural language. The relevant skill activates; the interview begins.
@@ -150,7 +151,7 @@ Full CLI guide: [`docs/cli-guide.md`](docs/cli-guide.md).
 | **forge-atom** | Contract specifier | One atom stub | Complete L3 spec + L0 cascades + module completions |
 | **forge-audit** | Challenger / reviewer | Completed specs | Severity-ranked findings with inline edits; seven audit passes |
 | **forge-armour** | Security challenger | Audited specs | Security hardening pass, trust-model capture, approved project/module/atom security edits |
-| **forge-implement** | Orchestrator | Audited spec corpus | Code + tests, dep-graph parallel, test-before-impl isolation |
+| **forge-implement** | Orchestrator | Audited spec corpus | Code + tests, dep-graph parallel, test-before-impl isolation; recommends `forge-armour` before implementation |
 | **forge-test-writer** | Subagent | One entity + level | Unit/integration/system tests with audit doc |
 | **forge-implementer** | Subagent | One entity | Implementation code, blind to tests |
 

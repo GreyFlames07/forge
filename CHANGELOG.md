@@ -12,6 +12,11 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `forge-implement` SKILL.md: clarified that `forge-test-writer` and `forge-implementer` are skills, not Task `subagent_type` values. Orchestrators must spawn `subagent_type: "general-purpose"` and invoke the skill by name in the prompt. Also documents that subagents inherit no env (no `$FORGE_SPEC_DIR`, no CWD) — prompts must pass the absolute spec-dir path explicitly.
 - `FORGE_SPEC_DIR` export in README quick-start and `forge init` output now wraps the path in double quotes so it is valid for directories containing spaces.
 
+### Added (post 0.1.0)
+
+- `forge-validate` skill: post-implementation validator that checks source code against L3 spec contracts (static analysis), maps test suite results back to spec elements (test mapping), and fires synthetic live probes against the running system with exact contract assertion, LLM-reasoned behavioral assertion, and log-verified side effect checking. Produces `validation-report.md` in the spec dir.
+- `docs/skills/forge-validate/framework.md`: full mental model covering phase mechanics, probe construction, exact vs behavioral assertion, side effect verification, and CI usage.
+
 ### Added
 
 - `forge-armour`, a post-`forge-audit` security hardening skill that captures the project trust model, runs an 8-pass security review, proposes project/module/atom-level spec hardening, and only writes approved changes.

@@ -22,7 +22,7 @@ SKILLS_SRC="${FORGE_ROOT}/.agents/skills"
 CLI_SRC="${FORGE_ROOT}/.venv/bin/forge"
 
 # The skills that ship with forge. Add new ones here as they're built.
-SKILLS=(forge-discover forge-decompose forge-atom forge-audit forge-armour forge-implement forge-test-writer forge-implementer)
+SKILLS=(forge-discover forge-decompose forge-atom forge-audit forge-armour forge-implement forge-test-writer forge-implementer forge-validate)
 
 # Global skill locations — link to all three to cover every compatible client:
 #   Claude Code          → ~/.claude/skills
@@ -179,10 +179,11 @@ verify_install() {
     say "       \"Audit the specs before we implement\"       → forge-audit"
     say "       \"Harden the specs for security\"             → forge-armour"
     say "       \"Implement the project\"                      → forge-implement"
+    say "       \"Validate the implementation against specs\"  → forge-validate"
     say
     say "  Claude Code also supports slash-command shortcuts:"
     say "       /forge-discover  /forge-decompose  /forge-atom"
-    say "       /forge-audit     /forge-armour  /forge-implement"
+    say "       /forge-audit     /forge-armour     /forge-implement  /forge-validate"
     say
     say "  forge-test-writer and forge-implementer are subagent skills —"
     say "  dispatched by forge-implement, not typically invoked by a human."

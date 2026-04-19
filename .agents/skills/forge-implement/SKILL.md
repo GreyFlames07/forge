@@ -6,6 +6,8 @@ description: >
   optionally git commits. Activates on phrases like "implement the
   project", "build the code", "let's implement", "run forge-implement",
   or after forge-audit completes cleanly with no open blocking findings.
+  Recommends a `forge-armour` pass before implementation when the project
+  has meaningful security exposure, but does not require it.
   Dispatches the forge-test-writer and forge-implementer skills via
   Task subagents (subagent_type: general-purpose; skill name invoked
   in the prompt) in parallel per the dependency graph, enforcing strict
@@ -87,7 +89,9 @@ Wait for confirmation.
 1. Check `<spec-dir>/audit-history.md` exists. If not: *"No audit history. Run `/forge-audit` first."* (Unless `--skip-audit-check`.)
 2. Compare most-recent audit timestamp to all spec file mtimes. If any spec is newer: *"Specs changed since last audit. Run `/forge-audit` (or use `--skip-audit-check`)."*
 3. Parse audit history for `status: open` findings at severity `blocking`. If any: *"`<K>` blocking findings open: `<list>`. Confirm proceed [y/N] or use `--force`."*
-4. Clean → proceed silently.
+4. If `armour-history.md` exists: summarize any open `blocking` armour findings and require `--force` or explicit confirmation to continue.
+5. If `armour-history.md` does not exist: recommend, but do not require, `/forge-armour` when the spec corpus contains sensitive data, external interfaces, authn/authz surfaces, multi-tenant behavior, or high-risk operations.
+6. Clean → proceed silently.
 
 ### Step 3 — Generate shared scaffolding
 

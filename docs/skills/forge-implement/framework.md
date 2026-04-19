@@ -1,6 +1,6 @@
 # forge-implement — Framework
 
-Mental model for `forge-implement`: the orchestration skill that takes an audited Forge spec corpus and drives implementation by delegating to subagents. It is **not** the SKILL.md; it is the source of truth from which the skill artifact is authored.
+Mental model for `forge-implement`: the orchestration skill that takes an audited Forge spec corpus and drives implementation by delegating to subagents. A prior `forge-armour` pass is recommended for security-exposed projects but not mandatory. This is **not** the SKILL.md; it is the source of truth from which the skill artifact is authored.
 
 Audiences:
 - An LLM / agent executing the orchestrator

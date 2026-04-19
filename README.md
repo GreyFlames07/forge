@@ -21,7 +21,7 @@ The agent drives the interview. The specs drive the code.
 
 ## What it is
 
-A six-layer YAML spec system, a Python CLI for context assembly, and **eight agent skills** that take a human from a vague product idea to working, audited, hardened, implementable code — with the agent asking questions and the human answering, not the reverse.
+A six-layer YAML spec system, a Python CLI for context assembly, and **nine agent skills** that take a human from a vague product idea to working, audited, hardened, validated code — with the agent asking questions and the human answering, not the reverse.
 
 Built on the premise that **people explain systems well under questioning but poorly when cold-prompted**. forge inverts the default "human prompts agent → agent implements" loop into "agent interviews human → structured spec emerges → agent implements from spec".
 
@@ -46,6 +46,8 @@ Runs in **Claude Code**, **OpenAI Codex CLI**, and any **agentskills.io-compatib
     ↓
   forge-implement   →  code + tests     (parallel subagents, test-before-impl isolation)
     ↓
+  forge-validate    →  validation report (static analysis, test mapping, live interaction probes)
+    ↓
   working system
 ```
 
@@ -64,7 +66,7 @@ uv venv --python 3.13 .venv && uv pip install -e . pytest
 ./scripts/install-skills.sh install
 ```
 
-This wires the `forge` binary into `~/.local/bin/` and symlinks the eight skills into `~/.claude/skills/`, `~/.codex/skills/`, and `~/.agents/skills/` — discoverable by every supported client.
+This wires the `forge` binary into `~/.local/bin/` and symlinks the nine skills into `~/.claude/skills/`, `~/.codex/skills/`, and `~/.agents/skills/` — discoverable by every supported client.
 
 ### Verify
 
@@ -142,7 +144,7 @@ Full CLI guide: [`docs/cli-guide.md`](docs/cli-guide.md).
 
 ---
 
-## The eight skills
+## The nine skills
 
 | Skill | Role | Input | Output |
 |---|---|---|---|
@@ -151,7 +153,8 @@ Full CLI guide: [`docs/cli-guide.md`](docs/cli-guide.md).
 | **forge-atom** | Contract specifier | One atom stub | Complete L3 spec + L0 cascades + module completions |
 | **forge-audit** | Challenger / reviewer | Completed specs | Severity-ranked findings with inline edits; seven audit passes |
 | **forge-armour** | Security challenger | Audited specs | Security hardening pass, trust-model capture, approved project/module/atom security edits |
-| **forge-implement** | Orchestrator | Audited spec corpus | Code + tests, dep-graph parallel, test-before-impl isolation; recommends `forge-armour` before implementation |
+| **forge-implement** | Orchestrator | Audited spec corpus | Code + tests, dep-graph parallel, test-before-impl isolation |
+| **forge-validate** | Post-implementation validator | Implemented system + spec corpus | Validation report: static analysis, test-to-spec mapping, live interaction probes |
 | **forge-test-writer** | Subagent | One entity + level | Unit/integration/system tests with audit doc |
 | **forge-implementer** | Subagent | One entity | Implementation code, blind to tests |
 
@@ -187,13 +190,14 @@ forge/
 │   ├── cli/              Python CLI package (the forge command)
 │   ├── templates/        L0-L5 schema templates (symlinked into projects by forge init)
 │   └── example/          Working example spec corpus (used by tests)
-├── .agents/skills/       The 8 forge skills (installed into agent clients)
+├── .agents/skills/       The 9 forge skills (installed into agent clients)
 │   ├── forge-discover/
 │   ├── forge-decompose/
 │   ├── forge-atom/
 │   ├── forge-audit/
 │   ├── forge-armour/
 │   ├── forge-implement/
+│   ├── forge-validate/
 │   ├── forge-test-writer/
 │   └── forge-implementer/
 ├── docs/

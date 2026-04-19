@@ -175,7 +175,7 @@ Six layers, each a source-of-truth YAML file set.
 | **L2 Architecture** | Modules — ownership, tech stacks, persistence, permissions, policies |
 | **L3 Behavior** | Atoms (smallest spec unit) + artifacts (non-executing deps) |
 | **L4 Composition** | Flows (saga orchestrations) + journeys (user-facing paths) |
-| **L5 Operations** | Runtime — platform, deployment, rate limiting, event semantics |
+| **L5 Operations** | Runtime — platform, deployment, rate limiting, event semantics, observability (SLA targets, metrics, alerts) |
 
 Schema reference: [`docs/framework-overview.md`](docs/framework-overview.md).
 Full schema templates: [`src/templates/`](src/templates/).

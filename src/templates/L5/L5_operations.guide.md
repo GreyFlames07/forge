@@ -100,6 +100,54 @@ Event-driven flows have three decisions that shape correctness: delivery guarant
 
 ---
 
+## Section 4: observability
+
+### Purpose
+
+Declare where metrics, traces, and alerts live and what SLA each module is held to. L5 is the right home because observability posture (backend choice, retention, cardinality, sampling strategy) is owned by the same ops/platform team that owns deployment and rate limiting — it evolves with platform tooling, not with individual atom logic.
+
+Distinct from L1.1 observability: L1.1 declares the _logging frame_ for atoms (log templates, levels, trace span names). L5.4 declares _platform-level targets_ (which stack, what SLAs, what metrics to emit, what alerts to fire). Different owners, different change cadence.
+
+### Fields
+
+**`stack`**
+- Free-form string identifying the observability backend. Use `prometheus-alertmanager-grafana` for the open-source PAG stack. Other valid values: `datadog`, `grafana-cloud`, `newrelic`, `opentelemetry` (stack-agnostic collector). `forge-observe` uses this to pick the right output format when generating config files.
+
+**`defaults`**
+- Project-wide baselines all modules inherit unless they declare tighter values.
+- `latency_p99_ms` — project-wide p99 latency budget in milliseconds. A module SLA may not be looser than this.
+- `error_budget_percent` — percentage of requests allowed to fail per rolling evaluation window. Typical: `1.0` for internal services, `0.5` for payment-critical paths.
+- `trace_sample_rate` — fraction of requests to trace end-to-end. `0.1` (10%) is a reasonable default; high-value atoms override to `1.0`.
+
+**`modules.<MODULE_ID>`**
+- Per-module observability block. Keys are the 3-letter module IDs from L2.
+- `sla` — tighten (never loosen) the project defaults for this module.
+- `metrics` — Prometheus metrics this module should emit. Declare intent here; `forge-observe` generates the recording rules and instrumentation guide.
+  - `type: counter` — monotonically increasing (requests, errors, events emitted).
+  - `type: gauge` — arbitrary up/down value (queue depth, active connections).
+  - `type: histogram` — distribution with configurable buckets. Required for latency. Must declare `buckets`.
+  - `type: summary` — pre-computed percentiles. Use histogram unless the client library forces summary.
+- `traces.sample_rate` — override the default trace sample rate for this module.
+- `alerts` — PromQL-driven alert rules. Each alert needs a `name`, `expr` (valid PromQL), `severity`, `for` (evaluation window), and at minimum a `summary` annotation. `runbook` is optional but strongly recommended for `critical` alerts.
+- `atom_overrides` — fine-grain SLA or trace rate at the atom level. Only override when the atom has a materially different SLA than the rest of the module (e.g., the charge path vs a metadata read in the same PAY module).
+
+### When to fill this in
+
+Fill `stack` and `defaults` during `forge-discover` sub-phase 5 (platform posture). Fill module-level blocks progressively as modules are decomposed — you don't need to know all metrics upfront. Fill `atom_overrides` at `forge-atom` time when an atom's contract surface makes the per-atom SLA obvious (e.g., a card-charge atom is obviously tighter than a balance-read atom).
+
+### Interaction with forge-validate and forge-observe
+
+`forge-validate` Phase 4 reads this section to:
+- Check live probe latencies against the resolved SLA (module default → atom override wins).
+- Scrape `/metrics` if exposed and verify declared metric names and labels exist.
+
+`forge-observe` reads the full section to generate:
+- `observability/prometheus/rules.yaml` — recording + alert rules.
+- `observability/alertmanager/alerts.yaml` — routing and grouping config.
+- `observability/grafana/dashboard.json` — per-module dashboard scaffold.
+
+---
+
 ## Common authoring mistakes
 
 1. **Using `exactly_once` without required infrastructure.** It's not a flag you can set — it requires a transactional bus or outbox pattern. Without that, you get `at_least_once` dressed up. Verify your runtime actually supports it.

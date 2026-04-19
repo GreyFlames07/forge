@@ -31,12 +31,13 @@ You never modify specs or implementation. You never retry failed live probes. Yo
 
 | Flag | Effect |
 |---|---|
-| `/forge-validate` | Full project — all three phases |
+| `/forge-validate` | Full project — all four phases |
 | `--scope <module_id\|entity_id>` | Limit scope to one module or atom |
 | `--url <base_url>` | Use an already-running system — skip startup |
 | `--skip-static` | Skip Phase 1 (static analysis) |
 | `--skip-tests` | Skip Phase 2 (test suite) |
 | `--skip-live` | Skip Phase 3 (live interactions) |
+| `--skip-observability` | Skip Phase 4 (SLA + metrics check) |
 | `--spec-dir <path>` | Override spec dir resolution |
 
 ## Workflow
@@ -135,9 +136,27 @@ If forge-validate started the system (not already running on entry): terminate t
 
 ---
 
-### Step 5 — Report
+### Step 5 — Phase 4: Observability check
 
-Generate the report in chat, then write to `<spec-dir>/validation-report.md`.
+Only runs if `observability` is present in `L5_operations.yaml`. Skip silently otherwise.
+
+1. **Resolve SLA per atom.** For each atom in scope: look up module SLA in `observability.modules.<MODULE_ID>.sla`, then check `atom_overrides.<atom_id>.sla`. Atom override wins if present; else module SLA; else `observability.defaults`.
+
+2. **SLA assertion from live probe timings.** For each atom that ran a live probe in Phase 3:
+   - Compare recorded `latency_ms` against resolved `latency_p99_ms`. Strictly: if the single probe latency exceeds the declared p99, record `WARN` (one sample can't confirm a p99 violation, but it is a signal). State this caveat in the report.
+   - Compare probe error responses against `error_budget_percent`. For this purpose, a single failed probe is treated as 100% error rate for that atom — record `FAIL` if the atom's error budget is > 0% and the probe returned an error response.
+
+3. **Metrics presence check.** If the system exposes a `/metrics` endpoint (Prometheus format): scrape it and verify each declared metric name in `observability.modules.<MODULE_ID>.metrics` exists with the correct label set. Record `PASS` / `FAIL` per metric.
+
+4. **Alert rules syntax check.** For each alert in `observability.modules.<MODULE_ID>.alerts`: verify `expr` is syntactically valid PromQL. This is a static check — does not require a running Prometheus instance. Record `PASS` / `WARN` (warn on unknown metric references in the expr that aren't declared in the same module's `metrics` block).
+
+Emit: *"Observability: SLA assertions N atoms, metrics presence N metrics, alert syntax N rules."*
+
+---
+
+### Step 6 — Report
+
+Generate the report in chat, then write to `<spec-dir>/validation-report.md`. Include a Phase 4 section if observability was checked.
 
 ```markdown
 # Validation Report — <project> — <ISO timestamp>
@@ -149,6 +168,7 @@ Generate the report in chat, then write to `<spec-dir>/validation-report.md`.
 | Static analysis | PASS/FAIL/SKIPPED | N | N | N |
 | Test suite | PASS/FAIL/SKIPPED | N | — | N |
 | Live interactions | PASS/FAIL/SKIPPED | N | N | N |
+| Observability | PASS/FAIL/SKIPPED | N | N | N |
 
 **Overall: PASS / FAIL / PARTIAL**
 

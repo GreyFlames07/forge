@@ -551,7 +551,18 @@ Seed questions and option-set behavior:
 - If sub-phase 0 surfaced regulatory or compliance constraints → restrict cloud options to those that meet them (signed agreements, certifications); note each constraint in the option set's "best for" lines.
 - **After the cloud and compute decisions are made**, revisit any `L2_modules/*.yaml` that were drafted without `managed_services` (because the cloud wasn't decided yet) and ask: "For module [X], which managed services does it use now that we're on [cloud]?"
 
-**Outputs.** `L5_operations.yaml` committed with `deployment.platform`, `deployment` rollout, `rate_limiting`, `event_semantics` all populated.
+**Observability** (routine; batch with other routine decisions):
+- Stack: "Observability backend — defaulting to `prometheus-alertmanager-grafana` (open-source, zero cost). Confirm, or different?"
+- Defaults: propose `latency_p99_ms: 500`, `error_budget_percent: 1.0`, `trace_sample_rate: 0.1`. Adjust by domain: latency-critical services → 200ms default; high-error-tolerance background workers → 2.0%.
+- Per-module SLAs: for each L2 module confirmed so far, propose a latency budget based on its description and system shape. Present as a table — human adjusts any row.
+- Leave `metrics`, `alerts`, and `atom_overrides` empty at discover time. These emerge during `forge-atom` when the atom's contract surface makes them obvious.
+
+**Adaptation rules:**
+- If sub-phase 0 involved payments, financial transactions, or safety-critical flows → propose tighter SLA defaults (200ms p99, 0.5% error budget) and higher trace sample rates (0.5 default).
+- If sub-phase 0 shape is "background service" → relax latency defaults (1000ms), tighten error budgets (0.1%).
+- If the team mentioned a specific observability stack → confirm and use it as `stack` verbatim.
+
+**Outputs.** `L5_operations.yaml` committed with `deployment.platform`, `deployment` rollout, `rate_limiting`, `event_semantics`, and `observability` (stack + defaults + per-module SLA stubs) all populated.
 
 **Exit condition.** File validates. All modules' `tech_stack.managed_services` are populated (no deferred ones remain in `open_questions`).
 

@@ -149,17 +149,60 @@ Search strategy: case-insensitive substring match on the side effect marker name
 
 ---
 
+## §5 Phase 4 — Observability check mechanics
+
+Phase 4 only runs when `observability` is present in `L5_operations.yaml`. It is a lightweight static + live check — it does not require a Prometheus server.
+
+### SLA resolution
+
+For each atom in scope, forge-validate resolves the effective SLA by walking: `observability.defaults` → `observability.modules.<MODULE>.sla` → `observability.modules.<MODULE>.atom_overrides.<atom_id>.sla`. The innermost present value wins.
+
+### SLA assertion from live probe timings
+
+Phase 3 records latency for each live probe. Phase 4 reads those timings and compares against the resolved `latency_p99_ms`:
+
+- Single probe latency > declared p99 → `WARN` (one sample can't confirm a distribution violation, but it is a signal worth surfacing). The report states the caveat explicitly.
+- Probe returned a non-success response on an atom with `error_budget_percent > 0` → `FAIL` (one failed probe = 100% error rate for this sample; flag it regardless of budget size).
+
+If Phase 3 was skipped, Phase 4 skips SLA assertion and notes it in the report.
+
+### Metrics presence check
+
+If the system exposes a Prometheus `/metrics` endpoint: scrape it (single GET). For each metric declared in `observability.modules.<MODULE>.metrics`:
+- Verify the metric name exists in the scraped output.
+- Verify the declared labels are present in at least one time series.
+- Record `PASS` / `FAIL` per metric.
+
+If `/metrics` is not exposed: record `UNVERIFIABLE` for all metrics and note it. Do not fail the phase on this alone.
+
+### Alert syntax check
+
+For each alert in `observability.modules.<MODULE>.alerts`:
+- Verify `expr` is syntactically valid PromQL (static parse — no query execution required).
+- Verify metric names referenced in `expr` are declared in the same module's `metrics` block. Undeclared references → `WARN`.
+- Record `PASS` / `WARN` per alert.
+
+### What Phase 4 does NOT do
+
+- Does not query a live Prometheus server — no Prometheus required.
+- Does not assert p99 from a distribution — one probe sample is not a distribution.
+- Does not validate Grafana dashboards — `forge-observe` generates those; validation is out of scope here.
+- Does not enforce alert routing — AlertManager config is `forge-observe`'s concern.
+
+---
+
 ## §6 Report schema
 
 The report is a Markdown document written to `<spec-dir>/validation-report.md`. Key fields:
 
 | Section | Content |
 |---|---|
-| Summary table | Phase × (Status, Pass, Warn, Fail) counts |
+| Summary table | Phase × (Status, Pass, Warn, Fail) counts — includes Phase 4 if observability present |
 | Overall status | PASS (no FAILs anywhere) / FAIL (any FAIL) / PARTIAL (a phase was SKIPPED) |
 | Phase 1 detail | Per-atom findings with gap descriptions |
 | Phase 2 detail | Failing test → spec element mapping; uncovered spec elements |
 | Phase 3 detail | Per-atom probe results: happy path, failure modes, side effects |
+| Phase 4 detail | Per-atom SLA assertion; per-metric presence check; per-alert syntax check |
 | Next steps | Actionable routing: which skill to invoke for which gap |
 
 **Overall PASS** requires: no FAIL findings in any completed phase. WARNs do not block PASS.
@@ -180,6 +223,18 @@ The report is a Markdown document written to `<spec-dir>/validation-report.md`. 
 | Live behavioral `FAIL` | Often a spec ambiguity — run `/forge-atom <id>` to clarify |
 | Side effect `NOT FOUND` | Inspect implementation and logging; may be missing a log call |
 | Side effect `UNVERIFIABLE` | Declare `log_file` in L5 ops spec and re-run |
+
+---
+
+## §7 Routing from observability findings
+
+| Finding | Recommended action |
+|---|---|
+| SLA `WARN` (probe > p99) | Note for trend; re-run with `--scope <id>` after fixing the bottleneck |
+| SLA `FAIL` (probe error on budget atom) | Fix implementation; check error handling for the triggered failure mode |
+| Metric `FAIL` (not in /metrics) | Implementation is missing instrumentation; add metric emission at the call site |
+| Metric `UNVERIFIABLE` (/metrics not exposed) | Expose a Prometheus endpoint; or run with `--skip-observability` to suppress |
+| Alert `WARN` (undeclared metric in expr) | Add the metric to `observability.modules.<M>.metrics`, or correct the PromQL expression |
 
 ---
 

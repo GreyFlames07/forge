@@ -233,20 +233,20 @@ def run(args: argparse.Namespace) -> int:
           + _dim("│ ") + _dim("any agentskills.io client (VS Code Copilot, Cursor)"))
     print()
     print(_dim("  Trigger a forge skill with a natural-language prompt:"))
-    print(f"    {_bold('“I want to build a tool that does X”')}")
-    print(f"    {_bold('“Decompose the PAY module into atoms”')}")
-    print(f"    {_bold('“Audit the specs before implementation”')}")
-    print(f”    {_bold('”Harden the specs for security before implementation”')}”)
-    print(f”    {_bold('”Validate the implementation against specs”')}”)
+    print(f"    {_bold('\"I want to build a tool that does X\"')}")
+    print(f"    {_bold('\"Decompose the PAY module into atoms\"')}")
+    print(f"    {_bold('\"Audit the specs before implementation\"')}")
+    print(f"    {_bold('\"Harden the specs for security before implementation\"')}")
+    print(f"    {_bold('\"Validate the implementation against specs\"')}")
     print()
-    print(_dim(“  Claude Code also supports slash-command shortcuts:”))
-    print(f”    {_color(_FIRE_PRIMARY, '/forge-discover')}  “
-          + _color(_FIRE_PRIMARY, “/forge-decompose”)  + “  “
-          + _color(_FIRE_PRIMARY, “/forge-atom”)       + “  “
-          + _color(_FIRE_PRIMARY, “/forge-audit”)      + “  “
-          + _color(_FIRE_PRIMARY, “/forge-armour”)     + “  “
-          + _color(_FIRE_PRIMARY, “/forge-implement”)  + “  “
-          + _color(_FIRE_PRIMARY, “/forge-validate”))
+    print(_dim("  Claude Code also supports slash-command shortcuts:"))
+    print(f"    {_color(_FIRE_PRIMARY, '/forge-discover')}  "
+          + _color(_FIRE_PRIMARY, "/forge-decompose")  + "  "
+          + _color(_FIRE_PRIMARY, "/forge-atom")       + "  "
+          + _color(_FIRE_PRIMARY, "/forge-audit")      + "  "
+          + _color(_FIRE_PRIMARY, "/forge-armour")     + "  "
+          + _color(_FIRE_PRIMARY, "/forge-implement")  + "  "
+          + _color(_FIRE_PRIMARY, "/forge-validate"))
     print()
 
     return 0

@@ -48,7 +48,7 @@ You never modify specs or implementation. You never retry failed live probes. Yo
 2. Load `implementation-plan.yaml` from the spec dir — needed for source file mapping, test command, and audit matrix locations.
 3. Determine scope. Full project by default. With `--scope <id>`: if `<id>` contains no `.` treat as module prefix; else treat as exact entity id.
 4. Enumerate targets: `forge list --kind atom --ids-only --spec-dir <dir>`. Filter by scope.
-5. Announce: *"forge-validate: N atoms in scope. Running phases: static analysis → test suite → live interactions."*
+5. Announce: *"forge-validate: N atoms in scope. Running phases: static analysis → test suite → live interactions → observability."*
 
 ---
 

@@ -119,7 +119,7 @@ observability:                              # optional
 ```
 
 The entire `observability` section is optional. When present:
-- `stack` is required — identifies the observability backend so `forge-observe` can generate the right config format.
+- `stack` is required — identifies the observability backend (e.g., `prometheus-alertmanager-grafana`). Used by `forge-validate` Phase 4 for SLA assertions and by the planned `forge-observe` skill for config generation.
 - `defaults` provides project-wide baselines; module-level values narrow them (a module SLA may not be looser than the project default).
 - `modules` keys must match module IDs declared in L2.
 - `atom_overrides` keys must match atom IDs declared in L3 whose `owner_module` matches the containing module key.

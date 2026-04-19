@@ -107,7 +107,7 @@ forge init
       ✓ .forge/
       ✓ 6 spec subdirectories
       ✓ 12 schema templates → .forge/templates/
-      ✓ 24/24 skill symlinks → .claude/skills/, .codex/skills/, .agents/skills/
+      ✓ 27/27 skill symlinks → .claude/skills/, .codex/skills/, .agents/skills/
 
     ───── Next steps ─────
 

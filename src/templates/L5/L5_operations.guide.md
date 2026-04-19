@@ -111,7 +111,7 @@ Distinct from L1.1 observability: L1.1 declares the _logging frame_ for atoms (l
 ### Fields
 
 **`stack`**
-- Free-form string identifying the observability backend. Use `prometheus-alertmanager-grafana` for the open-source PAG stack. Other valid values: `datadog`, `grafana-cloud`, `newrelic`, `opentelemetry` (stack-agnostic collector). `forge-validate` Phase 4 reads this field; the planned `forge-observe` skill will use it to pick the right output format when generating config files.
+- Free-form string identifying the observability backend. **What observability stack does this project use?** Record whatever the team has chosen — there is no default. `forge-validate` Phase 4 reads this field for SLA assertion context; the planned `forge-observe` skill will use it to pick the right output format when generating config files.
 
 **`defaults`**
 - Project-wide baselines all modules inherit unless they declare tighter values.
@@ -142,10 +142,7 @@ Fill `stack` and `defaults` during `forge-discover` sub-phase 5 (platform postur
 - Scrape `/metrics` if exposed and verify declared metric names and labels exist.
 - Validate alert PromQL syntax statically.
 
-The planned `forge-observe` skill (not yet built) will read the full section to generate:
-- `observability/prometheus/rules.yaml` — recording + alert rules.
-- `observability/alertmanager/alerts.yaml` — routing and grouping config.
-- `observability/grafana/dashboard.json` — per-module dashboard scaffold.
+The planned `forge-observe` skill (not yet built) will read the full section — including `stack` — to generate stack-specific output: recording rules, alert routing config, and dashboard scaffolds in the format the declared backend expects.
 
 ---
 

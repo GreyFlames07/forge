@@ -52,6 +52,22 @@ export FORGE_SPEC_DIR="$(pwd)/src/example"
 
 ## Commands
 
+### `forge --version`
+
+Print the installed Forge CLI version.
+
+```bash
+forge --version
+```
+
+Example output:
+
+```text
+forge 0.1.0
+```
+
+---
+
 ### `forge update`
 
 Refresh the init-managed project assets in the current project.

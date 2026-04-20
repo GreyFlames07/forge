@@ -16,9 +16,11 @@ from cli.commands import find as _find
 from cli.commands import init as _init
 from cli.commands import inspect as _inspect
 from cli.commands import list_cmd as _list_cmd
+from cli.commands import update as _update
 
 ALL_COMMANDS = [
     _init,
+    _update,
     _context,
     _list_cmd,
     _inspect,

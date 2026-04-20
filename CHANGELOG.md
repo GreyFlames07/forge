@@ -14,6 +14,8 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added (post 0.1.0)
 
+- `forge --version` global CLI flag to print the installed package version.
+- GitHub Actions release workflow (`.github/workflows/release.yml`) that runs on `v*.*.*` tags, validates tag/version alignment, builds wheel+sdist, creates a GitHub Release with artifacts, and publishes to PyPI via trusted publishing.
 - L5.4 `observability` block integrated into `L5_operations.yaml` (not a new file): per-module SLA defaults with per-atom overrides, Prometheus metric declarations (counter/gauge/histogram/summary), trace sample rates, PromQL alert rules with severity and evaluation window. Schema (validation rules 13–21), authoring guide (Section 4), and example corpus (`PAY` + `USR` modules) all updated.
 - `forge-validate` Phase 4: reads `observability` from L5, asserts live probe latencies against resolved SLA, checks `/metrics` endpoint for declared metric presence, and validates alert PromQL syntax. New `--skip-observability` flag. Report summary table gains an Observability row.
 - Batching refactor across all interviewing skills: `forge-discover`, `forge-atom`, and `forge-decompose` non-negotiable #1 updated from "one concept per turn" to "batch within sub-phases, sequence across them". Sub-phase question sequences reorganised into explicit batches where questions are independent of each other.

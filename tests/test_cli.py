@@ -5,6 +5,8 @@ import sys
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
+import pytest
+
 from cli.forge import main
 
 EXAMPLE = str(Path(__file__).resolve().parent.parent / "src" / "example")
@@ -15,6 +17,15 @@ def _run(args: list[str]) -> tuple[int, str, str]:
     with redirect_stdout(out), redirect_stderr(err):
         rc = main(args)
     return rc, out.getvalue(), err.getvalue()
+
+
+def test_version_flag_prints_version_and_exits_0():
+    out, err = io.StringIO(), io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(SystemExit) as e:
+        main(["--version"])
+    assert e.value.code == 0
+    assert out.getvalue().startswith("forge ")
+    assert err.getvalue() == ""
 
 
 # ---------- context ----------

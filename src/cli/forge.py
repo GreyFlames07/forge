@@ -10,8 +10,17 @@ modules, lets each build its own subparser, and dispatches via
 from __future__ import annotations
 
 import argparse
+from importlib import metadata
 
 from cli.commands import ALL_COMMANDS
+
+
+def _version_string() -> str:
+    """Return the installed forge-cli package version."""
+    try:
+        return metadata.version("forge-cli")
+    except metadata.PackageNotFoundError:
+        return "unknown"
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -30,6 +39,11 @@ def _build_parser() -> argparse.ArgumentParser:
             "Spec dir resolution: --spec-dir > $FORGE_SPEC_DIR > auto-discover."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"forge {_version_string()}",
     )
     sub = parser.add_subparsers(dest="command", required=True, metavar="COMMAND")
 

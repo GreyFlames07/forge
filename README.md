@@ -73,8 +73,9 @@ This wires the `forge` binary into `~/.local/bin/` and symlinks the ten skills i
 ### Verify
 
 ```
+forge --version           # shows installed forge version
 forge --help              # shows: init, update, context, list, inspect, find
-.venv/bin/pytest          # 52 passed
+.venv/bin/pytest          # 53 passed
 ```
 
 ### Requirements
@@ -136,6 +137,7 @@ Open an agent session in that directory and describe your idea in natural langua
 |---|---|
 | `forge init` | Scaffold a new project (`.forge/` + skill symlinks + schema templates) |
 | `forge update` | Refresh init-managed project assets to the current Forge version |
+| `forge --version` | Print the installed Forge CLI version |
 | `forge list [--kind K]` | Enumerate entities in the spec dir |
 | `forge inspect <id>` | Lightweight metadata probe |
 | `forge context <id>` | Full implementation-ready bundle for an entity |
@@ -211,7 +213,7 @@ forge/
 │   └── framework-overview.md
 ├── scripts/
 │   └── install-skills.sh Global skill install + CLI symlink
-├── tests/                pytest suite — 49 tests
+├── tests/                pytest suite — 53 tests
 ├── pyproject.toml
 └── README.md
 ```

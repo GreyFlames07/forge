@@ -107,8 +107,15 @@ External contributors' PRs always require code-owner approval — no bypass.
 1. Update `CHANGELOG.md` — move `Unreleased` items into a new version section with today's date.
 2. Bump version in `pyproject.toml`.
 3. Commit: `chore(release): 0.X.Y`.
-4. Tag: `git tag v0.X.Y && git push --tags`.
-5. `gh release create v0.X.Y --generate-notes`.
+4. Tag and push: `git tag v0.X.Y && git push origin v0.X.Y`.
+5. GitHub Actions `release.yml` runs on the tag:
+   - validates tag/version match
+   - builds wheel + sdist
+   - creates the GitHub Release with artifacts
+   - publishes to PyPI via trusted publishing
+
+One-time setup required in PyPI: configure this repository as a Trusted Publisher
+for project `forge-cli`.
 
 ## Reporting issues
 

@@ -6,7 +6,7 @@ import tempfile
 from contextlib import chdir, redirect_stderr, redirect_stdout
 from pathlib import Path
 
-from cli.commands.init import SKILL_NAMES
+from cli.commands import init as init_cmd
 from cli.forge import main
 
 
@@ -59,7 +59,7 @@ def test_init_creates_spec_structure_and_symlinks():
         assert codex.is_dir()
         assert agents.is_dir()
 
-        for skill in SKILL_NAMES:
+        for skill in init_cmd.SKILL_NAMES:
             assert (claude / skill).is_symlink(), f"missing claude link for {skill}"
             assert (codex  / skill).is_symlink(), f"missing codex link for {skill}"
             assert (agents / skill).is_symlink(), f"missing agents link for {skill}"
@@ -121,3 +121,21 @@ def test_init_custom_spec_subdir():
         assert (td_path / "specs" / "templates").is_dir()
         # Default location NOT created.
         assert not (td_path / ".forge").exists()
+
+
+def test_resolve_forge_sources_uses_cached_repo_when_local_skills_missing(monkeypatch, tmp_path):
+    fake_cli = tmp_path / "venv" / "lib" / "python3.13" / "site-packages" / "cli" / "__init__.py"
+    fake_cli.parent.mkdir(parents=True)
+    fake_cli.write_text("# fake cli package\n")
+
+    cached_repo = tmp_path / "cache" / "repo"
+    cached_skills = cached_repo / ".agents" / "skills"
+    cached_skills.mkdir(parents=True)
+    (cached_repo / "src" / "templates").mkdir(parents=True)
+
+    monkeypatch.setattr(init_cmd.cli, "__file__", str(fake_cli))
+    monkeypatch.setattr(init_cmd, "_cached_forge_repo", lambda: cached_repo)
+
+    repo, skills = init_cmd._resolve_forge_sources()
+    assert repo == cached_repo
+    assert skills == cached_skills

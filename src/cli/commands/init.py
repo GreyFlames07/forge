@@ -8,9 +8,15 @@ VS Code Copilot, and Codex can all find them.
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import sys
+import tarfile
+import tempfile
 import time
+import urllib.error
+import urllib.request
+from importlib import metadata
 from pathlib import Path
 
 import cli
@@ -147,6 +153,77 @@ EXISTING_PROJECT_MARKERS = (
     "L5_operations.yaml",
 )
 
+_FORGE_GITHUB_ARCHIVE = "https://codeload.github.com/GreyFlames07/forge/tar.gz/refs/tags"
+
+
+def _installed_cli_version() -> str | None:
+    """Return the installed distribution version for this CLI."""
+    for dist_name in ("forge-ai-cli", "forge-cli"):
+        try:
+            return metadata.version(dist_name)
+        except metadata.PackageNotFoundError:
+            continue
+    return None
+
+
+def _cache_base_dir() -> Path:
+    """Return a writable user cache directory for downloaded Forge assets."""
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Caches" / "forge-ai-cli"
+    return Path(os.environ.get("XDG_CACHE_HOME", str(Path.home() / ".cache"))) / "forge-ai-cli"
+
+
+def _cached_forge_repo() -> Path | None:
+    """Get Forge assets from cache, downloading from the tagged GitHub archive if needed."""
+    version = _installed_cli_version()
+    if not version:
+        return None
+
+    tag = f"v{version}"
+    cache_root = _cache_base_dir() / tag
+    repo_dest = cache_root / "repo"
+    skills_dest = repo_dest / ".agents" / "skills"
+    templates_dest = repo_dest / "src" / "templates"
+    if skills_dest.is_dir() and templates_dest.is_dir():
+        return repo_dest
+
+    cache_root.mkdir(parents=True, exist_ok=True)
+    archive_url = f"{_FORGE_GITHUB_ARCHIVE}/{tag}"
+
+    fd, archive_path_str = tempfile.mkstemp(prefix=f"forge-{tag}-", suffix=".tar.gz")
+    os.close(fd)
+    archive_path = Path(archive_path_str)
+    extract_root = cache_root / "extract"
+    try:
+        urllib.request.urlretrieve(archive_url, archive_path)
+        if extract_root.exists():
+            shutil.rmtree(extract_root)
+        extract_root.mkdir(parents=True, exist_ok=True)
+        with tarfile.open(archive_path, mode="r:gz") as tf:
+            extract_root_resolved = extract_root.resolve()
+            for member in tf.getmembers():
+                member_path = (extract_root / member.name).resolve()
+                if not member_path.is_relative_to(extract_root_resolved):
+                    return None
+            tf.extractall(extract_root)
+    except (urllib.error.URLError, OSError, tarfile.TarError):
+        return None
+    finally:
+        if archive_path.exists():
+            archive_path.unlink()
+
+    for child in extract_root.iterdir():
+        if not child.is_dir():
+            continue
+        if (child / ".agents" / "skills").is_dir() and (child / "src" / "templates").is_dir():
+            if repo_dest.exists():
+                shutil.rmtree(repo_dest)
+            shutil.move(str(child), str(repo_dest))
+            shutil.rmtree(extract_root, ignore_errors=True)
+            return repo_dest
+
+    return None
+
 
 def _resolve_forge_sources() -> tuple[Path, Path]:
     """Locate the forge repo root and bundled skills directory."""
@@ -154,14 +231,22 @@ def _resolve_forge_sources() -> tuple[Path, Path]:
     forge_repo = cli_dir.parent.parent  # src/cli/ -> src/ -> repo root
     skills_src = forge_repo / ".agents" / "skills"
 
-    if not skills_src.is_dir():
-        raise FileNotFoundError(
-            f"cannot locate forge skills at {skills_src}\n"
-            "Forge CLI may not be installed in editable mode. From the forge repo root:\n"
-            "  uv pip install -e ."
-        )
+    if skills_src.is_dir():
+        return forge_repo, skills_src
 
-    return forge_repo, skills_src
+    cached_repo = _cached_forge_repo()
+    if cached_repo is not None:
+        cached_skills = cached_repo / ".agents" / "skills"
+        if cached_skills.is_dir():
+            return cached_repo, cached_skills
+
+    raise FileNotFoundError(
+        f"cannot locate forge skills at {skills_src}\n"
+        "If running from source, install in editable mode from the forge repo root:\n"
+        "  uv pip install -e .\n"
+        "If installed via pip, ensure network access for one-time asset bootstrap "
+        f"from {_FORGE_GITHUB_ARCHIVE}/v<version>."
+    )
 
 
 def _ensure_spec_structure(project_root: Path, spec_dir: Path, *, ok: str) -> None:

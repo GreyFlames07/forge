@@ -11,6 +11,7 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - `forge-implement` SKILL.md: clarified that `forge-test-writer` and `forge-implementer` are skills, not Task `subagent_type` values. Orchestrators must spawn `subagent_type: "general-purpose"` and invoke the skill by name in the prompt. Also documents that subagents inherit no env (no `$FORGE_SPEC_DIR`, no CWD) — prompts must pass the absolute spec-dir path explicitly.
 - `FORGE_SPEC_DIR` export in README quick-start and `forge init` output now wraps the path in double quotes so it is valid for directories containing spaces.
+- `forge init`/`forge update` now work from pip-installed distributions by bootstrapping bundled skill/template assets from the matching tagged GitHub source archive when repo-local assets are unavailable.
 
 ### Added (post 0.1.0)
 

@@ -17,10 +17,12 @@ from cli.commands import ALL_COMMANDS
 
 def _version_string() -> str:
     """Return the installed forge-cli package version."""
-    try:
-        return metadata.version("forge-cli")
-    except metadata.PackageNotFoundError:
-        return "unknown"
+    for dist_name in ("forge-ai-cli", "forge-cli"):
+        try:
+            return metadata.version(dist_name)
+        except metadata.PackageNotFoundError:
+            continue
+    return "unknown"
 
 
 def _build_parser() -> argparse.ArgumentParser:

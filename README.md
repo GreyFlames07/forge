@@ -75,7 +75,7 @@ This wires the `forge` binary into `~/.local/bin/` and symlinks the ten skills i
 ```
 forge --version           # shows installed forge version
 forge --help              # shows: init, update, context, list, inspect, find
-.venv/bin/pytest          # 53 passed
+.venv/bin/pytest          # 54 passed
 ```
 
 ### Requirements
@@ -213,7 +213,7 @@ forge/
 │   └── framework-overview.md
 ├── scripts/
 │   └── install-skills.sh Global skill install + CLI symlink
-├── tests/                pytest suite — 53 tests
+├── tests/                pytest suite — 54 tests
 ├── pyproject.toml
 └── README.md
 ```

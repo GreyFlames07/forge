@@ -147,6 +147,39 @@ EXISTING_PROJECT_MARKERS = (
 )
 
 
+def _resolve_forge_sources() -> tuple[Path, Path]:
+    """Locate the forge repo root and bundled skills directory."""
+    cli_dir = Path(cli.__file__).resolve().parent
+    forge_repo = cli_dir.parent.parent  # src/cli/ -> src/ -> repo root
+    skills_src = forge_repo / ".agents" / "skills"
+
+    if not skills_src.is_dir():
+        raise FileNotFoundError(
+            f"cannot locate forge skills at {skills_src}\n"
+            "Forge CLI may not be installed in editable mode. From the forge repo root:\n"
+            "  uv pip install -e ."
+        )
+
+    return forge_repo, skills_src
+
+
+def _ensure_spec_structure(project_root: Path, spec_dir: Path, *, ok: str) -> None:
+    """Ensure the managed Forge spec layout exists under spec_dir."""
+    spec_dir.mkdir(parents=True, exist_ok=True)
+    spec_rel = spec_dir.relative_to(project_root)
+    print(f"  {ok} {_bold(str(spec_rel) + '/')}")
+
+    for sub in SPEC_SUBDIRS:
+        d = spec_dir / sub
+        d.mkdir(exist_ok=True)
+        gitkeep = d / ".gitkeep"
+        if not gitkeep.exists():
+            gitkeep.write_text("")
+
+    print(f"  {ok} {len(SPEC_SUBDIRS)} spec subdirectories "
+          + _dim("(L2_modules, L2_policies, L3_atoms, L3_artifacts, L4_flows, L4_journeys)"))
+
+
 def register(sub: argparse._SubParsersAction) -> None:
     p = sub.add_parser(NAME, help=HELP, description=DESCRIPTION)
     p.add_argument(
@@ -176,15 +209,13 @@ def run(args: argparse.Namespace) -> int:
     project_root = Path.cwd()
     spec_dir = project_root / args.spec_subdir
 
-    # Resolve forge source from the installed cli package location.
-    cli_dir = Path(cli.__file__).resolve().parent
-    forge_repo = cli_dir.parent.parent  # src/cli/ -> src/ -> repo root
-    skills_src = forge_repo / ".agents" / "skills"
-
-    if not skills_src.is_dir():
-        print(f"error: cannot locate forge skills at {skills_src}", file=sys.stderr)
-        print("Forge CLI may not be installed in editable mode. From the forge repo root:", file=sys.stderr)
-        print("  uv pip install -e .", file=sys.stderr)
+    try:
+        forge_repo, skills_src = _resolve_forge_sources()
+    except FileNotFoundError as e:
+        lines = str(e).splitlines()
+        print(f"error: {lines[0]}", file=sys.stderr)
+        for line in lines[1:]:
+            print(line, file=sys.stderr)
         return 1
 
     # Refuse to init over an existing project unless --force.
@@ -199,19 +230,7 @@ def run(args: argparse.Namespace) -> int:
     print()
 
     ok = _color(_OK_GREEN, "✓")
-    spec_rel = spec_dir.relative_to(project_root)
-
-    # Step 1: spec directory structure.
-    spec_dir.mkdir(parents=True, exist_ok=True)
-    print(f"  {ok} {_bold(str(spec_rel) + '/')}")
-    for sub in SPEC_SUBDIRS:
-        d = spec_dir / sub
-        d.mkdir(exist_ok=True)
-        gitkeep = d / ".gitkeep"
-        if not gitkeep.exists():
-            gitkeep.write_text("")
-    print(f"  {ok} {len(SPEC_SUBDIRS)} spec subdirectories "
-          + _dim("(L2_modules, L2_policies, L3_atoms, L3_artifacts, L4_flows, L4_journeys)"))
+    _ensure_spec_structure(project_root, spec_dir, ok=ok)
 
     # Step 2: symlink schema templates into .forge/templates/ for in-project reference.
     _install_schema_templates(spec_dir, forge_repo, force=args.force, ok=ok)

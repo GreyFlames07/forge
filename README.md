@@ -133,6 +133,7 @@ Open an agent session in that directory and describe your idea in natural langua
 | Command | Purpose |
 |---|---|
 | `forge init` | Scaffold a new project (`.forge/` + skill symlinks + schema templates) |
+| `forge update` | Refresh init-managed project assets to the current Forge version |
 | `forge list [--kind K]` | Enumerate entities in the spec dir |
 | `forge inspect <id>` | Lightweight metadata probe |
 | `forge context <id>` | Full implementation-ready bundle for an entity |
@@ -237,7 +238,7 @@ forge find charge                       # search across entities
 3. Add the skill to `SKILL_NAMES` in `src/cli/commands/init.py`.
 4. Add a framework doc under `docs/skills/<name>/framework.md` if the skill has a substantial mental model.
 5. `./scripts/install-skills.sh install` to wire up globally.
-6. In any existing projects: `forge init --force` to refresh their skill symlinks.
+6. In any existing projects: `forge update` to refresh their managed scaffolding and local skill links.
 
 ### Uninstall
 

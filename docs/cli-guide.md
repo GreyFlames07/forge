@@ -52,6 +52,40 @@ export FORGE_SPEC_DIR="$(pwd)/src/example"
 
 ## Commands
 
+### `forge update`
+
+Refresh the init-managed project assets in the current project.
+
+```bash
+forge update
+forge update --spec-subdir specs
+forge update --skip-skills
+```
+
+`forge update` refreshes the same project-managed assets that `forge init` lays down:
+
+- the spec directory structure (`.forge/` or your custom `--spec-subdir`)
+- schema template symlinks under `<spec-dir>/templates/`
+- project-local skill symlinks under `.claude/skills/`, `.codex/skills/`, and `.agents/skills/`
+
+It does **not** overwrite authored spec YAML files such as `L0_registry.yaml`, `L1_conventions.yaml`, module specs, atom specs, flows, or journeys. After refresh it prints the recommended `/forge-audit` follow-up.
+
+**Options**
+
+| Flag | Default | Description |
+|---|---|---|
+| `--spec-subdir PATH` | `.forge` | Relative path from the project root for the spec directory. |
+| `--skip-skills` | off | Refresh only the spec directory and schema templates; skip skill symlink refresh. |
+
+**Exit codes**
+
+| Code | Meaning |
+|---|---|
+| `0` | Managed assets refreshed successfully. |
+| `1` | No Forge project detected at the requested spec directory, or Forge sources could not be located. |
+
+---
+
 ### `forge context <id>`
 
 Build the full implementation-ready bundle.

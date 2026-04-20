@@ -405,7 +405,7 @@ Elicit-atom is the *end* of the spec pipeline for a single atom. It writes nearl
 | New modules | That's discover's job; adding modules mid-elicitation would be a scope break |
 | New external_schemas | Discover should have declared them; late addition is a signal to go back to discover |
 | New policies | Policies are cross-cutting; creating one mid-elicitation (for one atom) indicates the atom is in the wrong module or a policy was missed in discover |
-| L4 flows / journeys | Composition-level concern; forge-atom produces the atoms that flows compose |
+| L4 flows / journeys | Composition-level concern; forge-atom produces the atoms that `forge-compose` turns into flows/journeys |
 | Other atoms' spec blocks | One atom per forge-atom invocation. Cross-atom pressure goes into `open_questions`, resolved in subsequent elicitations |
 
 ---

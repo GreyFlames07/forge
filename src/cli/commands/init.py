@@ -118,6 +118,7 @@ SKILL_NAMES = (
     "forge-discover",
     "forge-decompose",
     "forge-atom",
+    "forge-compose",
     "forge-audit",
     "forge-armour",
     "forge-implement",
@@ -254,6 +255,7 @@ def run(args: argparse.Namespace) -> int:
     print(_dim("  Trigger a forge skill with a natural-language prompt:"))
     print(f"    {_bold('\"I want to build a tool that does X\"')}")
     print(f"    {_bold('\"Decompose the PAY module into atoms\"')}")
+    print(f"    {_bold('\"Compose flows and journeys from completed atoms\"')}")
     print(f"    {_bold('\"Audit the specs before implementation\"')}")
     print(f"    {_bold('\"Harden the specs for security before implementation\"')}")
     print(f"    {_bold('\"Validate the implementation against specs\"')}")
@@ -262,6 +264,7 @@ def run(args: argparse.Namespace) -> int:
     print(f"    {_color(_FIRE_PRIMARY, '/forge-discover')}  "
           + _color(_FIRE_PRIMARY, "/forge-decompose")  + "  "
           + _color(_FIRE_PRIMARY, "/forge-atom")       + "  "
+          + _color(_FIRE_PRIMARY, "/forge-compose")    + "  "
           + _color(_FIRE_PRIMARY, "/forge-audit")      + "  "
           + _color(_FIRE_PRIMARY, "/forge-armour")     + "  "
           + _color(_FIRE_PRIMARY, "/forge-implement")  + "  "

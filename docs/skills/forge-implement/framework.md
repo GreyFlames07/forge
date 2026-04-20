@@ -376,7 +376,7 @@ On `/forge-implement` invocation when progress.yaml exists:
 - **Does not create or edit specs.** Ever. Frozen from run start.
 - **Does not make implementation decisions.** All decisions in architecture or deferred to subagent per their spec.
 - **Does not run interactive interviews.** Unlike discover / forge-atom, this skill is execution-oriented. Only interactive moments: A4 plan-edit pause, J2 UI consultation, G3 resume confirmation, H3 commit-offer.
-- **Does not generate flows / journeys / artifacts from nothing.** These must exist as specs already.
+- **Does not generate flows / journeys / artifacts from nothing.** These must exist as specs already (flows/journeys are typically authored via `forge-compose`).
 - **Does not train MODEL atoms.** Produces stubs delegating to fallback; training is out of scope.
 - **Does not run migrations / deploy infrastructure.** DECLARATIVE atoms produce migration files or IaC files; running them is a human / CI concern.
 

@@ -39,6 +39,7 @@ Otherwise this file is self-sufficient for routine operation.
 5. **Spec-linked retry feedback only.** Implementation retries receive sanitized failure output with spec references — never test assertion diffs.
 6. **Partial completion is fine.** Succeeded units stay; failed units stash attempts; blocked units wait. Resume with `--resume`.
 7. **Minimality.** Subagents produce the smallest code satisfying the spec — no speculative abstractions.
+8. **Use conventional project layout.** Target files must follow the stack's normal industry directory conventions (and any existing repo structure), not Forge-specific folder schemes.
 
 Full rationale: `references/framework.md §2`.
 

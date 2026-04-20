@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "forge-cli"
+name = "forge-ai-cli"
 version = "0.1.0"
 description = "Context walker for the Forge L0-L5 spec system"
 requires-python = ">=3.11"

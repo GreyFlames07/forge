@@ -6,12 +6,12 @@ description: >
   L3_atoms/ with id, kind, owner_module, description set, but its spec
   block is empty or partial. Activates on phrases like "elicit atom X",
   "fill in the spec for atom X", "spec out atom X", "complete the atom",
-  or when forge context <atom_id> shows the spec block as empty. Drives
-  one of three interview shapes selected by complexity (A: draft-then-
-  review for simple atoms; B: example-driven extraction by default; C:
-  structured 6-pass deep-dive for high-stakes atoms). Produces the full
-  spec block, verification meeting L1 floors, new L0 entries (types,
-  errors, constants) the atom forces, and module-level cascades
+  or when forge context <atom_id> shows the spec block as empty. Starts
+  with a draft built from context, then runs one of three review depths
+  selected by criticality (D1: draft review, D2: draft plus focused
+  decisions, D3: draft plus critical challenge). Produces the full spec
+  block, verification meeting L1 floors, new L0 entries (types, errors,
+  constants) the atom forces, and module-level cascades
   (persistence_schema datastores, access_permissions, filled entry
   points). Runs anti-bloat probes (reuse-before-create) and consistency
   probes (7 cross-system contradiction checks) throughout.
@@ -19,10 +19,10 @@ description: >
 
 # forge-atom
 
-Take one atom stub and produce a complete, implementation-ready L3 spec plus every cascade the atom forces. You pick one of three interview shapes based on atom complexity, extract the spec from examples (for most atoms), run anti-bloat and consistency probes at every create/decide moment, and finalize with L0 writes + module updates + validation.
+Take one atom stub and produce a complete, implementation-ready L3 spec plus every cascade the atom forces. Start by drafting the atom from the available context. Then ask only the decision questions the draft cannot settle, opening deeper challenge only when the atom is critical to the module's purpose or carries business, security, data, or MODEL risk. Routine atoms should usually resolve in one or two review passes.
 
-Full mental model, shape selection logic, consistency probe details, and artifact schemas in `references/framework.md` (~650 lines). Load on demand:
-- `§3` for shape selection rules and the three interview flows
+Full mental model, review depth logic, consistency probe details, and artifact schemas in `references/framework.md` (~650 lines). Load on demand:
+- `§3` for review depth rules and the three review flows
 - `§4` for L0 propagation tier policy
 - `§5` for anti-bloat probe templates
 - `§6` for consistency probe check classes and fire moments
@@ -33,21 +33,22 @@ Otherwise this file is self-sufficient for routine operation.
 
 ## Non-negotiables
 
-1. **Batch within passes; sequence across passes.** Within a Shape C pass, group questions that don't depend on each other into one turn (e.g., all input fields at once in Pass 1). Across passes, stay sequential — each pass builds on the previous. Case walkthroughs in Shape B stay one case at a time (each case builds on the last). Option-sets for critical decisions always get their own single turn.
-2. **Shape matches complexity.** Simple atoms → Shape A. Standard → Shape B. High-stakes → Shape C. Announce the shape at sub-phase 0 exit.
-3. **Logic is prose-first.** Human describes steps in natural language; you draft the DSL; human reviews. Never force the human to produce DSL syntax.
-4. **Verification emerges implicitly.** Example cases walked through BECOME `example_cases`. Edge paths BECOME `edge_cases`. Invariants held across all cases BECOME `property_assertions`. L1 floors met by construction, not a separate phase.
-5. **Anti-bloat probes fire before every L0 create.** Run `forge find` for types, errors, constants. Present matches advisorily. Never silently create.
-6. **Consistency probes are targeted, named, quiet when clean.** When a contradiction surfaces, cite the specific entity (`pol.X`, `atm.Y`, L1 section) and present options. Never narrate "I checked X, Y, Z" when no conflict exists.
-7. **Partial spec: confirm+resume.** If fields exist from a prior session, acknowledge each, let the human correct, then continue from the first unfilled field. Never wipe and restart unless explicitly asked.
-8. **Within-module chain mode.** Stay in one session across atoms in the same module. `/clear` between modules, not between atoms.
-9. **Stubs get filled, never recreated.** If an atom file already exists as a stub, you are completing it. You never write a new stub.
+1. **Draft first; question second.** If a plausible spec can be inferred from context, write the draft before asking broad elicitation questions.
+2. **Review depth matches criticality.** Routine atoms get light review. Critical atoms get deeper decision points and challenge passes. Side effects inform the depth, but they do not automatically force the deepest flow.
+3. **Ask only decision questions.** Do not ask the human to build the atom from scratch when the draft is already plausible. Open input or output contract questions only when ambiguity or risk remains.
+4. **Logic is prose-first.** Human describes corrections in natural language; you draft or revise the DSL; the human reviews. Never force the human to produce DSL syntax.
+5. **Verification emerges from draft + review.** Example cases, edge paths, and invariants surfaced while reviewing become `example_cases`, `edge_cases`, and `property_assertions`. L1 floors are met by construction, not by a separate brainstorming phase.
+6. **Anti-bloat probes fire before every L0 create.** Run `forge find` for types, errors, constants. Present matches advisorily. Never silently create.
+7. **Consistency probes are targeted, named, quiet when clean.** When a contradiction surfaces, cite the specific entity (`pol.X`, `atm.Y`, L1 section) and present options. Never narrate "I checked X, Y, Z" when no conflict exists.
+8. **Partial spec: confirm+resume.** If fields exist from a prior session, acknowledge each, let the human correct, then continue from the first unfilled or uncertain field. Never wipe and restart unless explicitly asked.
+9. **Within-module chain mode.** Stay in one session across atoms in the same module. `/clear` between modules, not between atoms.
+10. **Stubs get filled, never recreated.** If an atom file already exists as a stub, you are completing it. You never write a new stub.
 
 Full rationale: `references/framework.md §2`.
 
 ## Workflow
 
-### Step 1 — Load context + select shape
+### Step 1 — Load context + classify review depth
 
 Run:
 ```bash
@@ -72,98 +73,76 @@ Also read `discovery-notes.md` for the atom's entity hints and any `open_questio
 **If the stub description is vague:**
 Refine it in one turn before proceeding: *"The description reads `<current>`. In one sentence: what does this atom actually do? (Describe purpose, not implementation.)"*
 
-**Shape selection.** Read the stub's declared `side_effects`, or infer from the description:
+**Review depth classification.** Read the stub's declared `side_effects`, the module context, and the atom's role in the module:
 
-| Condition | Shape |
+| Condition | Depth |
 |---|---|
-| `side_effects` = `[PURE]` OR only `READS_*`, AND a sibling with similar pattern exists | **A** (draft-then-review) |
-| Any `WRITES_*`, `EMITS_EVENT`, or `CALLS_EXTERNAL` marker | **B** (example-driven — default) |
-| All of `WRITES_DB + CALLS_EXTERNAL + EMITS_EVENT` combined, OR module tagged hardest-to-get-right, OR `kind: MODEL` | **C** (structured deep-dive) |
+| Routine, sibling-pattern, low-risk atom | **D1 — Draft review** |
+| Meaningful ambiguity, side effects with cross-entity implications, or likely L0/module cascades | **D2 — Draft + focused decisions** |
+| Critical to module purpose, business correctness, security, data integrity, or `kind: MODEL` | **D3 — Draft + critical challenge** |
 
-Ambiguous? Default to Shape B. You can upgrade to Shape C mid-flow if complexity warrants.
+Ambiguous? Default to D2. Upgrade to D3 if criticality becomes clearer during review.
 
-**Announce the shape:**
-> *"Side effects suggest Shape B — example-driven extraction. I'll ask for 2–3 example cases and extract the spec from them."*
+**Announce the depth:**
+> *"I've drafted this atom first. Because it is `<reason>`, I'm using `<D1/D2/D3>` review depth."*
 
-### Step 2 — Run the chosen shape (sub-phase 1)
-
----
-
-#### Shape A — Draft-then-review
-
-1. **Load sibling patterns.** Identify the most similar already-elicited atom in the module; use its spec as the drafting pattern.
-2. **Draft the complete spec inline.** Fill in input, output, side_effects, invariants, logic, failure_modes. Match the sibling's style for consistency.
-3. **Run anti-bloat and consistency probes silently during drafting.** Any contradictions or reuse opportunities surface as inline comments in the draft:
-   ```yaml
-   logic:
-     - "WHEN input.user_role != 'admin' THEN RETURN SEC.SEC.001"
-     # ^ policy pol.<name> applies here (WRITES_DB on <table>); line added to satisfy it.
-   ```
-4. **Present the draft:** *"Here's the draft. What's wrong?"*
-5. **Iterate based on the human's corrections.**
-6. Skip to **Step 3 — Verification finalization**.
-
-Shape A exits when the human confirms "looks good" to the draft after any edits.
+### Step 2 — Draft first, then review (sub-phase 1)
 
 ---
 
-#### Shape B — Example-driven extraction (default)
+Always produce a best-effort draft before broad elicitation. If the context is too thin for a plausible draft, ask for one grounding example, then draft immediately — do not drift into open-ended field-by-field interrogation.
 
-1. **Ask for case 1 (happy path):**
-   > *"Give me one concrete case. What input goes in, what steps does the atom take, what comes out?"*
-   
-   Let the human walk it step by step in their own words. Don't interrupt for structure — capture the narrative.
+The draft should include:
+- the full `spec` block
+- initial verification items
+- likely L0 additions
+- likely module cascades
 
-2. **Ask for case 2 (alternate path or failure):**
-   > *"Second case — what happens when `<specific_edge>` happens?"*
-   
-   Example `<specific_edge>`: duplicate input, missing required field, downstream failure, concurrent call.
+Present the review in five parts:
+1. **Drafted spec**
+2. **Assumptions made**
+3. **Decision points**
+4. **Conflicts or missing facts**
+5. **Proposed L0 / module cascades**
 
-3. **Ask for case 3 (another alternate or failure path):**
-   Similar.
+#### D1 — Draft review
 
-4. **Fire consistency probes** (between case 3 and extraction):
-   Silently run the 7 check classes against what's been described. If any surface, pause extraction and present each as a targeted option-set. See `## Consistency probes` below.
-
-5. **Fire anti-bloat probes** for every L0 entity about to be created:
-   - Each new type → run `forge find <keywords> --kind type`
-   - Each new error → run `forge find <keyword> --kind error`
-   - Each new constant → scan for single-consumer status
-   Present matches advisorily. See `## Anti-bloat probes` below.
-
-6. **Extract and present the full spec block.** The spec is derived from the case walkthroughs, not asked-for as separate fields:
-   - Input shape ← fields referenced in case openings
-   - Output shape ← what each case returns
-   - Side effects ← verbs used across cases (insert → WRITES_DB, publish → EMITS_EVENT, etc.)
-   - Logic DSL ← normalized steps from the walkthroughs covering all branches
-   - Failure modes ← failure-path cases give trigger → error_code pairs
-   - Invariants pre ← what was true on entry across all cases
-   - Invariants post ← what was true on successful exit across all cases
-   - Verification (see Step 3) ← the 2–3 cases populate `example_cases`; edge paths populate `edge_cases`; cross-case constants populate `property_assertions`
-
-   Present the full block: *"Here's the extracted spec. Review — what's wrong?"*
-
-7. **Iterate based on human corrections.** When the human revises a field, check if the revision affects other fields (e.g., changing output shape may affect logic's RETURN statements). Propagate consistently.
-
-8. Proceed to **Step 3 — Verification finalization**.
+1. Draft from the strongest available pattern source (sibling atoms, caller expectations, module conventions).
+2. Run anti-bloat and consistency probes silently during drafting. Any surfaced issue becomes a decision point or inline note in the draft.
+3. Present: *"Here's the draft. What's wrong or missing?"*
+4. Only open input or output contract questions if ambiguity or risk remains after the first review.
+5. Revise once, then proceed to **Step 3 — Verification finalization**.
 
 ---
 
-#### Shape C — Structured deep-dive
+#### D2 — Draft + focused decisions (default)
 
-Six sequential passes. Consistency probes fire after relevant passes.
+1. Present the draft plus assumptions and decision points.
+2. Ask targeted questions only where multiple valid choices exist or where the draft crosses ambiguity or caller risk.
+3. Open input or output contract questions only when the contract is not confidently inferable or the choice affects downstream types, errors, or callers.
+4. Run anti-bloat probes for each new L0 entity the draft still proposes.
+5. Run consistency probes after the initial draft and again only for sections materially changed by the review.
+6. Revise the spec, then present one compact second review pass.
+7. Proceed to **Step 3 — Verification finalization**.
 
-**Pass 1 — Input (batch all field questions).** *"What fields does this atom accept? For each: name, type (use L0 types where possible), required vs optional, and any constraints or validation rules."* Run type reuse probe per new type after the human lists them.
+---
 
-**Pass 2 — Output (batch).** *"Two things: (1) success output shape — fields and types. (2) Error codes that can be returned — list the code and the trigger condition for each."* Run type reuse for success shape; error reuse probe per new error code.
+#### D3 — Draft + critical challenge
 
-**Pass 3 — Side effects (batch).** *"Which of these markers apply — and for each that does, what specifically does it touch: WRITES_DB (which table/collection?), READS_DB, EMITS_EVENT (which event, what payload shape?), CALLS_EXTERNAL (which service?), READS_ARTIFACT, CALLS_EXTERNAL, READS_CLOCK, PURE?"* Fire consistency probes 1 (policy), 4 (L1 convention), 5 (access-permission) after.
+Start with the same draft-first review as D2. Then run structured challenge over the risk areas that matter for this atom:
 
-**Pass 4 — Invariants (batch).** *"Two things: (1) preconditions — what must be true on entry for the atom to run correctly? (2) postconditions — what must be true after a successful exit?"*
+1. **Business-critical correctness**
+2. **Security / authorization**
+3. **Data integrity / invariants**
+4. **External failure handling**
+5. **Caller / flow expectations**
 
-**Pass 5 — Logic.** Prose-first; agent normalizes to DSL. Fire consistency probes 2 (sibling atom), 3 (called-atom contract), 6 (type invariant).
+For each area:
+- ask only the unresolved decision points
+- surface any named consistency conflicts
+- revise the draft before moving to the next area
 
-**Pass 6 — Failure modes.** *"Map each trigger to an error code. Every error in output.errors must have a trigger. Every failure_mode must have an error in output.errors."* Fire consistency probe 7 (event contract).
+Open input or output contract questions here only when ambiguity or risk warrants them. Do not ask the human to enumerate fields from scratch if the draft is already directionally correct.
 
 Proceed to **Step 3 — Verification finalization**.
 
@@ -173,10 +152,10 @@ Proceed to **Step 3 — Verification finalization**.
 
 Check L1 verification floors: `min_property_assertions`, `min_edge_cases`, `min_example_cases`. These typically come from L1 `verification.floors`.
 
-For Shape B, verification is usually satisfied by construction (cases = example_cases, edge paths = edge_cases). For Shape A, you may need to probe for additional cases to meet the floor.
+Verification should usually be mostly satisfied by the draft plus review cycle. Any examples, edge paths, or invariant statements surfaced while correcting the draft become verification items.
 
 **If a floor is unmet:**
-> *"L1 requires at least <N> <kind>. We have <M>. Give me one more — specifically, what about <suggested_edge_case_based_on_atom_surface>?"*
+> *"L1 requires at least <N> <kind>. We have <M>. Give me one more — specifically, what happens when <suggested edge or failure path>?"*
 
 **For MODEL atoms:** add the required `bounds_verification` sub-section. Probe for how each `acceptable_bounds` metric will be measured in production.
 
@@ -222,11 +201,11 @@ Exit code 2 → unresolved refs → investigate before handing over. Common caus
 > *- `/clear` then `/forge-atom` — auto-picks first unfilled atom in next module*
 > *- `/forge-audit <MOD>` — challenge the module's completed specs before implementation"*
 
-## Shape selection detail
+## Review depth detail
 
-Shape selection is **deterministic**, not adaptive-mid-flow. Pick at sub-phase 0 exit; announce; stick with it.
+Review depth selection happens at sub-phase 0 exit. Default to D2 unless the atom is clearly routine (D1) or clearly critical (D3).
 
-**Upgrade rule:** if mid-Shape-B you discover the atom is genuinely more complex than you thought (e.g., walkthrough reveals a fourth marker you missed, or human can't articulate bounds), you may upgrade to Shape C. Announce the upgrade: *"This is more complex than I initially gauged — switching to Shape C for the remaining passes."* Do NOT downgrade once started.
+**Upgrade rule:** if mid-review you discover the atom is genuinely more critical or more ambiguous than first assessed, upgrade D1 → D2 or D2 → D3. Announce the upgrade: *"This atom carries more risk than I first gauged — switching to D3 for the remaining review."* Do not downgrade once a deeper challenge has started.
 
 ## L0 propagation
 
@@ -288,9 +267,9 @@ Seven check classes. Run silently; surface only when a contradiction is found. A
 
 **Fire moments:**
 
-- Shape A: all 7 checks silent during drafting; contradictions surface as inline comments in the draft
-- Shape B: twice — after case walkthroughs (before extraction), and after extraction (before human review)
-- Shape C: relevant checks after each pass (pass 3 fires 1/4/5; pass 5 fires 2/3/6; pass 6 fires 7)
+- D1: all 7 checks silent during drafting; contradictions surface as inline notes or decision points in the draft
+- D2: after the initial draft, and again only for sections materially changed by the human's decisions
+- D3: after each challenge area, or whenever a decision changes the relevant section of the spec
 
 **Presentation template:**
 
@@ -310,12 +289,12 @@ Which fits?
 ## Gotchas
 
 - **The agent never produces DSL; it produces the spec block with DSL embedded.** Humans speak prose; you translate. Don't ask "what's the DSL for this?" — ask "what happens next?"
-- **Do not write the `spec` block field-by-field in Shape B.** The whole point of extraction is the spec emerges from the cases. If you find yourself asking "what's the invariant?" separately from the case walkthroughs, you've drifted — back to asking for cases.
+- **Do not ask the human to rebuild the draft field-by-field.** If the draft is plausible, stay in review mode. Only open targeted input or output questions when ambiguity or risk remains.
 - **Consistency probes are silent when clean.** Do not announce "I ran 7 consistency checks — all clear." That's narration for its own sake. Only speak up when a probe actually surfaces a conflict.
 - **Never skip anti-bloat probes.** Even for obviously-novel types. The scan is cheap; the human sees it's genuinely novel and confirms quickly; that's the point.
 - **Partial specs are the default, not an edge case.** Most elicitations hit sessions with some fields filled (the description was sharpened in sub-phase 0; decompose populated side_effects hints). Confirm+resume is the main path, not an exception.
 - **If `forge context <atom>` returns exit 2 with unresolved refs**, the elicitation is not done. Either the refs are typos (fix them) or they point at atoms not yet elicited (add to `open_questions` and still commit — future elicitation sessions will catch them).
-- **Shape A requires a specced sibling as a pattern source.** If no sibling in the module has been elicited yet, downgrade to Shape B — you have no pattern to draft from.
+- **D1 requires high drafting confidence.** A sibling pattern helps, but is not mandatory. If the first review exposes broad uncertainty, upgrade to D2 rather than grinding through many corrections.
 - **External schemas at forge-atom are a signal, not a problem.** If the human says "we also call Twilio" and Twilio isn't in `L0.external_schemas`, don't add it — redirect: *"Twilio isn't declared in discover's L0 external_schemas. That's discover territory. To add it: `/forge-discover` to return to sub-phase 3."*
 
 ## forge CLI commands used
@@ -333,7 +312,7 @@ Which fits?
 
 - `references/framework.md` — full mental model. Sections:
   - §2 operating principles rationale
-  - §3 shape selection + flows
+  - §3 review depth selection + flows
   - §4 L0 propagation tier policy
   - §5 anti-bloat probe templates
   - §6 consistency probe check classes
@@ -341,4 +320,4 @@ Which fits?
   - §8 kind-specific spec shapes
   - §9 what forge-atom does NOT produce
   - §10 artifact schemas
-- `assets/spec-review.template.md` — recommended structure for presenting extracted specs in Shape B
+- `assets/spec-review.template.md` — recommended structure for presenting drafted specs, decision points, and review outcomes

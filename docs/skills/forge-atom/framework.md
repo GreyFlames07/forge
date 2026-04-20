@@ -1,6 +1,6 @@
 # forge-atom — Framework
 
-This document describes the **mental model** for `forge-atom`: the stages, the three interview shapes, the consistency probes, the anti-bloat protocol, and the artifact cascades produced. It is **not** the SKILL.md; it is the source of truth from which any skill artifact is authored.
+This document describes the **mental model** for `forge-atom`: the stages, the draft-first review model, the three review depths, the consistency probes, the anti-bloat protocol, and the artifact cascades produced. It is **not** the SKILL.md; it is the source of truth from which any skill artifact is authored.
 
 Audiences:
 - An LLM or agent that executes the process
@@ -22,8 +22,8 @@ The workhorse skill. Run dozens to hundreds of times per project. The specs it p
 | Scope | Whole system | One module at a time | **One atom, with cascades** |
 | Work type | Creative / exploratory | Analytical / extractive | **Contract-level / precise** |
 | Kind sensitivity | No kinds yet | Same flow all kinds | **Four distinct spec shapes** |
-| Interview feel | Workshop | Depth interrogation | **Contract specification** |
-| Duration | 1–2 hours total | ~10–15 min / module | **~10–60 min / atom (shape-dependent)** |
+| Interview feel | Workshop | Depth interrogation | **Draft review + contract challenge** |
+| Duration | 1–2 hours total | ~10–15 min / module | **~5–40 min / atom (depth-dependent)** |
 | Stakes | Framing | Revisable classification | **Specs drive implementation** |
 | L0 writes | Skeleton only | None | **Types, errors, constants** |
 
@@ -44,42 +44,47 @@ Inherits everything from discover and decompose (one concept per turn, confirm b
 
 **Principles specific to forge-atom:**
 
-1. **Shape matches complexity, not atom count.** Simple atoms get Shape A (draft-then-review). Standard atoms get Shape B (example-driven extraction). High-stakes atoms get Shape C (structured deep-dive). The shape is announced explicitly at sub-phase 0 exit: *"Side effects suggest Shape B — example-driven extraction."*
-2. **Logic is prose-first.** Human describes steps in natural language; agent normalizes to `WHEN / LET / CALL / RETURN / EMIT / SET / TRY` DSL for review. The human never has to produce DSL directly.
-3. **Verification is implicit.** Example cases walked through ARE example_cases. Edge paths probed ARE edge_cases. Invariants true across all cases ARE property_assertions. L1 floors met by construction, not by a separate "now let's write tests" phase.
-4. **Consistency probes are targeted, not exhaustive.** When a contradiction surfaces, the agent names it specifically (policy / sibling / called-atom / etc.) and presents options. When nothing surfaces, the probes are invisible — no narration.
-5. **Anti-bloat probes fire at every L0 create.** Before writing a new type / error / constant, run the relevant reuse scan via `forge find`. Present matches advisorily.
-6. **Within-module chain mode.** Context stays warm across atoms in the same module — sibling patterns, shared types, the just-elicited siblings inform subsequent atoms. `/clear` happens between modules, not between atoms (unless human opts in).
-7. **Stubs get filled; never recreated.** Partial spec handling is confirm+resume: show existing fields, allow corrections, then continue from the first unfilled field. Never wipe and restart unless the human explicitly asks.
+1. **Draft first; question second.** If a plausible spec can be inferred from the stub, siblings, owner module, L0/L1/L4 context, or discovery notes, the agent drafts before asking broad elicitation questions.
+2. **Review depth matches criticality, not atom count.** Routine atoms get light review. Critical atoms get deeper challenge over business correctness, security, data integrity, external failure handling, and caller expectations.
+3. **Input and output questioning is ambiguity-gated.** The agent drafts contracts by default, then opens explicit contract questions only when ambiguity or risk remains. The human should not be asked to enumerate fields from scratch when the draft is already directionally correct.
+4. **Logic is prose-first.** Human describes corrections in natural language; agent normalizes to `WHEN / LET / CALL / RETURN / EMIT / SET / TRY` DSL for review. The human never has to produce DSL directly.
+5. **Verification emerges from draft + review.** Example cases surfaced during review ARE example_cases. Edge paths surfaced during review ARE edge_cases. Invariants upheld across the draft and corrections ARE property_assertions. L1 floors are met by construction, not by a separate "now let's write tests" phase.
+6. **Consistency probes are targeted, not exhaustive.** When a contradiction surfaces, the agent names it specifically (policy / sibling / called-atom / etc.) and presents options. When nothing surfaces, the probes are invisible — no narration.
+7. **Anti-bloat probes fire at every L0 create.** Before writing a new type / error / constant, run the relevant reuse scan via `forge find`. Present matches advisorily.
+8. **Within-module chain mode.** Context stays warm across atoms in the same module — sibling patterns, shared types, the just-elicited siblings inform subsequent atoms. `/clear` happens between modules, not between atoms (unless human opts in).
+9. **Stubs get filled; never recreated.** Partial spec handling is confirm+resume: show existing fields, allow corrections, then continue from the first unfilled or uncertain field. Never wipe and restart unless the human explicitly asks.
 
 ---
 
-## 3. Shape selection
+## 3. Review depth selection
 
-The agent selects the interview shape from the stub's surfaced complexity at sub-phase 0 exit. **Selection is deterministic, not adaptive-mid-flow.** The agent announces the pick so the human knows what to expect.
+The agent selects the review depth from the atom's surfaced criticality at sub-phase 0 exit. All depths start the same way: load context, draft the atom, present the draft, and ask only the questions the draft cannot settle. The selected depth controls how much challenge happens *after* the first draft is on the table.
 
 ### Selection rules
 
-| Condition | Shape |
+| Condition | Depth |
 |---|---|
-| `side_effects` is `[PURE]` OR only `READS_*` markers, AND a sibling atom with a similar pattern already exists in the module | **Shape A** |
-| Any `WRITES_*`, `EMITS_EVENT`, or `CALLS_EXTERNAL` marker present | **Shape B** (default) |
-| All three of `WRITES_DB + CALLS_EXTERNAL + EMITS_EVENT`, OR module flagged "hardest to get right" in discover, OR `kind: MODEL` | **Shape C** |
+| Routine, sibling-pattern, low-risk atom | **D1 — Draft review** |
+| Meaningful ambiguity, side effects with cross-entity implications, or likely L0/module cascades | **D2 — Draft + focused decisions** (default) |
+| Critical to module purpose, business correctness, security, data integrity, or `kind: MODEL` | **D3 — Draft + critical challenge** |
 
-Ambiguous? Default to Shape B. Upgrade to Shape C if during sub-phase 1 the atom's complexity becomes clearer.
+Ambiguous? Default to D2. Upgrade to D3 if during sub-phase 1 the atom's criticality becomes clearer.
 
-### Shape A — Draft-then-review
+### D1 — Draft review
 
-**Turns:** 5–10. **Time:** 10–20 min.
+**Turns:** 2–6. **Time:** 5–10 min.
 
 **Flow:**
-1. Agent loads context; reads the nearest-sibling specced atom as a pattern source
+1. Agent loads context; leans on the nearest sibling or strongest existing pattern when possible
 2. Agent drafts the complete spec inline
-3. Agent presents: *"Here's the draft. What's wrong?"*
-4. Human edits; agent iterates
-5. Propagate + handover
+3. Anti-bloat and consistency probes run silently during drafting
+4. Agent presents: *"Here's the draft. What's wrong or missing?"*
+5. Human edits; agent iterates once
+6. Propagate + handover
 
-**Anti-bloat and consistency probes run during drafting** — any probe that would surface is inlined as a comment in the draft:
+If input or output remains ambiguous after the first review, the agent opens a small number of targeted contract questions before finalizing. D1 should still feel like review, not interrogation.
+
+**Anti-bloat and consistency probes run during drafting** — any probe that would surface becomes a note or decision point in the draft:
 
 ```yaml
 logic:
@@ -88,48 +93,44 @@ logic:
   #   without this guard the atom would violate the policy.
 ```
 
-### Shape B — Example-driven extraction (default)
+### D2 — Draft + focused decisions (default)
 
-**Turns:** 12–20. **Time:** 30–45 min.
+**Turns:** 4–10. **Time:** 10–20 min.
 
 **Flow:**
 1. Agent loads context
-2. Agent asks for one concrete example case: input → steps → output
-3. Human walks the happy path
-4. Agent asks for 2–3 more cases (alternate inputs, failure paths)
-5. **Consistency probes fire** between case walk-throughs and extraction
-6. Agent runs anti-bloat probes for every L0 entity about to be created
-7. Agent extracts and presents the full spec block (input type, output type, side_effects, logic DSL, failure_modes, invariants, verification)
-8. Human reviews the extracted spec; iterates
+2. Agent drafts the full spec block and likely verification from context
+3. Agent presents the draft plus:
+   - assumptions made
+   - decision points
+   - conflicts or missing facts
+   - proposed L0 and module cascades
+4. Human answers only the targeted questions where multiple valid choices exist
+5. **Consistency probes fire** after the first draft and again only for sections materially changed by the review
+6. Agent runs anti-bloat probes for every L0 entity still about to be created
+7. Agent revises and presents the updated spec block
+8. Human reviews the revised spec; iterates
 9. Propagate + handover
 
-**Extraction pattern.** The agent produces the spec FROM the case walk-throughs, not ALONGSIDE them. The walk-throughs are the elicitation medium; the spec block is the artifact.
+**Contract review rule.** Input and output are drafted by default. The agent only opens explicit contract questions if the contract is not confidently inferable, if the choice affects downstream callers or types, or if the atom is carrying enough risk that contract precision matters.
 
-- **Input shape** — field names + types referenced in the first steps of each case
-- **Output shape** — what each case returns
-- **Side effects** — verbs used across cases map to L0 markers (WRITES_DB from "insert," EMITS_EVENT from "publish," CALLS_EXTERNAL from "POST to Stripe," etc.)
-- **Logic DSL** — normalized steps from the walkthrough, covering the branches surfaced by alternate cases
-- **Failure modes** — failure-path cases give trigger → error_code pairs
-- **Invariants (pre)** — what was true on entry in every case
-- **Invariants (post)** — what was true on successful exit in every case
-- **Verification** — the 2–3 example cases become `example_cases`; edge paths probed during cases become `edge_cases`; what held across all cases becomes `property_assertions`
+### D3 — Draft + critical challenge
 
-### Shape C — Structured deep-dive
+**Turns:** 8–16. **Time:** 20–40 min.
 
-**Turns:** 25–35. **Time:** 45–60 min.
+Reserved for atoms where the stakes warrant extra scrutiny: money movement, security, module-defining business rules, data integrity, and probabilistic models.
 
-**Six sequential passes**, each with consistency probes firing after the pass completes:
+The agent still drafts first. The difference is that review continues through structured challenge areas after the first draft:
 
-| Pass | Focus |
+| Challenge area | Focus |
 |---|---|
-| 1 | Input contract |
-| 2 | Output contract (success shape + error set) |
-| 3 | Side effects (which L0 markers apply; what L1 conventions activate) |
-| 4 | Invariants (pre + post) |
-| 5 | Logic (prose-first, DSL-normalized) |
-| 6 | Failure modes (trigger → error_code mapping) |
+| 1 | Business-critical correctness |
+| 2 | Security / authorization |
+| 3 | Data integrity / invariants |
+| 4 | External failure handling |
+| 5 | Caller / flow expectations |
 
-Reserved for atoms where the stakes warrant the extra ceremony: money movement, security, data integrity, probabilistic models.
+Within each area, the agent asks only the unresolved decision points. Input and output contract questions still stay ambiguity-gated; they do not become a field-by-field interrogation unless the atom's risk genuinely demands it.
 
 ---
 
@@ -225,13 +226,13 @@ Seven check classes, fired at anchored moments. Each uses existing CLI primitive
 
 ### Fire moments
 
-**Shape A (draft-then-review):** All seven checks run silently *during* drafting. Any contradiction detected is inlined as a comment in the draft, so the human sees the reasoning while reviewing.
+**D1 (draft review):** All seven checks run silently *during* drafting. Any contradiction detected is surfaced as a note or decision point in the draft, so the human sees the reasoning while reviewing.
 
-**Shape B (example-driven):** Two anchored moments:
-- **After case walk-throughs, before extraction.** Agent silently runs all seven checks against the described behavior. Any contradictions surface as option-sets before the extracted spec is presented.
-- **After extraction, before the spec review.** A second sweep catches contradictions that only become visible once the logic DSL is normalized.
+**D2 (draft + focused decisions):** Two anchored moments:
+- **After the first draft, before human review.** Agent silently runs all seven checks against the drafted behavior. Any contradictions surface as option-sets before the review questions.
+- **After the human's decisions, before the revised spec is presented.** A second sweep catches contradictions that only become visible once the draft has been updated.
 
-**Shape C (structured deep-dive):** Relevant checks run after each of the six passes. After pass 3 (side effects), checks 1/4/5 fire. After pass 5 (logic), checks 2/3/6 fire. After pass 6 (failure modes), check 7 fires.
+**D3 (draft + critical challenge):** Relevant checks run after each challenge area. Security / authorization chiefly fires 1/4/5; data integrity chiefly fires 2/3/6; caller / flow expectations chiefly fire 3/7.
 
 ### Presentation template
 
@@ -272,27 +273,27 @@ Example:
 
 ## 7. The four sub-phases
 
-### Sub-phase 0 — Context load + shape selection
+### Sub-phase 0 — Context load + review depth selection
 
 **Actions:**
 1. Run `forge context <atom_id>` to load stub + surrounding context (module, siblings, L0 so far, applied policies, L1 defaults, any L4 callers that already reference this atom).
 2. Read `discovery-notes.md` for atom hints, persistence entity notes, open_questions.
 3. If the stub's `spec` is partial from a prior session, enter confirm+resume mode: walk through each filled field, confirm or correct, then continue from the first unfilled field.
 4. Confirm the stub description is still accurate; refine if vague.
-5. Read the stub's declared side_effects (or infer from description if not yet declared) and **select the shape** (A / B / C). Announce.
+5. Read the stub's declared side_effects (or infer from description if not yet declared) and **select the review depth** (D1 / D2 / D3). Announce.
 
-**Exit condition:** shape selected, human confirmed description, context loaded.
+**Exit condition:** review depth selected, human confirmed description, context loaded.
 
 ### Sub-phase 1 — Specification
 
-Branches by shape (§3). Produces the full `spec` block.
+Branches by review depth (§3). Produces the full `spec` block.
 
 **Exit condition:** `spec` block complete per kind. Verification items accumulated during the interview.
 
 ### Sub-phase 2 — Verification finalization
 
 1. Check L1 floors: `min_property_assertions`, `min_edge_cases`, `min_example_cases`.
-2. If any floor is unmet (usually only in Shape A), probe for additional cases until the floor is met.
+2. If any floor is unmet, probe for additional examples or edge paths until the floor is met.
 3. For `kind: MODEL` atoms, add `bounds_verification` sub-section (explicitly enumerate how acceptable_bounds will be validated).
 
 **Exit condition:** all L1 floors met; MODEL atoms have bounds_verification.
@@ -319,7 +320,7 @@ Branches by shape (§3). Produces the full `spec` block.
 
 ## 8. Kind-specific spec shape notes
 
-The interview shape (A/B/C) governs the *interview structure*; the atom's `kind` governs the *spec block fields* that must be populated at the end.
+The review depth (D1/D2/D3) governs the *review structure*; the atom's `kind` governs the *spec block fields* that must be populated at the end.
 
 ### PROCEDURAL
 
@@ -355,7 +356,7 @@ spec:
       error: <error_code>
 ```
 
-Target + desired_state + reconciliation. Interview compresses in Shape B — one case walk-through of "the desired end state looks like X" plus the reconciliation strategy.
+Target + desired_state + reconciliation. In D2, review usually focuses on whether the drafted desired state and reconciliation strategy are accurate, with a grounding example only if the draft is too thin.
 
 ### COMPONENT
 
@@ -371,7 +372,7 @@ spec:
   invariants: [<expression>, ...]
 ```
 
-UI atoms. Render contract uses `ALWAYS RENDER / WHEN ... THEN RENDER / ON event DO action`. Interview in Shape B walks through "what does the screen look like in state X?" for 2–3 states.
+UI atoms. Render contract uses `ALWAYS RENDER / WHEN ... THEN RENDER / ON event DO action`. In D2, review usually checks the drafted states and emitted events first, then asks targeted questions like "what's missing in the loading or error state?" only if the contract is still unclear.
 
 ### MODEL
 
@@ -391,7 +392,7 @@ spec:
     invoke: <atom_id>   # must resolve to a PROCEDURAL atom
 ```
 
-Always Shape C — probabilistic contracts need bounds discipline. The interview surfaces acceptable_bounds (false-positive rate, recall, calibration metrics), training contract (data source as an L3 artifact), and the deterministic fallback atom.
+Always D3 — probabilistic contracts need bounds discipline. The review surfaces acceptable_bounds (false-positive rate, recall, calibration metrics), training contract (data source as an L3 artifact), and the deterministic fallback atom.
 
 ---
 
@@ -441,7 +442,7 @@ Each addition carries a changelog entry with date, version, and description ("Ad
 
 ## 11. Compatibility
 
-Format-agnostic. The skill artifact at `.agents/skills/forge-atom/SKILL.md` references this framework under `references/framework.md` for progressive disclosure — load on demand for depth on shape selection, consistency probe details, or artifact schemas.
+Format-agnostic. The skill artifact at `.agents/skills/forge-atom/SKILL.md` references this framework under `references/framework.md` for progressive disclosure — load on demand for depth on review depth selection, consistency probe details, or artifact schemas.
 
 ---
 
@@ -449,5 +450,5 @@ Format-agnostic. The skill artifact at `.agents/skills/forge-atom/SKILL.md` refe
 
 - **When should forge-atom re-enter after audit?** Audit may reveal an atom needs spec revision. Should that invoke forge-atom's partial-spec resume, or a dedicated revision mode?
 - **How should cross-module impact propagation work?** If forge-atom modifies an L0 type used by other atoms, those atoms' verification may no longer be accurate. Current design flags in `open_questions`; a future version could automatically re-run verification checks on affected atoms.
-- **Shape A auto-drafting quality.** Shape A depends on the agent producing a good first draft. What's the fallback if the draft is consistently wrong? Current design assumes iteration; a future version could escalate to Shape B after N failed iterations.
+- **D1 auto-drafting quality.** D1 depends on the agent producing a good first draft. What's the fallback if the draft is consistently wrong? Current design assumes escalation to D2 after a weak first review; a future version could formalize that threshold.
 - **Kind hybrids.** The framework insists one kind per atom. In practice, some atoms blur boundaries (a PROCEDURAL atom that partly manages COMPONENT state). Current design decomposes; future could allow explicit "primary kind" with documented hybrid behavior.

@@ -6,6 +6,7 @@ import tempfile
 from contextlib import chdir, redirect_stderr, redirect_stdout
 from pathlib import Path
 
+from cli.commands.init import SKILL_NAMES
 from cli.forge import main
 
 
@@ -58,9 +59,7 @@ def test_init_creates_spec_structure_and_symlinks():
         assert codex.is_dir()
         assert agents.is_dir()
 
-        for skill in ("forge-discover", "forge-decompose", "forge-atom",
-                      "forge-audit", "forge-armour", "forge-implement",
-                      "forge-test-writer", "forge-implementer"):
+        for skill in SKILL_NAMES:
             assert (claude / skill).is_symlink(), f"missing claude link for {skill}"
             assert (codex  / skill).is_symlink(), f"missing codex link for {skill}"
             assert (agents / skill).is_symlink(), f"missing agents link for {skill}"

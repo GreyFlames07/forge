@@ -18,7 +18,13 @@ description: >
 
 Compose implementation-ready L4 flows and journeys from already-elicited atoms. Work draft-first: infer a plausible orchestration from the current specs and project decisions, present it, then ask only the decision questions the draft cannot settle safely.
 
-Full mental model, consistency probes, and schemas can live in `references/framework.md` (load on demand). This file is self-sufficient for routine operation.
+Full mental model is in `references/framework.md`. Load on demand:
+- `§3` for review depth and decision checkpoint guidance
+- `§4` for required flow/journey shape checks
+- `§5` for contradiction probes and escalation
+- `§7` for handover and routing rules
+
+This file is self-sufficient for routine operation.
 
 ## Non-negotiables
 

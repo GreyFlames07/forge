@@ -450,7 +450,7 @@ The discipline that keeps the pipeline clean:
 | `persistence_schema.datastores` entries in module files | `forge-atom` when the atom's `side_effects` and output type force the form |
 | `access_permissions` expansions (env_vars, secrets, network) | `forge-atom` when the atom declares what it needs |
 | Policies | When a sensitive atom exists and forge-atom surfaces the need |
-| L4 flows / journeys | `forge-atom` or a dedicated compose skill |
+| L4 flows / journeys | `forge-compose` |
 
 The enforced discipline: **decompose produces stubs, not specs.** Stubs are discoverable; specs require the deep contract detail only forge-atom extracts.
 

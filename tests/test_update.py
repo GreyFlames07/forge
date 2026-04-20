@@ -26,7 +26,7 @@ def test_update_refreshes_managed_assets_and_prints_audit_hint():
             template.unlink()
             template.write_text("stale template\n")
 
-            skill_link = td_path / ".claude" / "skills" / "forge-atom"
+            skill_link = td_path / ".claude" / "skills" / "forge-compose"
             skill_link.unlink()
 
             gitkeep = td_path / ".forge" / "L4_flows" / ".gitkeep"

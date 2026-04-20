@@ -21,7 +21,7 @@ The agent drives the interview. The specs drive the code.
 
 ## What it is
 
-A six-layer YAML spec system, a Python CLI for context assembly, and **nine agent skills** that take a human from a vague product idea to working, audited, hardened, validated code — with the agent asking questions and the human answering, not the reverse.
+A six-layer YAML spec system, a Python CLI for context assembly, and **ten agent skills** that take a human from a vague product idea to working, audited, hardened, validated code — with the agent asking questions and the human answering, not the reverse.
 
 Built on the premise that **people explain systems well under questioning but poorly when cold-prompted**. forge inverts the default "human prompts agent → agent implements" loop into "agent interviews human → structured spec emerges → agent implements from spec".
 
@@ -39,6 +39,8 @@ Runs in **Claude Code**, **OpenAI Codex CLI**, and any **agentskills.io-compatib
   forge-decompose   →  atom inventory   (stub files, module populated, entry-point hints)
     ↓
   forge-atom        →  complete specs   (one atom at a time — three interview shapes)
+    ↓
+  forge-compose     →  L4 composition   (flows + journeys from completed atoms)
     ↓
   forge-audit       →  quality gate     (seven audit passes, severity-ranked findings)
     ↓
@@ -66,13 +68,13 @@ uv venv --python 3.13 .venv && uv pip install -e . pytest
 ./scripts/install-skills.sh install
 ```
 
-This wires the `forge` binary into `~/.local/bin/` and symlinks the nine skills into `~/.claude/skills/`, `~/.codex/skills/`, and `~/.agents/skills/` — discoverable by every supported client.
+This wires the `forge` binary into `~/.local/bin/` and symlinks the ten skills into `~/.claude/skills/`, `~/.codex/skills/`, and `~/.agents/skills/` — discoverable by every supported client.
 
 ### Verify
 
 ```
-forge --help              # shows: init, context, list, inspect, find
-.venv/bin/pytest          # 49 passed
+forge --help              # shows: init, update, context, list, inspect, find
+.venv/bin/pytest          # 52 passed
 ```
 
 ### Requirements
@@ -107,7 +109,7 @@ forge init
       ✓ .forge/
       ✓ 6 spec subdirectories
       ✓ 12 schema templates → .forge/templates/
-      ✓ 27/27 skill symlinks → .claude/skills/, .codex/skills/, .agents/skills/
+      ✓ 30/30 skill symlinks → .claude/skills/, .codex/skills/, .agents/skills/
 
     ───── Next steps ─────
 
@@ -145,13 +147,14 @@ Full CLI guide: [`docs/cli-guide.md`](docs/cli-guide.md).
 
 ---
 
-## The nine skills
+## The ten skills
 
 | Skill | Role | Input | Output |
 |---|---|---|---|
 | **forge-discover** | Interviewer (product framing) | Vague idea | Project foundation: modules, L0 skeleton, L1 conventions, L5 posture |
 | **forge-decompose** | Structural extractor | One bounded module | Exhaustive atom stubs (four-pass extraction) |
 | **forge-atom** | Contract specifier | One atom stub | Complete L3 spec + L0 cascades + module completions |
+| **forge-compose** | Composition specifier | Completed atoms + project decisions | L4 flow/journey specs with explicit boundary/retry/compensation/idempotency decisions |
 | **forge-audit** | Challenger / reviewer | Completed specs | Severity-ranked findings with inline edits; seven audit passes |
 | **forge-armour** | Security challenger | Audited specs | Security hardening pass, trust-model capture, approved project/module/atom security edits |
 | **forge-implement** | Orchestrator | Audited spec corpus | Code + tests, dep-graph parallel, test-before-impl isolation |
@@ -191,10 +194,11 @@ forge/
 │   ├── cli/              Python CLI package (the forge command)
 │   ├── templates/        L0-L5 schema templates (symlinked into projects by forge init)
 │   └── example/          Working example spec corpus (used by tests)
-├── .agents/skills/       The 9 forge skills (installed into agent clients)
+├── .agents/skills/       The 10 forge skills (installed into agent clients)
 │   ├── forge-discover/
 │   ├── forge-decompose/
 │   ├── forge-atom/
+│   ├── forge-compose/
 │   ├── forge-audit/
 │   ├── forge-armour/
 │   ├── forge-implement/

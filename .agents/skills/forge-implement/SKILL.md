@@ -39,7 +39,7 @@ Otherwise this file is self-sufficient for routine operation.
 5. **Spec-linked retry feedback only.** Implementation retries receive sanitized failure output with spec references — never test assertion diffs.
 6. **Partial completion is fine.** Succeeded units stay; failed units stash attempts; blocked units wait. Resume with `--resume`.
 7. **Minimality.** Subagents produce the smallest code satisfying the spec — no speculative abstractions.
-8. **Use conventional project layout.** Target files must follow the stack's normal industry directory conventions (and any existing repo structure), not Forge-specific folder schemes.
+8. **Consult on implementation layout before writing the plan.** File grouping, directory layout, test placement, and entrypoint structure are architecture decisions. Ask first; do not silently lock them in from inference alone.
 
 Full rationale: `references/framework.md §2`.
 
@@ -67,8 +67,16 @@ Full rationale: `references/framework.md §2`.
 4. Emit `units` list.
 
 **Architecture generation:**
-1. **Inferred (silent):** default_source_root, source_root_overrides (from `tech_stack.source_root` per module), atom_naming_policy (per-language idioms), test_frameworks (from `tech_stack.frameworks` or language defaults), schema_tools (from `tech_stack.schema_tool` or defaults), iac_tools (same), error_handling (language idioms), dependency_injection (default direct_imports unless DI framework detected), async_patterns.
-2. **Elicited (UI consultation — only if any COMPONENT atoms exist):** ask the human:
+1. **Inferred (provisional):** default_source_root, source_root_overrides (from `tech_stack.source_root` per module), atom_naming_policy (per-language idioms), test_frameworks (from `tech_stack.frameworks` or language defaults), schema_tools (from `tech_stack.schema_tool` or defaults), iac_tools (same), error_handling (language idioms), dependency_injection (default direct_imports unless DI framework detected), async_patterns.
+2. **Elicited (implementation layout consultation — always):** ask the human before writing the plan:
+   - *"Source layout preference — keep inferred layout, or different?"*
+   - *"Code grouping style: one file per atom, one file per module, or hybrid? If hybrid, describe the split."*
+   - *"Module/package directory names — keep inferred names, or any overrides (for example avoid `cmd/` collisions)?"*
+   - *"Flow/journey file placement — keep inferred roots, or different?"*
+   - *"Test placement — beside source, central tests dir, or hybrid?"*
+   - *"Binary entrypoint location — keep inferred entrypoint(s), or different?"*
+   Record answers in architecture layout fields before generating `target_files`.
+3. **Elicited (UI consultation — only if any COMPONENT atoms exist):** ask the human:
    - *"UI framework — inferred as `<X>` from `tech_stack.frameworks`. Confirm, or different?"*
    - *"Styling approach? (Tailwind / CSS modules / styled-components / vanilla / other)"*
    - *"Design system? (none / shadcn / Material / custom — describe)"*
@@ -251,6 +259,7 @@ On `/forge-implement` invocation when `progress.yaml` exists:
 - **Never tell the implementer tests exist.** Its prompt mentions only the target source file + spec id + architecture + (on retry) spec-linked hints. No test file paths, no test names, no coverage reports.
 - **Test-writer's audit file must have a row per spec element.** Verify the audit file before accepting the test-writer's output. If any spec element is missing from the audit matrix, re-spawn the test-writer with that gap called out.
 - **Architecture-conflict is final for the unit.** No retries. The human has to edit the architecture section of the plan and resume. The whole point of J3 is this short-circuits garbage-in-garbage-out loops.
+- **Layout consultation happens before plan write, not after bad guesses land.** The post-generation edit gate remains useful, but it is not a substitute for asking the human about repo structure preferences up front.
 - **Stashed attempts are the debugging artifact.** When a unit fails after exhausted retries, write every attempt's (source, test output, retry feedback) to `implementation/attempts/<id>/attempt-<N>/` so the human can trace what happened.
 - **Don't parallelize the two phases within a unit.** Test-writer must complete and red-phase must verify before implementer starts. Parallelizing risks the implementer running before tests are written, getting unclear signal.
 - **Partial runs are the norm on big projects.** Expect 10-20% of units to fail on first run of a new project — the spec surface surprises come out. Re-audit + re-resume + iterate.

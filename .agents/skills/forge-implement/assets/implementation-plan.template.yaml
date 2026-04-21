@@ -13,6 +13,12 @@ architecture:
   default_source_root: src/
   source_root_overrides:
     # <MOD>: <path>     # only modules that override
+  module_dir_names:
+    # <MOD>: <dir_name>
+  flow_root: src/flows
+  journey_root: src/journeys
+  binary_entrypoints:
+    # - cmd/app/main.go
 
   # Naming (E2) — per language
   atom_naming_policy:
@@ -20,6 +26,8 @@ architecture:
     python:     snake_case_per_atom_file
     go:         snake_case_per_atom_file
     rust:       snake_case_per_atom_file
+  unit_file_granularity: per_atom_file   # or per_module_file / hybrid
+  test_placement: beside_source   # or central_tests_dir / hybrid
 
   # Test frameworks (E3) — per language, inferred or defaulted
   test_frameworks:

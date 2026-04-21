@@ -39,7 +39,7 @@ Audiences:
 
 1. **Orchestrator is a pure dispatcher.** Never makes implementation decisions. Never inlines spec content in subagent prompts. Subagents use `forge context` to load their own state.
 2. **Test-before-implementation isolation.** Test-writer subagent runs first, completes (with red-phase verification), then implementation subagent runs in a fresh session, blind to tests.
-3. **Architecture is declared once and respected throughout.** J1/J2/J3 — architecture section is assembled, human-confirmed, then locked. Subagents may bail with `architecture_conflict` but never mutate the architecture.
+3. **Architecture is consulted before it is locked.** J1/J2/J3 — architecture section is first assembled provisionally, key layout decisions are confirmed with the human, then the plan is written and locked. Subagents may bail with `architecture_conflict` but never mutate the architecture.
 4. **Minimality in generated output.** Subagents produce the smallest code satisfying the spec. No speculative layers, helpers, or boilerplate.
 5. **Specs are frozen during a run.** Never modify spec files. Changes require re-audit + re-run.
 6. **Dep graph drives ordering.** Units run in topological order across modules; independent units parallelize per `--parallelism`.
@@ -96,6 +96,12 @@ architecture:
   dependency_injection: direct_imports
   async_patterns:
     typescript: async_await
+  module_dir_names: {}
+  flow_root: src/flows
+  journey_root: src/journeys
+  binary_entrypoints: []
+  unit_file_granularity: per_atom_file
+  test_placement: beside_source
 
 units:
   - id:            atm.pay.charges_schema
@@ -142,7 +148,7 @@ When generating from scratch or regenerating:
 ### Architecture generation (J1, J2)
 
 Before emitting the plan, assemble the architecture section:
-1. **Inferred decisions** (A, B, C, D, F, G, H, I, J from locked design):
+1. **Inferred provisional decisions** (A, B, C, D, F, G, H, I, J from locked design):
    - `default_source_root`: `src/`
    - `source_root_overrides`: for each module declaring `tech_stack.source_root`, include it
    - `atom_naming_policy`: per-language from E2's lookup
@@ -153,7 +159,23 @@ Before emitting the plan, assemble the architecture section:
    - `dependency_injection`: default `direct_imports` unless frameworks list a DI framework (NestJS → `nest_di`)
    - `async_patterns`: language defaults
 
-2. **UI consultation** (E — elicited, not inferred):
+2. **Implementation layout consultation** (elicited for every project before plan write):
+   - Ask:
+     - *"Source layout preference — keep inferred layout, or different?"*
+     - *"Code grouping style: one file per atom, one file per module, or hybrid?"*
+     - *"Module/package directory names — keep inferred names, or any overrides?"*
+     - *"Flow/journey placement — keep inferred roots, or different?"*
+     - *"Test placement — beside source, central tests dir, or hybrid?"*
+     - *"Binary entrypoint location — keep inferred entrypoint(s), or different?"*
+   - Record answers in:
+     - `module_dir_names`
+     - `flow_root`
+     - `journey_root`
+     - `binary_entrypoints`
+     - `unit_file_granularity`
+     - `test_placement`
+
+3. **UI consultation** (E — elicited, not inferred):
    - If any COMPONENT atoms exist in the project, pause and ask:
      - *"Project has N COMPONENT atoms. UI framework — inferred as `react` from `frameworks`. Confirm, or different?"*
      - *"Styling — inferred as `<best_match>` from frameworks. Alternatives: Tailwind / CSS modules / styled-components / vanilla CSS / other."*
@@ -163,7 +185,7 @@ Before emitting the plan, assemble the architecture section:
      - *"Theming? (light / dark / light-and-dark / multi-theme)"*
    - Record answers in `architecture.ui_*` fields.
 
-3. Assemble the `architecture` block in the plan, then pause for human editing (A4).
+4. Assemble the `architecture` block in the plan, then pause for human editing (A4).
 
 ### Human edit gate (A4)
 
@@ -171,7 +193,7 @@ After generating plan + architecture, pause with a summary:
 
 ```
 Plan generated: 12 units in 3 modules.
-Architecture generated: React + CSS modules, Prisma for PAY, Terraform for all infra.
+Architecture generated: per-module files, beside-source tests, custom flow root, Prisma for PAY, Terraform for all infra.
 
 Plan file: <spec-dir>/implementation-plan.yaml
 
@@ -375,7 +397,7 @@ On `/forge-implement` invocation when progress.yaml exists:
 
 - **Does not create or edit specs.** Ever. Frozen from run start.
 - **Does not make implementation decisions.** All decisions in architecture or deferred to subagent per their spec.
-- **Does not run interactive interviews.** Unlike discover / forge-atom, this skill is execution-oriented. Only interactive moments: A4 plan-edit pause, J2 UI consultation, G3 resume confirmation, H3 commit-offer.
+- **Does not run broad interviews.** Interactive moments are narrow and architectural: pre-plan layout consultation, UI consultation when relevant, A4 plan-edit pause, G3 resume confirmation, H3 commit-offer.
 - **Does not generate flows / journeys / artifacts from nothing.** These must exist as specs already (flows/journeys are typically authored via `forge-compose`).
 - **Does not train MODEL atoms.** Produces stubs delegating to fallback; training is out of scope.
 - **Does not run migrations / deploy infrastructure.** DECLARATIVE atoms produce migration files or IaC files; running them is a human / CI concern.

@@ -63,7 +63,7 @@ forge --version
 Example output:
 
 ```text
-forge 0.1.0
+forge 0.1.3
 ```
 
 ---

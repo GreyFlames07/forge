@@ -17,7 +17,7 @@ from cli.commands import ALL_COMMANDS
 
 def _version_string() -> str:
     """Return the installed forge-cli package version."""
-    for dist_name in ("forge-ai-cli", "forge-cli"):
+    for dist_name in ("ai-forge-cli", "forge-ai-cli", "forge-cli"):
         try:
             return metadata.version(dist_name)
         except metadata.PackageNotFoundError:

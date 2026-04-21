@@ -139,3 +139,18 @@ def test_resolve_forge_sources_uses_cached_repo_when_local_skills_missing(monkey
     repo, skills = init_cmd._resolve_forge_sources()
     assert repo == cached_repo
     assert skills == cached_skills
+
+
+def test_installed_cli_version_prefers_ai_forge_cli_distribution(monkeypatch):
+    versions = {
+        "ai-forge-cli": "0.1.3",
+        "forge-ai-cli": "0.1.1",
+    }
+
+    def fake_version(name: str) -> str:
+        if name in versions:
+            return versions[name]
+        raise init_cmd.metadata.PackageNotFoundError
+
+    monkeypatch.setattr(init_cmd.metadata, "version", fake_version)
+    assert init_cmd._installed_cli_version() == "0.1.3"

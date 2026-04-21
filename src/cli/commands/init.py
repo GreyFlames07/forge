@@ -158,7 +158,7 @@ _FORGE_GITHUB_ARCHIVE = "https://codeload.github.com/GreyFlames07/forge/tar.gz/r
 
 def _installed_cli_version() -> str | None:
     """Return the installed distribution version for this CLI."""
-    for dist_name in ("forge-ai-cli", "forge-cli"):
+    for dist_name in ("ai-forge-cli", "forge-ai-cli", "forge-cli"):
         try:
             return metadata.version(dist_name)
         except metadata.PackageNotFoundError:

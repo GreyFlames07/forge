@@ -7,8 +7,11 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.3] — 2026-04-21
+
 ### Fixed
 
+- Pip-installed Forge CLI now resolves the renamed `ai-forge-cli` distribution before legacy package names when computing `forge --version` and when bootstrapping init/update assets. This prevents stale `0.1.1` version output and ensures the matching installed release bundle is fetched, including `forge-compose`.
 - `forge-implement` SKILL.md: clarified that `forge-test-writer` and `forge-implementer` are skills, not Task `subagent_type` values. Orchestrators must spawn `subagent_type: "general-purpose"` and invoke the skill by name in the prompt. Also documents that subagents inherit no env (no `$FORGE_SPEC_DIR`, no CWD) — prompts must pass the absolute spec-dir path explicitly.
 - `FORGE_SPEC_DIR` export in README quick-start and `forge init` output now wraps the path in double quotes so it is valid for directories containing spaces.
 - `forge init`/`forge update` now work from pip-installed distributions by bootstrapping bundled skill/template assets from the matching tagged GitHub source archive when repo-local assets are unavailable.
@@ -55,5 +58,6 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - 49 pytest test cases across CLI, index, walker, find, and init command.
 - Full framework documentation for each skill under `docs/skills/<name>/framework.md`.
 
-[Unreleased]: https://github.com/GreyFlames07/forge/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/GreyFlames07/forge/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/GreyFlames07/forge/releases/tag/v0.1.3
 [0.1.0]: https://github.com/GreyFlames07/forge/releases/tag/v0.1.0

@@ -3,10 +3,12 @@
 import io
 import sys
 from contextlib import redirect_stderr, redirect_stdout
+from importlib import metadata
 from pathlib import Path
 
 import pytest
 
+from cli import forge as forge_mod
 from cli.forge import main
 
 EXAMPLE = str(Path(__file__).resolve().parent.parent / "src" / "example")
@@ -26,6 +28,21 @@ def test_version_flag_prints_version_and_exits_0():
     assert e.value.code == 0
     assert out.getvalue().startswith("forge ")
     assert err.getvalue() == ""
+
+
+def test_version_string_prefers_ai_forge_cli_distribution(monkeypatch):
+    versions = {
+        "ai-forge-cli": "0.1.3",
+        "forge-ai-cli": "0.1.1",
+    }
+
+    def fake_version(name: str) -> str:
+        if name in versions:
+            return versions[name]
+        raise metadata.PackageNotFoundError
+
+    monkeypatch.setattr(forge_mod.metadata, "version", fake_version)
+    assert forge_mod._version_string() == "0.1.3"
 
 
 # ---------- context ----------

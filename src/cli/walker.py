@@ -113,6 +113,13 @@ def expand_atom(idx: Index, atom: Entry, unresolved: list[str]) -> OrderedDict[s
     for aid in sorted(called_atom_ids):
         called_sigs[aid] = _atom_signature(idx, aid, unresolved)
 
+    shaped_fields = OrderedDict()
+    shaped_fields[atom.id] = _atom_shaped_fields(atom.data)
+    for aid in sorted(called_atom_ids):
+        entry = idx.get(aid)
+        if entry and entry.kind == "atom":
+            shaped_fields[aid] = _atom_shaped_fields(entry.data)
+
     l0_slice = _build_l0_slice(
         idx,
         type_ids=type_ids,
@@ -134,6 +141,7 @@ def expand_atom(idx: Index, atom: Entry, unresolved: list[str]) -> OrderedDict[s
     bundle["policies_applied"] = policies_applied
     bundle["l3_atom"] = atom.data
     bundle["called_atom_signatures"] = called_sigs
+    bundle["shaped_fields"] = shaped_fields
     if training_artifact is not None:
         bundle["training_artifact"] = training_artifact
     bundle["l4_callers"] = callers
@@ -238,6 +246,7 @@ def expand_journey(idx: Index, journey: Entry, unresolved: list[str]) -> Ordered
 
     handler_atoms: OrderedDict[str, Any] = OrderedDict()
     invoked_flows: OrderedDict[str, Any] = OrderedDict()
+    shaped_fields: OrderedDict[str, Any] = OrderedDict()
     aggregated_type_ids: set[str] = set()
     aggregated_errors: set[str] = set()
     aggregated_constants: set[str] = set()
@@ -250,6 +259,7 @@ def expand_journey(idx: Index, journey: Entry, unresolved: list[str]) -> Ordered
             entry = idx.get(aid)
             if entry:
                 handler_atoms[aid] = entry.data
+                shaped_fields[aid] = _atom_shaped_fields(entry.data)
                 spec = entry.data.get("spec") or {}
                 aggregated_type_ids |= _collect_type_ids(spec)
                 aggregated_errors |= _collect_error_codes(spec)
@@ -297,6 +307,7 @@ def expand_journey(idx: Index, journey: Entry, unresolved: list[str]) -> Ordered
     bundle["l4_journey"] = journey.data
     bundle["handler_atoms"] = handler_atoms
     bundle["invoked_orchestrations"] = invoked_flows
+    bundle["shaped_fields"] = shaped_fields
     bundle["l5_operations"] = idx.l5
     return bundle
 
@@ -309,6 +320,7 @@ def expand_flow(idx: Index, flow: Entry, unresolved: list[str]) -> OrderedDict[s
     sequence = flow.data.get("sequence") or []
 
     step_sigs: OrderedDict[str, Any] = OrderedDict()
+    shaped_fields: OrderedDict[str, Any] = OrderedDict()
     aggregated_type_ids: set[str] = set()
     aggregated_errors: set[str] = set()
     aggregated_markers: set[str] = set()
@@ -326,6 +338,7 @@ def expand_flow(idx: Index, flow: Entry, unresolved: list[str]) -> OrderedDict[s
             step_sigs[aid] = _atom_signature(idx, aid, unresolved)
             entry = idx.get(aid)
             if entry and entry.kind == "atom":
+                shaped_fields[aid] = _atom_shaped_fields(entry.data)
                 spec = entry.data.get("spec") or {}
                 aggregated_type_ids |= _collect_type_ids(spec)
                 aggregated_errors |= _collect_error_codes(spec)
@@ -354,6 +367,7 @@ def expand_flow(idx: Index, flow: Entry, unresolved: list[str]) -> OrderedDict[s
     bundle["l2_entry_points"] = entry_points
     bundle["l4_orchestration"] = flow.data
     bundle["step_atom_signatures"] = step_sigs
+    bundle["shaped_fields"] = shaped_fields
     bundle["l5_operations"] = idx.l5
     return bundle
 
@@ -392,8 +406,12 @@ def expand_artifact(idx: Index, artifact: Entry, unresolved: list[str]) -> Order
             unresolved.append(sid)
 
     consumers = OrderedDict()
+    shaped_fields: OrderedDict[str, Any] = OrderedDict()
     for cid in artifact.data.get("consumers") or []:
         consumers[cid] = _atom_signature(idx, cid, unresolved)
+        entry = idx.get(cid)
+        if entry and entry.kind == "atom":
+            shaped_fields[cid] = _atom_shaped_fields(entry.data)
 
     l0_slice = _build_l0_slice(
         idx,
@@ -415,6 +433,7 @@ def expand_artifact(idx: Index, artifact: Entry, unresolved: list[str]) -> Order
     bundle["producer_atom_signature"] = producer_sig
     bundle["source_artifacts"] = source_artifacts
     bundle["consumer_signatures"] = consumers
+    bundle["shaped_fields"] = shaped_fields
     return bundle
 
 
@@ -435,6 +454,37 @@ def _atom_signature(idx: Index, atom_id: str, unresolved: list[str]) -> dict[str
         "output": spec.get("output"),
         "side_effects": spec.get("side_effects"),
     }
+
+
+def _atom_shaped_fields(atom_data: dict[str, Any]) -> OrderedDict[str, Any]:
+    spec = atom_data.get("spec") or {}
+    shaped = OrderedDict()
+    for section_name, fields in (
+        ("input", spec.get("input")),
+        ("output.success", (spec.get("output") or {}).get("success")),
+        ("props", spec.get("props")),
+        ("local_state", spec.get("local_state")),
+        ("input_distribution", spec.get("input_distribution")),
+        ("output_distribution", spec.get("output_distribution")),
+    ):
+        _collect_shaped_fields(fields, section_name, shaped)
+    return shaped
+
+
+def _collect_shaped_fields(obj: Any, prefix: str, out: OrderedDict[str, Any]) -> None:
+    if not isinstance(obj, dict):
+        return
+    if "type" in obj and "shape" in obj and isinstance(obj["shape"], dict):
+        out[prefix] = {
+            "type": obj.get("type"),
+            "nullable": obj.get("nullable"),
+            "shape": obj.get("shape"),
+        }
+        return
+    for key, value in obj.items():
+        if isinstance(value, dict):
+            child = f"{prefix}.{key}" if prefix else key
+            _collect_shaped_fields(value, child, out)
 
 
 def _resolve(idx: Index, entity_id: str, expected_kind: str, unresolved: list[str]) -> Any:

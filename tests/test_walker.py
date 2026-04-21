@@ -1,6 +1,9 @@
 """Walker tests against src/example/ fixtures."""
 
+from pathlib import Path
+
 from cli import walker
+from cli.index import Entry, Index
 
 
 # ---------- Atom ----------
@@ -64,6 +67,141 @@ def test_atom_unresolved_signatures(idx):
     for aid in ["atm.usr.fetch_customer", "atm.pay.find_by_idempotency_key", "atm.pay.persist_charge"]:
         assert sigs[aid]["status"] == "UNRESOLVED"
         assert aid in unresolved
+
+
+def test_atom_context_preserves_shape_metadata_for_target_and_called_signatures():
+    target_input_shape = {
+        "kind": "tagged_union",
+        "discriminator": "form",
+        "variants": [
+            {"form": "broadcast", "value": "all"},
+            {"form": "session", "pattern": "session:<int>"},
+        ],
+    }
+    target_output_shape = {
+        "kind": "enum",
+        "values": ["queued", "sent"],
+    }
+    called_output_shape = {
+        "kind": "json_schema",
+        "schema": {
+            "type": "array",
+            "items": {"type": "integer"},
+        },
+    }
+
+    idx = Index(spec_dir=Path("."))
+    idx.l1 = {"failure": {"propagation": {}}}
+    idx.l5 = {}
+    idx.entries = {
+        "MSG": Entry(
+            id="MSG",
+            kind="module",
+            data={
+                "id": "MSG",
+                "owned_atoms": ["atm.msg.send_message", "atm.msg.resolve_targets"],
+                "policies": [],
+                "interface": {"entry_points": []},
+            },
+        ),
+        "atm.msg.send_message": Entry(
+            id="atm.msg.send_message",
+            kind="atom",
+            data={
+                "id": "atm.msg.send_message",
+                "kind": "PROCEDURAL",
+                "owner_module": "MSG",
+                "description": "Send a message to a resolved target set.",
+                "spec": {
+                    "input": {
+                        "target": {
+                            "type": "string",
+                            "nullable": False,
+                            "shape": target_input_shape,
+                        },
+                        "body": {
+                            "type": "string",
+                            "nullable": False,
+                        },
+                    },
+                    "output": {
+                        "success": {
+                            "delivery_status": {
+                                "type": "string",
+                                "nullable": False,
+                                "shape": target_output_shape,
+                            }
+                        },
+                        "errors": [],
+                    },
+                    "logic": ["CALL atm.msg.resolve_targets"],
+                },
+            },
+        ),
+        "atm.msg.resolve_targets": Entry(
+            id="atm.msg.resolve_targets",
+            kind="atom",
+            data={
+                "id": "atm.msg.resolve_targets",
+                "kind": "PROCEDURAL",
+                "owner_module": "MSG",
+                "description": "Resolve a target selector into session ids.",
+                "spec": {
+                    "input": {
+                        "target": {
+                            "type": "string",
+                            "nullable": False,
+                            "shape": target_input_shape,
+                        },
+                    },
+                    "output": {
+                        "success": {
+                            "resolved_targets": {
+                                "type": "string",
+                                "nullable": False,
+                                "shape": called_output_shape,
+                            }
+                        },
+                        "errors": [],
+                    },
+                    "logic": [],
+                },
+            },
+        ),
+    }
+
+    bundle, unresolved = walker.walk(idx, "atm.msg.send_message")
+
+    assert unresolved == []
+    assert bundle["l3_atom"]["spec"]["input"]["target"]["shape"] == target_input_shape
+    assert bundle["l3_atom"]["spec"]["output"]["success"]["delivery_status"]["shape"] == target_output_shape
+    called_sig = bundle["called_atom_signatures"]["atm.msg.resolve_targets"]
+    assert called_sig["input"]["target"]["shape"] == target_input_shape
+    assert called_sig["output"]["success"]["resolved_targets"]["shape"] == called_output_shape
+    assert bundle["shaped_fields"]["atm.msg.send_message"] == {
+        "input.target": {
+            "type": "string",
+            "nullable": False,
+            "shape": target_input_shape,
+        },
+        "output.success.delivery_status": {
+            "type": "string",
+            "nullable": False,
+            "shape": target_output_shape,
+        },
+    }
+    assert bundle["shaped_fields"]["atm.msg.resolve_targets"] == {
+        "input.target": {
+            "type": "string",
+            "nullable": False,
+            "shape": target_input_shape,
+        },
+        "output.success.resolved_targets": {
+            "type": "string",
+            "nullable": False,
+            "shape": called_output_shape,
+        },
+    }
 
 
 # ---------- Module ----------

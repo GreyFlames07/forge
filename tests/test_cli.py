@@ -32,7 +32,7 @@ def test_version_flag_prints_version_and_exits_0():
 
 def test_version_string_prefers_ai_forge_cli_distribution(monkeypatch):
     versions = {
-        "ai-forge-cli": "0.1.3",
+        "ai-forge-cli": "0.1.4",
         "forge-ai-cli": "0.1.1",
     }
 
@@ -42,7 +42,7 @@ def test_version_string_prefers_ai_forge_cli_distribution(monkeypatch):
         raise metadata.PackageNotFoundError
 
     monkeypatch.setattr(forge_mod.metadata, "version", fake_version)
-    assert forge_mod._version_string() == "0.1.3"
+    assert forge_mod._version_string() == "0.1.4"
 
 
 # ---------- context ----------

@@ -7,6 +7,19 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.4] — 2026-04-21
+
+### Added
+
+- `forge-cast`, a hydration skill that translates an existing non-Forge codebase into a draft Forge corpus from repository evidence only, and emits a `cast-report.md` uncertainty report with confidence levels and targeted clarification questions.
+- `forge-cast` framework documentation under `docs/skills/forge-cast/framework.md`.
+- `forge init` and `scripts/install-skills.sh` now wire `forge-cast` alongside the other first-class Forge skills.
+
+### Changed
+
+- `forge-implement` now performs an explicit pre-plan architecture consultation for implementation layout choices such as one-file-per-atom vs one-file-per-module, module/package directory naming, flow/journey placement, test placement, and binary entrypoint layout before drafting `implementation-plan.yaml`.
+- `implementation-plan.yaml` architecture template now includes layout fields for module directory overrides, flow/journey roots, binary entrypoints, unit file granularity, and test placement.
+
 ## [0.1.3] — 2026-04-21
 
 ### Fixed
@@ -58,6 +71,7 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - 49 pytest test cases across CLI, index, walker, find, and init command.
 - Full framework documentation for each skill under `docs/skills/<name>/framework.md`.
 
-[Unreleased]: https://github.com/GreyFlames07/forge/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/GreyFlames07/forge/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/GreyFlames07/forge/releases/tag/v0.1.4
 [0.1.3]: https://github.com/GreyFlames07/forge/releases/tag/v0.1.3
 [0.1.0]: https://github.com/GreyFlames07/forge/releases/tag/v0.1.0

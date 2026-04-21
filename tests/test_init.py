@@ -143,7 +143,7 @@ def test_resolve_forge_sources_uses_cached_repo_when_local_skills_missing(monkey
 
 def test_installed_cli_version_prefers_ai_forge_cli_distribution(monkeypatch):
     versions = {
-        "ai-forge-cli": "0.1.3",
+        "ai-forge-cli": "0.1.4",
         "forge-ai-cli": "0.1.1",
     }
 
@@ -153,4 +153,4 @@ def test_installed_cli_version_prefers_ai_forge_cli_distribution(monkeypatch):
         raise init_cmd.metadata.PackageNotFoundError
 
     monkeypatch.setattr(init_cmd.metadata, "version", fake_version)
-    assert init_cmd._installed_cli_version() == "0.1.3"
+    assert init_cmd._installed_cli_version() == "0.1.4"

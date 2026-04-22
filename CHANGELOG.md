@@ -7,6 +7,16 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.5] — 2026-04-22
+
+### Added
+
+- `forge context` now emits a `shaped_fields` summary for atoms, flows, journeys, and artifacts so downstream agents can consume field-level primitive shape metadata without re-deriving it from nested specs.
+
+### Changed
+
+- Referenced atom signatures in `forge context` now preserve and surface `shape` metadata consistently for target and called atoms.
+
 ## [0.1.4] — 2026-04-21
 
 ### Added
@@ -71,7 +81,8 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - 49 pytest test cases across CLI, index, walker, find, and init command.
 - Full framework documentation for each skill under `docs/skills/<name>/framework.md`.
 
-[Unreleased]: https://github.com/GreyFlames07/forge/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/GreyFlames07/forge/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/GreyFlames07/forge/releases/tag/v0.1.5
 [0.1.4]: https://github.com/GreyFlames07/forge/releases/tag/v0.1.4
 [0.1.3]: https://github.com/GreyFlames07/forge/releases/tag/v0.1.3
 [0.1.0]: https://github.com/GreyFlames07/forge/releases/tag/v0.1.0

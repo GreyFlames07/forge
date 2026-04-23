@@ -7,6 +7,13 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.6] — 2026-04-23
+
+### Changed
+
+- `forge-atom` now requires a primitive-shape review during elicitation so structured primitive fields must either declare `shape` or be explicitly confirmed as opaque pass-through values before the atom can be finalized.
+- The forge-atom review template and L3 authoring docs now clarify that `shape` remains optional in YAML syntax but is required whenever a bare primitive would hide meaningful wire-format structure.
+
 ## [0.1.5] — 2026-04-22
 
 ### Added
@@ -81,7 +88,8 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - 49 pytest test cases across CLI, index, walker, find, and init command.
 - Full framework documentation for each skill under `docs/skills/<name>/framework.md`.
 
-[Unreleased]: https://github.com/GreyFlames07/forge/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/GreyFlames07/forge/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/GreyFlames07/forge/releases/tag/v0.1.6
 [0.1.5]: https://github.com/GreyFlames07/forge/releases/tag/v0.1.5
 [0.1.4]: https://github.com/GreyFlames07/forge/releases/tag/v0.1.4
 [0.1.3]: https://github.com/GreyFlames07/forge/releases/tag/v0.1.3

@@ -149,8 +149,8 @@ spec:
 
 | Field | Description |
 |---|---|
-| `input` | Input contract. Either a reference to an L0.4 entity type or inline field definitions following the same `{name: {type, nullable, description}}` shape as L0 entities. |
-| `output.success` | Shape returned on success. Same format options as input. |
+| `input` | Input contract. Either a reference to an L0.4 entity type or inline field definitions following the same `{name: {type, nullable, description, shape?}}` shape as L0 entities. `shape` is optional and is used when a primitive field must carry explicit internal structure for deterministic contract materialization. |
+| `output.success` | Shape returned on success. Same format options as input, including optional `shape` on inline primitive fields. |
 | `output.errors` | Error codes this atom can return. Each must exist in L0.3. Callers use this to know what failures to handle. |
 | `side_effects` | Side-effect markers from L0.6. Determines which L1 conventions apply (audit, idempotency). |
 | `invariants.pre` | Conditions that must be true on entry. Pseudo-formal rules over input fields and system state. |
@@ -171,6 +171,21 @@ spec:
 - `TRY: <action> CATCH <condition>: <action>` — error handling.
 
 All conditions and values must reference typed fields. No free prose in the operational part.
+
+**Optional field-level `shape` extension**
+
+Inline field declarations may include:
+
+```yaml
+<field_name>:
+  type: string
+  nullable: false
+  shape:
+    kind: enum | pattern | tagged_union | json_schema | reference
+    ...
+```
+
+Use `shape` when a primitive field (`string`, `integer`, etc.) carries structure that downstream atoms parse, split, pattern-match, discriminate on, or otherwise consume structurally. Opaque pass-through tokens do not need it. The field remains syntactically optional, but authoring guidance treats it as required whenever a bare primitive would hide meaningful internal structure.
 
 **Reference forms inside logic:**
 

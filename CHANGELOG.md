@@ -20,6 +20,23 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `forge-implement` framework/docs now consistently retain the contract-artifact and `armour-history` pre-implementation gates after the supporting-docs refactor.
 - L3 behavior templates and atom review guidance now describe shaped primitive fields more explicitly so audits and implementations can enforce structured field contracts.
 
+## [0.1.6] — 2026-04-23
+
+### Changed
+
+- `forge-atom` now requires a primitive-shape review during elicitation so structured primitive fields must either declare `shape` or be explicitly confirmed as opaque pass-through values before the atom can be finalized.
+- The forge-atom review template and L3 authoring docs now clarify that `shape` remains optional in YAML syntax but is required whenever a bare primitive would hide meaningful wire-format structure.
+
+## [0.1.5] — 2026-04-22
+
+### Added
+
+- `forge context` now emits a `shaped_fields` summary for atoms, flows, journeys, and artifacts so downstream agents can consume field-level primitive shape metadata without re-deriving it from nested specs.
+
+### Changed
+
+- Referenced atom signatures in `forge context` now preserve and surface `shape` metadata consistently for target and called atoms.
+
 ## [0.1.4] — 2026-04-21
 
 ### Added
@@ -86,6 +103,8 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 [Unreleased]: https://github.com/GreyFlames07/forge/compare/v0.1.7...HEAD
 [0.1.7]: https://github.com/GreyFlames07/forge/releases/tag/v0.1.7
+[0.1.6]: https://github.com/GreyFlames07/forge/releases/tag/v0.1.6
+[0.1.5]: https://github.com/GreyFlames07/forge/releases/tag/v0.1.5
 [0.1.4]: https://github.com/GreyFlames07/forge/releases/tag/v0.1.4
 [0.1.3]: https://github.com/GreyFlames07/forge/releases/tag/v0.1.3
 [0.1.0]: https://github.com/GreyFlames07/forge/releases/tag/v0.1.0

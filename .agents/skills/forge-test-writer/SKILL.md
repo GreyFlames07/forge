@@ -23,7 +23,7 @@ Subagent dispatched by `forge-implement` to generate tests for one Forge entity 
 - `level` — `unit` | `integration` | `system`
 - `target_test_file` — absolute path where tests are written
 - `target_audit_file` — absolute path where the audit md is written
-- `architecture` — block from `implementation-plan.yaml` (test framework, language, styling, etc.)
+- `architecture` — block from `supporting-docs/implementation-plan.yaml` (test framework, language, styling, etc.)
 
 ## Non-negotiables
 

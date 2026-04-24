@@ -10,7 +10,7 @@ description: >
   or missing the foundational files (no L0_registry.yaml, no L2_modules/, no
   L1_conventions.yaml, no L5_operations.yaml). Drives an adaptive agent-led
   interview — the agent asks questions, the human answers, specs emerge.
-  Produces discovery-notes.md, an L0 skeleton, one L2 module file per
+  Produces supporting-docs/discovery-notes.md, an L0 skeleton, one L2 module file per
   identified module, L1_conventions.yaml, and L5_operations.yaml. Does NOT
   produce atoms, types, errors, constants, policies, flows, or journeys —
   those belong to downstream skills.
@@ -36,7 +36,7 @@ Otherwise, this file is self-sufficient for routine operation.
 4. **Confirm by restating before writing.** "So: when X happens, the system does Y. Right?" — then write to disk. Silence is not agreement.
 5. **Critical decisions get option sets, not defaults.** For cascading choices (cloud, persistence, auth posture, event semantics, deployment strategy), present 2–4 options with tradeoffs instead of picking silently or proposing a single default. See `## Critical decisions`.
 6. **Resist premature naming.** Work with descriptive placeholders ("the thing that does X," "whatever handles Y") until the boundary is tested. Only commit a 3-letter module ID after the seam has been interrogated.
-7. **Scratchpad first, structured files second.** Everything captured goes into `discovery-notes.md` as it surfaces. Commit to structured YAML (L0/L1/L2/L5) only at sub-phase exits, once the shape is stable.
+7. **Scratchpad first, structured files second.** Everything captured goes into `supporting-docs/discovery-notes.md` as it surfaces. Commit to structured YAML (L0/L1/L2/L5) only at sub-phase exits, once the shape is stable.
 
 Full rationale: `references/framework.md` §2.
 
@@ -56,9 +56,9 @@ Parse the output to determine the entry sub-phase:
 
 | Observed state | Entry sub-phase |
 |---|---|
-| Spec dir does not exist OR no `discovery-notes.md` AND no other spec files | **0** (product workshopping) |
-| `discovery-notes.md` exists but thesis/user/pain/fence sections are empty or placeholder | **0** (resume where blank) |
-| `discovery-notes.md` complete through fence; no `Capability inventory` section | **1** (system framing) |
+| Spec dir does not exist OR no `supporting-docs/discovery-notes.md` AND no other spec files | **0** (product workshopping) |
+| `supporting-docs/discovery-notes.md` exists but thesis/user/pain/fence sections are empty or placeholder | **0** (resume where blank) |
+| `supporting-docs/discovery-notes.md` complete through fence; no `Capability inventory` section | **1** (system framing) |
 | Capability inventory exists; no `L2_modules/*.yaml` files | **2** (module boundaries) |
 | L2 module files exist; no `L0_registry.yaml` or missing skeleton sections | **3** (vocabulary baseline) |
 | L0 skeleton done; no `L1_conventions.yaml` | **4** (project conventions) |
@@ -75,7 +75,7 @@ Each sub-phase below has: seed questions (generic templates you start from), ada
 
 **Every sub-phase shares these moves:**
 - Ask one seed question, adapted to the domain model if any content is in it.
-- When the human answers, update the domain model in `discovery-notes.md` FIRST (even before asking the next question).
+- When the human answers, update the domain model in `supporting-docs/discovery-notes.md` FIRST (even before asking the next question).
 - Use the updated model to pick the next question — either the next seed, a probing follow-up, or a consistency-check if something contradicts an earlier answer.
 - At the end of each sub-phase, confirm exit criteria are met before moving on.
 
@@ -83,9 +83,9 @@ Each sub-phase below has: seed questions (generic templates you start from), ada
 
 #### Sub-phase 0 — Product workshopping
 
-**Purpose.** Take the human from a vague idea to a crystallized product thesis. This sub-phase writes NO structured YAML — only `discovery-notes.md`.
+**Purpose.** Take the human from a vague idea to a crystallized product thesis. This sub-phase writes NO structured YAML — only `supporting-docs/discovery-notes.md`.
 
-**Before any questions:** copy `assets/discovery-notes.template.md` to `<spec-dir>/discovery-notes.md` (or whatever root the human is working from). All sub-phase 0 output writes into this file.
+**Before any questions:** copy `assets/discovery-notes.template.md` to `<spec-dir>/supporting-docs/discovery-notes.md`. All sub-phase 0 output writes into this file.
 
 **Seed questions — batch into three turns:**
 
@@ -110,7 +110,7 @@ Each sub-phase below has: seed questions (generic templates you start from), ada
 - When the human offers a comparison ("like X but for Y"), probe where the analogy breaks. Comparisons are shortcuts — always test their limits.
 - If the human starts discussing architecture, tech choices, or implementation, push back: "Slow down — what problem are we solving for whom? Architecture comes later."
 
-**Writes.** Update the corresponding section in `discovery-notes.md` after each answer. The `domain_model` block grows with every turn (actors, nouns, verbs, pains, constraints, vocab).
+**Writes.** Update the corresponding section in `supporting-docs/discovery-notes.md` after each answer. The `domain_model` block grows with every turn (actors, nouns, verbs, pains, constraints, vocab).
 
 **Exit when all true:**
 - Thesis paragraph reads as true, not aspirational.
@@ -124,7 +124,7 @@ Each sub-phase below has: seed questions (generic templates you start from), ada
 
 #### Sub-phase 1 — System framing
 
-**Purpose.** Ground the thesis in a concrete user session and extract the capability inventory. Still no structured YAML — only `discovery-notes.md`.
+**Purpose.** Ground the thesis in a concrete user session and extract the capability inventory. Still no structured YAML — only `supporting-docs/discovery-notes.md`.
 
 **Seed questions — batch all four (none depend on each other):**
 1. "Walk me through one typical [target user] session start to finish."
@@ -139,7 +139,7 @@ Each sub-phase below has: seed questions (generic templates you start from), ada
 - Every verb the human uses in the walkthrough is a **capability candidate**. Extract it to the `Capability inventory` list.
 - Every external system mentioned is an external integration. Add each to `External integrations observed` with service name, purpose, and auth method if known.
 
-**Writes.** `Typical user session`, `Capability inventory`, `External integrations observed`, `Change axes`, `Critical failure modes` sections of `discovery-notes.md`.
+**Writes.** `Typical user session`, `Capability inventory`, `External integrations observed`, `Change axes`, `Critical failure modes` sections of `supporting-docs/discovery-notes.md`.
 
 **Exit when all true:**
 - At least one complete user session is written as a narrative.
@@ -242,7 +242,7 @@ module:
       description: "Initial module from forge-discover."
 ```
 
-Also update `discovery-notes.md` with a `Module map` ASCII diagram showing modules and dependency arrows.
+Also update `supporting-docs/discovery-notes.md` with a `Module map` ASCII diagram showing modules and dependency arrows.
 
 **Exit when all true:**
 - Every capability in the inventory is owned by exactly one module.
@@ -368,7 +368,7 @@ Full termination protocol: `references/framework.md` §8.
 
 ## The domain model (short-term memory)
 
-This is the running state the agent maintains in `discovery-notes.md`'s `Domain model` section. Every turn, update it FIRST, then use it to adapt the next question.
+This is the running state the agent maintains in `supporting-docs/discovery-notes.md`'s `Domain model` section. Every turn, update it FIRST, then use it to adapt the next question.
 
 ```yaml
 domain_model:
@@ -412,7 +412,7 @@ Full decision-criticality framework (including heuristic for "is this critical?"
 - **The forge CLI's `list` command exits 0 on missing spec dirs — don't assume exit code means existence.** Parse the output for `# Total entries:` or similar. Missing spec dir or empty dir should be treated as sub-phase 0 entry.
 - **The skill writes files to disk between turns.** If the session is interrupted, resuming works because state lives on disk. Do not try to keep the domain model only in conversation memory.
 - **Do NOT produce atoms, types, errors, constants, policies, flows, or journeys during discover.** These come from downstream skills. Producing them here creates cruft because you're guessing at structure the atoms haven't yet forced.
-- **Module files written in sub-phase 2 may have empty `managed_services` if the cloud isn't yet decided.** This is expected — sub-phase 5 fills them in. Track deferred modules in `discovery-notes.md`'s `Open questions`.
+- **Module files written in sub-phase 2 may have empty `managed_services` if the cloud isn't yet decided.** This is expected — sub-phase 5 fills them in. Track deferred modules in `supporting-docs/discovery-notes.md`'s `Open questions`.
 - **The error `ScannerError: mapping values are not allowed here` when loading a spec file usually means an unquoted flow-style string in a `logic` or `render_contract` entry.** Wrap the offending list item in single quotes.
 - **Do not interpret silence as agreement, especially on critical decisions.** If the human doesn't respond to a proposal, ask explicitly: "Want to go with that, or something different?"
 - **Always restate before writing.** If the human says "yes, sounds good" to a complex proposal, restate it in your own words and get a second confirmation before committing to YAML.
@@ -431,4 +431,4 @@ Full decision-criticality framework (including heuristic for "is this critical?"
 ## References
 
 - `references/framework.md` — full mental model. Sections: §2 operating principles rationale, §2a decision criticality (load before presenting critical options), §3 adaptive questioning worked example, §4 question shape taxonomy, §5 per-sub-phase deep guidance, §7 revision protocol, §8 termination, §10 artifact schemas.
-- `assets/discovery-notes.template.md` — scratchpad template. Copy to project root at sub-phase 0 start.
+- `assets/discovery-notes.template.md` — scratchpad template. Copy to `supporting-docs/` at sub-phase 0 start.

@@ -102,6 +102,22 @@ input:
     description: "Charge amount in USD cents."
 ```
 
+If a primitive field carries structure other atoms depend on, add `shape` so the contract can be materialized deterministically:
+
+```yaml
+resolved_targets:
+  type: string
+  nullable: false
+  shape:
+    kind: tagged_union
+    discriminator: form
+    variants:
+      - {form: broadcast, value: "all"}
+      - {form: specific, pattern: "session:<int>"}
+```
+
+Use `shape` for primitives that are parsed, split, pattern-matched, discriminated, or otherwise consumed structurally. Do not add it for opaque tokens that are only passed through. In other words: `shape` is optional in syntax, but required whenever a bare primitive would hide a meaningful wire format.
+
 ### Side Effects
 
 Getting markers right is critical — they determine which L1 conventions apply. Markers are defined in L0.6 — don't invent new ones in atoms.

@@ -52,7 +52,7 @@ forge inspect <MOD> --spec-dir <spec-dir>  # load target module state
 If invoked as `/forge-decompose <MOD>`, use that argument.
 
 If invoked as `/forge-decompose` (no argument), auto-select the most load-bearing unfilled module. Heuristic, in order:
-1. First module listed in `discovery-notes.md` `open_questions` (unresolved cross-module dep from a prior session)
+1. First module listed in `supporting-docs/discovery-notes.md` `open_questions` (unresolved cross-module dep from a prior session)
 2. The module tagged "hardest to get right" during discover sub-phase 1
 3. First module alphabetically whose `owned_atoms` is empty
 
@@ -60,7 +60,7 @@ Announce the auto-pick before proceeding. Example:
 
 > *"Auto-selected `PAY` as most load-bearing — it was flagged as hardest to get right in discover. Continue, or pick a different module?"*
 
-Read `discovery-notes.md` for domain model, capability inventory, and any relevant `open_questions` that reference this module. These shape your questions.
+Read `supporting-docs/discovery-notes.md` for domain model, capability inventory, and any relevant `open_questions` that reference this module. These shape your questions.
 
 ### Step 2 — Run sub-phases 0 → 3
 
@@ -76,7 +76,7 @@ Confirm with the human that the module's current description (from `forge inspec
 
 #### Sub-phase 1 — Multi-pass extraction
 
-Create a `candidate_atoms_for_<MOD>` section in `discovery-notes.md` using the structure in `assets/candidates.template.md`. Every atom surfaced below goes into this list, tagged with which pass surfaced it.
+Create a `candidate_atoms_for_<MOD>` section in `supporting-docs/discovery-notes.md` using the structure in `assets/candidates.template.md`. Every atom surfaced below goes into this list, tagged with which pass surfaced it.
 
 Run all four passes in order. Do not skip. Exhaustiveness depends on the layering — see `references/framework.md §6`.
 
@@ -229,7 +229,7 @@ atom:
       description: "Stub created by forge-decompose."
 ```
 
-8. **Update the candidate's `status` to `stubbed`** in the running list in `discovery-notes.md`. Record the `committed_id` and `stub_file` path.
+8. **Update the candidate's `status` to `stubbed`** in the running list in `supporting-docs/discovery-notes.md`. Record the `committed_id` and `stub_file` path.
 
 9. **Move to the next candidate.** Re-read the growing `owned_atoms` list so subsequent questions can reference just-named atoms.
 
@@ -260,7 +260,7 @@ Four actions:
    
    `kind` and `invokes` are knowable from the walkthrough. Everything else is deferred.
 
-3. **Capture storage-neutral entity hints** in `discovery-notes.md`:
+3. **Capture storage-neutral entity hints** in `supporting-docs/discovery-notes.md`:
    ```yaml
    likely_persisted_entities_for_<MOD>:
      - entity_concept: <logical name, e.g., Charge>
@@ -275,7 +275,7 @@ Four actions:
    forge inspect <called-atom> --spec-dir <spec-dir>
    ```
    - If exists: record dependency in the candidate's notes.
-   - If missing: add to `open_questions` in `discovery-notes.md` with `kind: unresolved_cross_module_call`.
+   - If missing: add to `open_questions` in `supporting-docs/discovery-notes.md` with `kind: unresolved_cross_module_call`.
    - **Never create atoms in another module from this session.**
 
 5. **Verify discoverability.** Run:
@@ -350,7 +350,7 @@ The two paths:
 ### Handover heuristics
 
 **Next module to decompose** (same as Step 1 auto-pick):
-1. First module in `discovery-notes.md` `open_questions` (unresolved cross-module dep)
+1. First module in `supporting-docs/discovery-notes.md` `open_questions` (unresolved cross-module dep)
 2. The module tagged "hardest to get right" during discover sub-phase 1
 3. First module alphabetically whose `owned_atoms` is empty
 
@@ -391,7 +391,7 @@ Full rationale: `references/framework.md §3` (criticality in decompose) and `§
 
 ## Adaptation rules
 
-- **Use verbs from the module's capability inventory** in discover's `discovery-notes.md`. Don't say "walk me through a use case"; say "walk me through one `<verb>` end to end" using the verb the human introduced.
+- **Use verbs from the module's capability inventory** in discover's `supporting-docs/discovery-notes.md`. Don't say "walk me through a use case"; say "walk me through one `<verb>` end to end" using the verb the human introduced.
 - **Reference sibling atoms as they get named.** After the second atom is stubbed, questions about subsequent candidates can say: *"You already named `atm.<mod>.<prior>`. Does this reuse any of it, or is it a peer?"*
 - **Tech stack signals kind likelihood.** When the module has `compute: lambda`, probe statelessness for PROCEDURAL candidates. When `managed_services` includes a document/KV store, bias hints toward non-relational when entity hints emerge. When the module already has COMPONENT atoms, expect more.
 - **Entry-point kinds signal atom kinds.** `web_journey_entry` → almost certainly COMPONENT. `event_consumer` → almost certainly PROCEDURAL. Let the entry-point kind shape the kind probe.
@@ -431,4 +431,4 @@ Full rationale: `references/framework.md §3` (criticality in decompose) and `§
   - §9 what decompose does NOT produce
   - §10 artifact schemas
 - `assets/atom-stub.template.yaml` — canonical stub shape
-- `assets/candidates.template.md` — candidate list structure for `discovery-notes.md`
+- `assets/candidates.template.md` — candidate list structure for `supporting-docs/discovery-notes.md`

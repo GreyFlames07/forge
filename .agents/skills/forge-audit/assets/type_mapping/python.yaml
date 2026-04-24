@@ -1,0 +1,27 @@
+language: python
+primitives:
+  string: { non_nullable: str, nullable: "str | None" }
+  integer: { non_nullable: int, nullable: "int | None" }
+  number: { non_nullable: float, nullable: "float | None" }
+  boolean: { non_nullable: bool, nullable: "bool | None" }
+  bigint: { non_nullable: int, nullable: "int | None" }
+  bytes: { non_nullable: bytes, nullable: "bytes | None" }
+  timestamp: { non_nullable: datetime, nullable: "datetime | None" }
+  uuid: { non_nullable: UUID, nullable: "UUID | None" }
+signature_shape:
+  success_with_errors: "<Result>"
+  success_only: "<Result>"
+seams:
+  WRITES_DB: injected_dependency
+  READS_DB: injected_dependency
+  CALLS_EXTERNAL: injected_dependency
+  EMITS_EVENT: injected_dependency
+  WRITES_FS: injected_dependency
+  WRITES_CACHE: injected_dependency
+error_return:
+  style: raise
+  comparison: isinstance
+result_naming:
+  request_suffix: Input
+  response_suffix: Result
+  field_case: snake_case

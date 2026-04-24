@@ -20,7 +20,7 @@ The three audiences for this doc:
 
 | Artifact | Contains | Purpose |
 |---|---|---|
-| `discovery-notes.md` | Thesis, user, pain, scope fence, MVP cut, running **domain model** | Scratchpad + the human-facing record of what was decided and why |
+| `supporting-docs/discovery-notes.md` | Thesis, user, pain, scope fence, MVP cut, running **domain model** | Scratchpad + the human-facing record of what was decided and why |
 | `L2_modules/<CODE>.yaml` (one per module) | `id`, `description`, `dependency_whitelist`, empty `owned_atoms` | Module boundaries; consumed by `forge-decompose` |
 | `L0_registry.yaml` skeleton | `naming_ledger`, `error_categories`, `external_schemas`, `side_effect_markers` only | Project vocabulary root; populated further by `forge-atom` |
 | `L1_conventions.yaml` | All seven sections | Atom-level defaults every atom inherits |
@@ -36,7 +36,7 @@ Nothing atom-specific is produced. No `types`, no `errors`, no `constants`, no a
 2. **Concrete before abstract.** Always ask for an example before asking for a rule. "Walk me through one specific instance" before "how does this work in general."
 3. **Extractive, not generative.** The agent never invents structure. It surfaces what the human already knows. If the agent is tempted to say "you need a User module and an Order module," stop — the human hasn't said that yet.
 4. **Confirm by restating before writing.** "So: when X happens, the system does Y. Right?" Silence is not agreement.
-5. **Scratchpad first, structured files second.** Everything goes into `discovery-notes.md` as it surfaces. Commit to structured YAML only at sub-phase exits, once the shape is stable.
+5. **Scratchpad first, structured files second.** Everything goes into `supporting-docs/discovery-notes.md` as it surfaces. Commit to structured YAML only at sub-phase exits, once the shape is stable.
 6. **Ground new questions in prior answers.** See Section 3. This is the most important principle specific to this skill.
 7. **Resist premature naming.** Work with descriptive placeholders ("the thing that does X," "whatever handles Y") until the boundary is stable. Naming before that freezes bad seams.
 8. **Offer defaults explicitly, never silently.** For routine decisions with a sensible default, propose it and ask whether to deviate. Never interpret silence as acceptance.
@@ -130,7 +130,7 @@ This is the single feature that separates a useful interview from a useless temp
 
 ### The domain model the agent maintains
 
-Every turn, the agent updates a running model in `discovery-notes.md`. The example below uses a single illustrative domain to show what a populated model looks like; the structure applies to any project area.
+Every turn, the agent updates a running model in `supporting-docs/discovery-notes.md`. The example below uses a single illustrative domain to show what a populated model looks like; the structure applies to any project area.
 
 ```yaml
 domain_model:
@@ -235,7 +235,7 @@ Each sub-phase has:
 
 **Purpose.** The human arrives with a vague idea or frustration. Leave with a crystallized product thesis.
 
-**Entry trigger.** No `discovery-notes.md`, no spec dir. Or the human says "I have an idea I'm working through."
+**Entry trigger.** No `supporting-docs/discovery-notes.md`, no spec dir. Or the human says "I have an idea I'm working through."
 
 **Primary shapes.** Grounding, probing, scope-fencing, analogical, prioritization.
 
@@ -261,7 +261,7 @@ Each sub-phase has:
 - **Ask about competition.** "Tools already do this — why does yours exist?" (Surfaces the real differentiator.)
 - **Push back on implementation talk.** If the human starts discussing architecture, say "slow down — what problem are we solving for whom?" Do not let the conversation jump to system design until the product is clear.
 
-**Outputs.** Partial `discovery-notes.md`:
+**Outputs.** Partial `supporting-docs/discovery-notes.md`:
 ```markdown
 ## Product thesis
 <one paragraph — the distilled "what" and "for whom">
@@ -305,7 +305,7 @@ Each sub-phase has:
 
 **Purpose.** Ground the thesis in a concrete user session and extract the capability inventory.
 
-**Entry trigger.** Thesis / user / pain / fence filled in `discovery-notes.md`.
+**Entry trigger.** Thesis / user / pain / fence filled in `supporting-docs/discovery-notes.md`.
 
 **Primary shapes.** Grounding, probing, constraint-surfacing. Boundary-finding begins softly here.
 
@@ -325,7 +325,7 @@ Each sub-phase has:
 - **Flag external dependencies as they arise.** When the human mentions a third-party system, probe: "That's an external integration — which provider? What's the auth method?" Add to the domain model.
 - **Name-only, don't commit.** Work with descriptive capability labels (what they do) before committing to 3-letter module codes.
 
-**Outputs.** Updates to `discovery-notes.md`:
+**Outputs.** Updates to `supporting-docs/discovery-notes.md`:
 ```markdown
 ## Typical user session
 <narrative, written in the user's vocabulary>
@@ -421,7 +421,7 @@ The rationale: the first few modules define the project's concept axes; later mo
 
 **Outputs.**
 - Draft `L2_modules/*.yaml` files (one per module).
-- Updates to `discovery-notes.md` with a module map (ASCII diagram of modules and dependency arrows).
+- Updates to `supporting-docs/discovery-notes.md` with a module map (ASCII diagram of modules and dependency arrows).
 
 **Exit condition.**
 - Every capability is owned by exactly one module.
@@ -576,9 +576,9 @@ At entry, the skill inspects the spec directory and decides which sub-phase to r
 
 | Observed state | Entry sub-phase |
 |---|---|
-| No `discovery-notes.md`, no spec dir | **0** |
-| `discovery-notes.md` exists, thesis/user/pain/fence incomplete | **0** (resume where blank) |
-| `discovery-notes.md` complete through fence; no capability inventory | **1** |
+| No `supporting-docs/discovery-notes.md`, no spec dir | **0** |
+| `supporting-docs/discovery-notes.md` exists, thesis/user/pain/fence incomplete | **0** (resume where blank) |
+| `supporting-docs/discovery-notes.md` complete through fence; no capability inventory | **1** |
 | Capability inventory exists; no `L2_modules/*.yaml` | **2** |
 | L2 modules exist; no `L0_registry.yaml` | **3** |
 | L0 skeleton done; no `L1_conventions.yaml` | **4** |
@@ -607,7 +607,7 @@ Revision is cheap because the domain model is preserved. The agent does not star
 
 `forge-discover` terminates when **all** of the following are true:
 
-- `discovery-notes.md` exists with the full sub-phase 0/1 structure filled.
+- `supporting-docs/discovery-notes.md` exists with the full sub-phase 0/1 structure filled.
 - At least one `L2_modules/*.yaml` exists and validates.
 - `L0_registry.yaml` skeleton exists and validates.
 - `L1_conventions.yaml` exists and validates.
@@ -641,7 +641,7 @@ Everything `forge-discover` produces is scaffolding every atom will later refere
 
 ## 10. Artifact schemas
 
-### `discovery-notes.md` — canonical structure
+### `supporting-docs/discovery-notes.md` — canonical structure
 
 ```markdown
 # Discovery notes — <project name>
@@ -781,4 +781,4 @@ This framework is format-agnostic. To ship it as a runnable skill:
 - **Does the framework benefit from a `--strict` mode?** Forcing the human to answer every adaptation-generated question, even if they'd rather skip. Default is lax.
 - **Should the domain model be typed?** Right now it's free-form YAML. A typed schema would let the agent reason about it more reliably but imposes a naming discipline on the human upfront.
 - **Recovery from bad sub-phase 0.** If the thesis turns out to be wrong halfway through sub-phase 2, the skill should detect it — "the module you just described doesn't fit the thesis" — and surface it. Not yet defined.
-- **Multi-session continuity.** Right now the skill resumes from disk state. If the conversation crosses sessions with different agents, does the domain model transfer cleanly? Probably yes via `discovery-notes.md`, but untested.
+- **Multi-session continuity.** Right now the skill resumes from disk state. If the conversation crosses sessions with different agents, does the domain model transfer cleanly? Probably yes via `supporting-docs/discovery-notes.md`, but untested.

@@ -49,13 +49,13 @@ Full rationale: `references/framework.md §2`.
 
 **Invocation flags:**
 - `/forge-implement` — full run
-- `/forge-implement --resume` — resume from progress.yaml
+- `/forge-implement --resume` — resume from supporting-docs/progress.yaml
 - `/forge-implement --parallelism <N>` — override subagent cap
 - `/forge-implement --skip-audit-check` — skip audit recency gate
 - `/forge-implement --force` — proceed despite open blocking findings
 - `/forge-implement --skip <entity_id>` / `--manual <entity_id>` / `--restart <entity_id>` / `--retry-override <entity_id>=<N>` — resume adjustments
 
-**Check for existing plan at `<spec-dir>/implementation-plan.yaml`:**
+**Check for existing plan at `<spec-dir>/supporting-docs/implementation-plan.yaml`:**
 - If present: detect drift — for each unit, compare spec mtime to `plan.generated_at`. Summarize: *"Plan was generated `<date>`. Since then: X new, Y modified, Z deleted. Regenerate plan, or continue with existing?"*
 - If human chooses continue: proceed to step 2 with existing plan.
 - If regenerate or absent: generate fresh.
@@ -88,19 +88,20 @@ Full rationale: `references/framework.md §2`.
 **Write plan to disk.** Then pause:
 
 > *"Plan generated: `<N>` units in `<M>` modules. Architecture assembled.*
-> *File: `<spec-dir>/implementation-plan.yaml`*
+> *File: `<spec-dir>/supporting-docs/implementation-plan.yaml`*
 > *Edit now if desired (reorder, modify architecture, adjust target files). Confirm to proceed."*
 
 Wait for confirmation.
 
 ### Step 2 — Audit gate
 
-1. Check `<spec-dir>/audit-history.md` exists. If not: *"No audit history. Run `/forge-audit` first."* (Unless `--skip-audit-check`.)
+1. Check `<spec-dir>/supporting-docs/audit-history.md` exists. If not: *"No audit history. Run `/forge-audit` first."* (Unless `--skip-audit-check`.)
 2. Compare most-recent audit timestamp to all spec file mtimes. If any spec is newer: *"Specs changed since last audit. Run `/forge-audit` (or use `--skip-audit-check`)."*
 3. Parse audit history for `status: open` findings at severity `blocking`. If any: *"`<K>` blocking findings open: `<list>`. Confirm proceed [y/N] or use `--force`."*
-4. If `armour-history.md` exists: summarize any open `blocking` armour findings and require `--force` or explicit confirmation to continue.
-5. If `armour-history.md` does not exist: recommend, but do not require, `/forge-armour` when the spec corpus contains sensitive data, external interfaces, authn/authz surfaces, multi-tenant behavior, or high-risk operations.
-6. Clean → proceed silently.
+4. Check `<spec-dir>/contract/<lang>/` exists for the implementation language and that `supporting-docs/audit-history.md` records a current `contract_hash`. If absent or stale relative to spec mtimes: *"Contract artifact missing or stale. Re-run `/forge-audit` before implementation."*
+5. If `supporting-docs/armour-history.md` exists: summarize any open `blocking` armour findings and require `--force` or explicit confirmation to continue.
+6. If `supporting-docs/armour-history.md` does not exist: recommend, but do not require, `/forge-armour` when the spec corpus contains sensitive data, external interfaces, authn/authz surfaces, multi-tenant behavior, or high-risk operations.
+7. Clean → proceed silently.
 
 ### Step 3 — Generate shared scaffolding
 
@@ -125,7 +126,7 @@ while any unit has status in {pending, in_flight}:
         spawn_pipeline(u)
     wait_any_complete()
     process_completion()
-    checkpoint progress.yaml
+    checkpoint supporting-docs/progress.yaml
 ```
 
 **Per-unit pipeline (spawn_pipeline):**
@@ -136,6 +137,7 @@ For each unit, spawn subagents sequentially (test-writer first, then implementer
 - Spawn a Task subagent to execute the `forge-test-writer` skill. **`forge-test-writer` is a skill, not a Task `subagent_type`** — invoke the Task tool with `subagent_type: "general-purpose"` and in the prompt instruct the agent to follow the `forge-test-writer` skill directive (the spawned agent will load it from its skill registry via description-matching).
 - The prompt MUST be self-contained (Task subagents inherit no shell state — no `$FORGE_SPEC_DIR`, no CWD assumptions):
   - Absolute `spec_dir` path (pass via `--spec-dir` in every `forge` call, or `export FORGE_SPEC_DIR=<path>` at the top of the prompt).
+  - Contract artifact path for the target language. Instruct: *"Compile tests against these signatures exactly. Do not re-derive native contracts."*
   - `entity_id`, `level` (unit for atoms; integration for flows; system for journeys), absolute `target_test_file`, absolute `target_audit_file`, `architecture` (block from plan).
   - Explicit write-files instruction: *"Write the test file to `<target_test_file>` and the audit matrix to `<target_audit_file>`."*
 - Wait for completion. Subagent returns: `test_file`, `audit_file`, `tests_count`, `framework`.
@@ -150,6 +152,7 @@ For each unit, spawn subagents sequentially (test-writer first, then implementer
 - Spawn a Task subagent with `subagent_type: "general-purpose"`; the prompt instructs it to follow the `forge-implementer` skill. Same dispatch semantics as Stage 1 — self-contained prompt, no inherited shell state.
 - Inputs in the prompt:
   - Absolute `spec_dir` path.
+  - Contract artifact path for the target language. Instruct: *"Implement against the canonical contract exactly. Do not infer alternate signatures."*
   - `entity_id`, `kind` (atom kind / flow / journey), absolute `target_source_file`, `architecture`.
   - On retry, include `retry_feedback` (sanitized; see stage 4).
   - Explicit write-files instruction.
@@ -174,7 +177,7 @@ For each unit, spawn subagents sequentially (test-writer first, then implementer
 
 **Stage 6 — Structural sanity check (F5):**
 - Verify: every type in `input`/`output` is imported; every error in `output.errors` is returnable from the code; every side-effect marker has a backing code pattern.
-- On any issue: record as low-severity warning in progress.yaml, do NOT fail the unit.
+- On any issue: record as low-severity warning in `supporting-docs/progress.yaml`, do NOT fail the unit.
 
 **Stage 7 — Format (F3):**
 - Run architecture's formatter on just-written files (prettier / black / gofmt / rustfmt).
@@ -184,13 +187,13 @@ For each unit, spawn subagents sequentially (test-writer first, then implementer
 **Stage 8 — Mark done, checkpoint:**
 - Mark unit `status: done`, record `completed_at`, test count, coverage numbers.
 - Discard stashed intermediate attempts (keep only on final failure per G4).
-- Write progress.yaml.
+- Write `supporting-docs/progress.yaml`.
 
 ### Step 5 — Final rollups (F1 rollups, F2 rollup)
 
 After main loop ends:
 
-1. **Full-project test suite.** Run `<test_command>` against the entire project (no `<file>` filter). Capture pass/fail. Record in progress.yaml's `rollup` section.
+1. **Full-project test suite.** Run `<test_command>` against the entire project (no `<file>` filter). Capture pass/fail. Record in `supporting-docs/progress.yaml`'s `rollup` section.
 2. **Full-project build.** For typed languages: run full project build (`tsc --noEmit`, `go build ./...`, `cargo check`). Capture.
 3. **Coverage report.** Run the coverage tool if available (`vitest --coverage`, `pytest --cov`, `go test -cover ./...`). Record numbers.
 
@@ -240,9 +243,9 @@ Overridable per-unit via `--retry-override <entity_id>=<N>`.
 
 ## Resume protocol (G3)
 
-On `/forge-implement` invocation when `progress.yaml` exists:
+On `/forge-implement` invocation when `supporting-docs/progress.yaml` exists:
 
-1. Read progress.yaml. Summarize: *"Last run: N done, M failed, K pending, J in_flight, L blocked. Last activity: `<timestamp>`."*
+1. Read `supporting-docs/progress.yaml`. Summarize: *"Last run: N done, M failed, K pending, J in_flight, L blocked. Last activity: `<timestamp>`."*
 2. Validate stashed state:
    - Every `status: done` unit's target files still exist on disk?
    - Any spec file modified since `progress_updated_at`?

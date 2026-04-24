@@ -14,7 +14,7 @@ existing repo -> cast -> audit -> armour -> implement/validate
 
 Outputs can include:
 
-- `discovery-notes.md`
+- `supporting-docs/discovery-notes.md`
 - `L0_registry.yaml`
 - `L1_conventions.yaml`
 - `L2_modules/*.yaml`
@@ -23,7 +23,7 @@ Outputs can include:
 - `L4_flows/*.yaml`
 - `L4_journeys/*.yaml`
 - `L5_operations.yaml`
-- `cast-report.md`
+- `supporting-docs/cast-report.md`
 
 Non-goals:
 
@@ -43,7 +43,7 @@ Use this order when signals disagree:
 6. Naming heuristics and structural patterns
 
 The lower the evidence class, the more likely the output belongs in
-`cast-report.md` as a candidate rather than a written spec fact.
+`supporting-docs/cast-report.md` as a candidate rather than a written spec fact.
 
 ## 3. Hydration strategy by layer
 
@@ -129,11 +129,11 @@ Write an L4 artifact only if all are true:
 3. Invoked units are resolvable enough to name
 4. Success/failure exits are at least partially visible
 
-If only 1-2 are true, keep it as an L4 candidate in `cast-report.md`.
+If only 1-2 are true, keep it as an L4 candidate in `supporting-docs/cast-report.md`.
 
 ## 5. The uncertainty report
 
-`cast-report.md` is mandatory, not a fallback.
+`supporting-docs/cast-report.md` is mandatory, not a fallback.
 
 Recommended sections:
 

@@ -20,6 +20,7 @@ Here's the drafted spec. Review — what's wrong or missing?
 
   - <question where multiple valid choices exist>
   - <input/output contract question only if ambiguity or risk remains>
+  - <primitive-shape question when a bare string/integer/etc. appears to carry structure: opaque token, or add `shape`?>
 
 ## spec
 

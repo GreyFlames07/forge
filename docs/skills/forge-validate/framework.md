@@ -11,13 +11,13 @@ forge-implement  →  working system
                         ↓
                  forge-validate    ← you are here
                         ↓
-              validation-report.md
+              supporting-docs/validation-report.md
 ```
 
 `forge-validate` runs after `forge-implement` has written code and tests. It assumes:
 
 - Spec corpus exists and is readable via the `forge` CLI.
-- `implementation-plan.yaml` exists in the spec dir, mapping entity ids to source files, test commands, and audit matrix locations.
+- `supporting-docs/implementation-plan.yaml` exists in the spec dir, mapping entity ids to source files, test commands, and audit matrix locations.
 - Source files exist on disk (they may or may not compile/pass tests — that is what Phase 2 determines).
 - The system may or may not be running (Phase 3 handles both cases).
 
@@ -33,7 +33,7 @@ forge-implement  →  working system
 
 **Evidence over inference for side effects.** Side effects are the hardest class of behavior to verify. The skill requires log evidence — a matching line in the process output or declared log file — before recording a side effect as `FOUND`. `UNVERIFIABLE` (log location unknown) and `NOT FOUND` (log searched, no match) are distinct findings with different severity.
 
-**Persistence.** `validation-report.md` is a first-class artifact. It is written to the spec dir and persists across sessions. Each run overwrites it. The timestamp in the report header lets you compare successive runs.
+**Persistence.** `supporting-docs/validation-report.md` is a first-class artifact. It is written to the spec dir and persists across sessions. Each run overwrites it. The timestamp in the report header lets you compare successive runs.
 
 **Partial is acceptable.** A run that completes Phase 1 and Phase 2 but fails to start the system for Phase 3 is still useful. The report captures exactly what ran and what was skipped. Never abort early and leave the report unwritten.
 
@@ -116,7 +116,7 @@ Probes are constructed from the L3 `input` schema:
 
 forge-validate derives the HTTP method and path for each atom from:
 
-1. L2 module routing conventions declared in the architecture section of `implementation-plan.yaml`.
+1. L2 module routing conventions declared in the architecture section of `supporting-docs/implementation-plan.yaml`.
 2. Side effect patterns on the atom (e.g. a `DB_WRITE` side effect on a `COMMAND` atom implies a POST/PUT).
 3. If still ambiguous: ask the user once with a table of all ambiguous atoms (not once per atom — batch the question).
 
@@ -193,7 +193,7 @@ For each alert in `observability.modules.<MODULE>.alerts`:
 
 ## §6 Report schema
 
-The report is a Markdown document written to `<spec-dir>/validation-report.md`. Key fields:
+The report is a Markdown document written to `<spec-dir>/supporting-docs/validation-report.md`. Key fields:
 
 | Section | Content |
 |---|---|
@@ -251,7 +251,7 @@ The report is a Markdown document written to `<spec-dir>/validation-report.md`. 
 
 ## §9 Artifact schema
 
-`validation-report.md` is a Markdown file. There is no separate YAML artifact — the report is human-readable only.
+`supporting-docs/validation-report.md` is a Markdown file. There is no separate YAML artifact — the report is human-readable only.
 
 Future versions may emit a machine-readable `validation-results.yaml` alongside the Markdown. For now, parsers should scrape the summary table.
 
@@ -272,4 +272,4 @@ CI invocation example:
 forge-validate --url https://staging.example.com --skip-static --scope PAY
 ```
 
-The skill writes `validation-report.md` to the spec dir. CI can archive this as a build artifact.
+The skill writes `supporting-docs/validation-report.md` to the spec dir. CI can archive this as a build artifact.

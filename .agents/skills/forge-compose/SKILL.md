@@ -6,7 +6,7 @@ description: >
   "compose flows", "build journeys", "wire atoms into workflows", "create L4",
   "draft flow X", or when L3 atoms are mostly complete but L4_flows/ and
   L4_journeys/ are empty or partial. Starts with inferred drafts from atom
-  contracts, module entry points, L1/L5 conventions, discovery-notes.md, and
+  contracts, module entry points, L1/L5 conventions, supporting-docs/discovery-notes.md, and
   decision docs (decision log / ADRs / architecture decisions), then asks only
   unresolved decision questions (trigger, transaction boundary, retry,
   compensation, idempotency, exits). Produces or updates L4 flow/journey files,
@@ -31,7 +31,7 @@ This file is self-sufficient for routine operation.
 1. **Draft first; question second.** Always produce a best-effort draft before broad elicitation.
 2. **Decision-only questioning.** Ask only where multiple valid orchestration choices exist.
 3. **Composition scope only.** Never create atoms, L0 types/errors/constants, modules, or policies.
-4. **Discovery doc is mandatory context.** Read `<spec-dir>/discovery-notes.md` before drafting.
+4. **Discovery doc is mandatory context.** Read `<spec-dir>/supporting-docs/discovery-notes.md` before drafting.
 5. **Decision docs are binding constraints.** If present, decision log/ADRs/architecture constraints must be honored unless explicitly revised by the human.
 6. **Critical decisions get option sets.** For boundary/retry/compensation/idempotency/exit semantics, present 2-4 options when ambiguous.
 7. **Retry requires idempotency.** No retry policy without an explicit key source.
@@ -54,13 +54,13 @@ forge context <target_or_seed_entity> --spec-dir <spec-dir>
 
 Read in this order:
 
-1. `<spec-dir>/discovery-notes.md`
+1. `<spec-dir>/supporting-docs/discovery-notes.md`
 2. Decision artifacts (if present), priority order:
-   - `<spec-dir>/decision-log.md`
+   - `<spec-dir>/supporting-docs/decision-log.md`
    - `<spec-dir>/docs/decisions/*.md`
    - `<spec-dir>/docs/adr/*.md`
-   - `<spec-dir>/implementation-plan.yaml` (`architecture` block)
-   - `<spec-dir>/security-profile.md`
+   - `<spec-dir>/supporting-docs/implementation-plan.yaml` (`architecture` block)
+   - `<spec-dir>/supporting-docs/security-profile.md`
 3. Relevant L2/L3/L4/L1/L5 spec context from forge CLI output
 
 If decision artifacts conflict with each other, present one compact option-set and resolve before drafting.
@@ -70,7 +70,7 @@ If decision artifacts conflict with each other, present one compact option-set a
 If invoked with an id (`flow.*` or `jrn.*`), use it.
 If invoked without id, auto-pick highest leverage missing item:
 
-1. First unresolved orchestration item in `discovery-notes.md` `open_questions`
+1. First unresolved orchestration item in `supporting-docs/discovery-notes.md` `open_questions`
 2. Entry-point-backed workflow with no L4 mapping
 3. First missing flow, then first missing journey alphabetically
 
@@ -148,7 +148,7 @@ Append changelog entries to touched L4 files.
 
 Update discovery artifacts:
 
-- `discovery-notes.md`
+- `supporting-docs/discovery-notes.md`
   - mark composed items
   - add orchestration notes
   - add unresolved tensions to `open_questions`
@@ -160,7 +160,7 @@ Update decision artifacts:
   - retry + idempotency
   - compensation model
   - exit semantics
-- If no decision doc exists, create `<spec-dir>/decision-log.md` and append entries there.
+- If no decision doc exists, create `<spec-dir>/supporting-docs/decision-log.md` and append entries there.
 
 Suggested decision-log entry format:
 

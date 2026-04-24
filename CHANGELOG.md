@@ -7,6 +7,19 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.5] — 2026-04-24
+
+### Added
+
+- `forge-audit` Pass 8: explicit inter-atom contract verification, including boundary checks for input coverage, type identity or structural proof, `shape` compatibility, output consumption, enum/discriminator narrowing, opaque pass-through discipline, and edge-level error alignment.
+- Native type-mapping assets for contract materialization under `.agents/skills/forge-audit/assets/type_mapping/` for Go, Python, and TypeScript.
+
+### Changed
+
+- Forge skill and framework conventions now place non-architecture artifacts under `supporting-docs/`, including discovery notes, audit and armour reports/history, decision log, implementation plan, progress tracking, security profile, cast report, and validation report.
+- `forge-implement` framework/docs now consistently retain the contract-artifact and `armour-history` pre-implementation gates after the supporting-docs refactor.
+- L3 behavior templates and atom review guidance now describe shaped primitive fields more explicitly so audits and implementations can enforce structured field contracts.
+
 ## [0.1.4] — 2026-04-21
 
 ### Added
@@ -71,7 +84,8 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - 49 pytest test cases across CLI, index, walker, find, and init command.
 - Full framework documentation for each skill under `docs/skills/<name>/framework.md`.
 
-[Unreleased]: https://github.com/GreyFlames07/forge/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/GreyFlames07/forge/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/GreyFlames07/forge/releases/tag/v0.1.5
 [0.1.4]: https://github.com/GreyFlames07/forge/releases/tag/v0.1.4
 [0.1.3]: https://github.com/GreyFlames07/forge/releases/tag/v0.1.3
 [0.1.0]: https://github.com/GreyFlames07/forge/releases/tag/v0.1.0

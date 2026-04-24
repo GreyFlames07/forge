@@ -34,7 +34,7 @@ The workhorse skill. Run dozens to hundreds of times per project. The specs it p
 | `L3_atoms/<atom>.yaml` | Complete spec — `spec` block populated per kind, verification meeting L1 floors |
 | `L0_registry.yaml` | New types appended; new errors appended (confirmed); constants appended (with skepticism flag if single-consumer) |
 | `L2_modules/<owner>.yaml` | `persistence_schema.datastores` updated; `access_permissions` extended; `interface.entry_points` stub completed |
-| `discovery-notes.md` | Atom marked `status: elicited`; any new `open_questions` added |
+| `supporting-docs/discovery-notes.md` | Atom marked `status: elicited`; any new `open_questions` added |
 
 ---
 
@@ -53,6 +53,7 @@ Inherits everything from discover and decompose (one concept per turn, confirm b
 7. **Anti-bloat probes fire at every L0 create.** Before writing a new type / error / constant, run the relevant reuse scan via `forge find`. Present matches advisorily.
 8. **Within-module chain mode.** Context stays warm across atoms in the same module — sibling patterns, shared types, the just-elicited siblings inform subsequent atoms. `/clear` happens between modules, not between atoms (unless human opts in).
 9. **Stubs get filled; never recreated.** Partial spec handling is confirm+resume: show existing fields, allow corrections, then continue from the first unfilled or uncertain field. Never wipe and restart unless the human explicitly asks.
+10. **Structured primitives are not allowed to stay implicit.** If a primitive field is parsed, split, pattern-matched, used as a discriminator, or structurally consumed by downstream logic, the review must either add a `shape` block or explicitly confirm the field is opaque pass-through. Bare primitive types are only acceptable for opaque tokens.
 
 ---
 
@@ -83,6 +84,7 @@ Ambiguous? Default to D2. Upgrade to D3 if during sub-phase 1 the atom's critica
 6. Propagate + handover
 
 If input or output remains ambiguous after the first review, the agent opens a small number of targeted contract questions before finalizing. D1 should still feel like review, not interrogation.
+Primitive-shape ambiguity counts as contract ambiguity. If a primitive field appears to carry structure, the agent must resolve that before exiting D1.
 
 **Anti-bloat and consistency probes run during drafting** — any probe that would surface becomes a note or decision point in the draft:
 
@@ -113,6 +115,7 @@ logic:
 9. Propagate + handover
 
 **Contract review rule.** Input and output are drafted by default. The agent only opens explicit contract questions if the contract is not confidently inferable, if the choice affects downstream callers or types, or if the atom is carrying enough risk that contract precision matters.
+**Primitive-shape rule.** Inline primitive fields across `input`, `output.success`, `props`, `local_state`, `input_distribution`, and `output_distribution` get a shape review before the draft is presented. If the field is parsed, split, pattern-matched, used as a discriminator, or consumed structurally by another atom, `shape` must be drafted or escalated as a mandatory decision point. "It's just a string" is not an acceptable final state for a structured wire format.
 
 ### D3 — Draft + critical challenge
 
@@ -131,6 +134,7 @@ The agent still drafts first. The difference is that review continues through st
 | 5 | Caller / flow expectations |
 
 Within each area, the agent asks only the unresolved decision points. Input and output contract questions still stay ambiguity-gated; they do not become a field-by-field interrogation unless the atom's risk genuinely demands it.
+Structured primitive fields count as contract ambiguity here too. A D3 atom cannot exit review while a downstream-consumed primitive remains structurally unspecified.
 
 ---
 
@@ -234,6 +238,32 @@ Seven check classes, fired at anchored moments. Each uses existing CLI primitive
 
 **D3 (draft + critical challenge):** Relevant checks run after each challenge area. Security / authorization chiefly fires 1/4/5; data integrity chiefly fires 2/3/6; caller / flow expectations chiefly fire 3/7.
 
+### Primitive shape review
+
+This is not one of the seven contradiction probes. It is a required draft hygiene check run during sub-phase 1 before the review is shown to the human.
+
+For each inline primitive field in:
+- `input`
+- `output.success`
+- `props`
+- `local_state`
+- `input_distribution`
+- `output_distribution`
+
+ask:
+1. Is the field opaque pass-through?
+2. Is it parsed, split, pattern-matched, discriminated, or structurally inspected?
+3. Do downstream atoms or event consumers depend on that structure?
+
+Outcomes:
+- If opaque: leave bare `type` and move on.
+- If structured and already knowable: draft `shape`.
+- If structured but ambiguous: raise a mandatory decision point.
+
+Suggested prompt:
+
+> *"`<field>` is currently a bare `<type>`. Do other atoms or branches depend on its internal structure? If yes, I need to capture that with `shape` before we finalize this atom."*
+
 ### Presentation template
 
 When a contradiction surfaces, the agent uses this structure:
@@ -277,7 +307,7 @@ Example:
 
 **Actions:**
 1. Run `forge context <atom_id>` to load stub + surrounding context (module, siblings, L0 so far, applied policies, L1 defaults, any L4 callers that already reference this atom).
-2. Read `discovery-notes.md` for atom hints, persistence entity notes, open_questions.
+2. Read `supporting-docs/discovery-notes.md` for atom hints, persistence entity notes, open_questions.
 3. If the stub's `spec` is partial from a prior session, enter confirm+resume mode: walk through each filled field, confirm or correct, then continue from the first unfilled field.
 4. Confirm the stub description is still accurate; refine if vague.
 5. Read the stub's declared side_effects (or infer from description if not yet declared) and **select the review depth** (D1 / D2 / D3). Announce.
@@ -287,6 +317,8 @@ Example:
 ### Sub-phase 1 — Specification
 
 Branches by review depth (§3). Produces the full `spec` block.
+
+Required during this sub-phase: run the primitive shape review and resolve every structured primitive to either `shape` or an explicit opaque-token confirmation before the spec is considered complete.
 
 **Exit condition:** `spec` block complete per kind. Verification items accumulated during the interview.
 
@@ -436,7 +468,7 @@ Each addition carries a changelog entry with date, version, and description ("Ad
 
 ### Discovery notes updates
 
-`discovery-notes.md` atom entry status: `stubbed` → `elicited`. Any consistency probes that surfaced unresolved tensions (e.g., a policy that needs revision) get added to `open_questions`.
+`supporting-docs/discovery-notes.md` atom entry status: `stubbed` → `elicited`. Any consistency probes that surfaced unresolved tensions (e.g., a policy that needs revision) get added to `open_questions`.
 
 ---
 

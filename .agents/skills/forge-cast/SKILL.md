@@ -72,7 +72,7 @@ Prefer direct evidence over summaries. If docs and code disagree, record the con
 
 Write or update:
 
-- `discovery-notes.md`
+- `supporting-docs/discovery-notes.md`
 - `L0_registry.yaml`
 - `L1_conventions.yaml` only where defaults are explicit from code/config/tooling
 - `L2_modules/*.yaml`
@@ -94,7 +94,7 @@ Hydration order:
 
 Always produce:
 
-- `<spec-dir>/cast-report.md`
+- `<spec-dir>/supporting-docs/cast-report.md`
 
 For each major area, include:
 
@@ -144,7 +144,7 @@ At handover, state one of:
 ### L4
 
 - Only write flows/journeys when sequencing is explicit in code, workflow engines, route-state machines, saga orchestrators, or well-supported integration tests.
-- If orchestration is only implicit across scattered calls, leave it in `cast-report.md` as a candidate rather than writing fiction.
+- If orchestration is only implicit across scattered calls, leave it in `supporting-docs/cast-report.md` as a candidate rather than writing fiction.
 
 ### L5
 

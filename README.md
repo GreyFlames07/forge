@@ -44,7 +44,7 @@ Runs in **Claude Code**, **OpenAI Codex CLI**, and any **agentskills.io-compatib
     ↓
   forge-cast        →  repo hydration   (existing codebase → draft Forge corpus + uncertainty report)
     ↓
-  forge-audit       →  quality gate     (seven audit passes, severity-ranked findings)
+  forge-audit       →  quality gate     (nine audit passes, including inter-atom contract verification)
     ↓
   forge-armour      →  security hardening (trust model, policies, abuse-case review)
     ↓
@@ -160,7 +160,7 @@ Full CLI guide: [`docs/cli-guide.md`](docs/cli-guide.md).
 | **forge-atom** | Contract specifier | One atom stub | Complete L3 spec + L0 cascades + module completions |
 | **forge-compose** | Composition specifier | Completed atoms + project decisions | L4 flow/journey specs with explicit boundary/retry/compensation/idempotency decisions |
 | **forge-cast** | Hydration specifier | Existing non-Forge codebase | Draft Forge corpus plus evidence-backed uncertainty report and clarification questions |
-| **forge-audit** | Challenger / reviewer | Completed specs | Severity-ranked findings with inline edits; seven audit passes |
+| **forge-audit** | Challenger / reviewer | Completed specs | Severity-ranked findings with inline edits; nine audit passes plus canonical contract materialization |
 | **forge-armour** | Security challenger | Audited specs | Security hardening pass, trust-model capture, approved project/module/atom security edits |
 | **forge-implement** | Orchestrator | Audited spec corpus | Code + tests, dep-graph parallel, test-before-impl isolation |
 | **forge-validate** | Post-implementation validator | Implemented system + spec corpus | Validation report: static analysis, test-to-spec mapping, live interaction probes |

@@ -22,7 +22,7 @@ Subagent dispatched by `forge-implement` to generate implementation code for one
 - `entity_id` — atom id, flow id, or journey id
 - `kind` — the entity's declared `kind` (PROCEDURAL / DECLARATIVE / COMPONENT / MODEL for atoms; flow / journey for those)
 - `target_source_file` — absolute path(s) where implementation is written
-- `architecture` — block from `implementation-plan.yaml` (language, frameworks, error handling, DI, naming, schema/iac tool, etc.)
+- `architecture` — block from `supporting-docs/implementation-plan.yaml` (language, frameworks, error handling, DI, naming, schema/iac tool, etc.)
 - `retry_feedback` — optional, present on retries only; contains sanitized failure output + spec-linked hints per forge-implement's D4
 
 ## Non-negotiables

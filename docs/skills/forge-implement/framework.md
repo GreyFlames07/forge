@@ -27,8 +27,8 @@ Audiences:
 
 | Artifact | Contains |
 |---|---|
-| `<spec-dir>/implementation-plan.yaml` | The build plan: units + dep graph + architecture section + status |
-| `implementation/progress.yaml` | Live execution state: per-unit status, attempt history, coverage numbers |
+| `<spec-dir>/supporting-docs/implementation-plan.yaml` | The build plan: units + dep graph + architecture section + status |
+| `supporting-docs/progress.yaml` | Live execution state: per-unit status, attempt history, coverage numbers |
 | Generated code and test files | At target paths declared in the plan |
 | `implementation/attempts/<entity>/` | Stashed attempts, only present on final failures |
 | `tests/<entity>.audit.md` | Per-entity test audit files (I5) |
@@ -65,7 +65,7 @@ Step 6: Handover (§9)
 
 ## 4. Plan + architecture generation
 
-### Plan file: `<spec-dir>/implementation-plan.yaml`
+### Plan file: `<spec-dir>/supporting-docs/implementation-plan.yaml`
 
 Shape (A5):
 
@@ -125,7 +125,7 @@ units:
 
 ### Drift detection (A3)
 
-On invocation, if `implementation-plan.yaml` exists:
+On invocation, if `supporting-docs/implementation-plan.yaml` exists:
 1. For each unit in the plan: does the referenced spec still exist? If deleted, mark unit as `orphaned`.
 2. For each spec file mtime / hash: compare to the plan's `generated_at`. If any are newer: flag drift.
 3. Summarize drift: *"Plan was generated on `<date>`. Since then: 2 new atoms added, 1 renamed, 3 modified. Regenerate plan, or continue with existing?"*
@@ -195,7 +195,7 @@ After generating plan + architecture, pause with a summary:
 Plan generated: 12 units in 3 modules.
 Architecture generated: per-module files, beside-source tests, custom flow root, Prisma for PAY, Terraform for all infra.
 
-Plan file: <spec-dir>/implementation-plan.yaml
+Plan file: <spec-dir>/supporting-docs/implementation-plan.yaml
 
 Edit the plan now if you want (reorder units, modify architecture, adjust target files). When ready, confirm to proceed: y
 
@@ -209,11 +209,12 @@ Wait for confirmation. On confirmation, proceed to Step 2.
 
 Before execution:
 
-1. Check `<spec-dir>/audit-history.md` exists. If not: *"No audit history found. Run `/forge-audit` before implementation."*
+1. Check `<spec-dir>/supporting-docs/audit-history.md` exists. If not: *"No audit history found. Run `/forge-audit` before implementation."*
 2. Find the most recent audit timestamp.
 3. Check every spec file's mtime vs the last audit. If any spec is newer than the last audit: *"Specs changed since last audit. Run `/forge-audit` (or `/forge-audit --tier quick`) before implementation."* (Can be overridden with `--skip-audit-check`.)
-4. Parse `audit-history.md` for findings with `status: open` and severity `blocking`. If any: *"N blocking audit findings open. Confirm proceed [y/N] or `--force`."*
-5. If clean: proceed silently.
+4. Parse `supporting-docs/audit-history.md` for findings with `status: open` and severity `blocking`. If any: *"N blocking audit findings open. Confirm proceed [y/N] or `--force`."*
+5. Check `<spec-dir>/contract/<lang>/` exists and that `supporting-docs/audit-history.md` records a current `contract_hash`. Missing or stale contract artifact is a hard stop: *"Contract artifact missing or stale. Run `/forge-audit` before implementation."*
+6. If clean: proceed silently.
 
 ---
 
@@ -260,7 +261,8 @@ For each unit (atom / flow / journey), the pipeline is:
 
 ```
 1. Spawn test-writer subagent (forge-test-writer)
-   - entity_id, level (unit/integration/system from kind), target_test_file, target_audit_file, architecture
+   - entity_id, level (unit/integration/system from kind), target_test_file, target_audit_file, architecture, contract artifact path
+   - Explicit instruction: compile tests against the canonical contract exactly; do not re-derive signatures
    - Subagent runs forge context, generates tests, writes files
    - Returns summary
 
@@ -272,7 +274,8 @@ For each unit (atom / flow / journey), the pipeline is:
    - If test-writer exhausts retries: mark unit failed, continue with rest
 
 3. Spawn implementation-writer subagent (forge-implementer)
-   - entity_id, kind, target_source_file, architecture
+   - entity_id, kind, target_source_file, architecture, contract artifact path
+   - Explicit instruction: implement against the canonical contract exactly; do not infer alternate signatures
    - Subagent loads spec via forge context, generates code, writes files
    - Returns summary (including architecture_conflict flag)
    - If architecture_conflict: mark unit failed, cancel all dependents, continue
@@ -372,9 +375,9 @@ Recommend next steps:
 
 ### Resumability (G3)
 
-On `/forge-implement` invocation when progress.yaml exists:
+On `/forge-implement` invocation when `supporting-docs/progress.yaml` exists:
 
-1. Read progress.yaml. Show summary: *"Last run: N done, M failed, K pending, J in_flight, L blocked. Last activity: `<timestamp>`."*
+1. Read `supporting-docs/progress.yaml`. Show summary: *"Last run: N done, M failed, K pending, J in_flight, L blocked. Last activity: `<timestamp>`."*
 2. Validate stashed state:
    - Every `status: done` unit's target files still exist?
    - Have any spec files been modified since progress.generated_at?
@@ -406,19 +409,19 @@ On `/forge-implement` invocation when progress.yaml exists:
 
 ## 12. Artifact schemas
 
-### `implementation-plan.yaml`
+### `supporting-docs/implementation-plan.yaml`
 
 See the full shape in §4 above. Key fields:
 - `generated_at`, `scope`
 - `architecture` block (all J2 decisions)
 - `units` list (each with `id`, `kind`, `depends_on`, `status`, `target_files`)
 
-### `implementation/progress.yaml`
+### `supporting-docs/progress.yaml`
 
 Live execution state, checkpointed after every subagent completion:
 
 ```yaml
-plan_ref: <spec-dir>/implementation-plan.yaml
+plan_ref: <spec-dir>/supporting-docs/implementation-plan.yaml
 plan_generated_at: <ISO-8601>
 progress_updated_at: <ISO-8601>
 

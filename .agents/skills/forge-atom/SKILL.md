@@ -43,6 +43,7 @@ Otherwise this file is self-sufficient for routine operation.
 8. **Partial spec: confirm+resume.** If fields exist from a prior session, acknowledge each, let the human correct, then continue from the first unfilled or uncertain field. Never wipe and restart unless explicitly asked.
 9. **Within-module chain mode.** Stay in one session across atoms in the same module. `/clear` between modules, not between atoms.
 10. **Stubs get filled, never recreated.** If an atom file already exists as a stub, you are completing it. You never write a new stub.
+11. **Primitive structure must be made explicit.** If a primitive field (`string`, `integer`, etc.) is parsed, split, pattern-matched, discriminated, or otherwise consumed structurally by this atom or downstream atoms, review must either add a `shape` block or explicitly confirm the field is opaque pass-through. Do not finalize an ambiguous structured primitive as bare `type` alone.
 
 Full rationale: `references/framework.md §2`.
 
@@ -63,7 +64,7 @@ Read what comes back:
 - L1 conventions (defaults that activate once side_effects are declared)
 - Any L4 callers (flows, journeys) and their declared `on_error` expectations
 
-Also read `discovery-notes.md` for the atom's entity hints and any `open_questions` that reference it.
+Also read `supporting-docs/discovery-notes.md` for the atom's entity hints and any `open_questions` that reference it.
 
 **If the stub's spec is partial from a prior session:**
 1. List each filled field.
@@ -98,6 +99,11 @@ The draft should include:
 - likely L0 additions
 - likely module cascades
 
+Before presenting the draft, run a **primitive shape review** over inline primitive fields in `input`, `output.success`, `props`, `local_state`, `input_distribution`, and `output_distribution`:
+- If the field is only passed through opaquely, note that no `shape` is required.
+- If the field is parsed, split, pattern-matched, used as a discriminator, or consumed structurally by another atom, add `shape` to the draft or make it a decision point.
+- If uncertain, ask directly: *"Is `<field>` just an opaque `<type>`, or does it carry structure other atoms/code paths depend on?"*
+
 Present the review in five parts:
 1. **Drafted spec**
 2. **Assumptions made**
@@ -109,9 +115,10 @@ Present the review in five parts:
 
 1. Draft from the strongest available pattern source (sibling atoms, caller expectations, module conventions).
 2. Run anti-bloat and consistency probes silently during drafting. Any surfaced issue becomes a decision point or inline note in the draft.
-3. Present: *"Here's the draft. What's wrong or missing?"*
-4. Only open input or output contract questions if ambiguity or risk remains after the first review.
-5. Revise once, then proceed to **Step 3 — Verification finalization**.
+3. Resolve primitive-shape ambiguity before finalization. Any structured primitive left without `shape` becomes a mandatory decision point in the review.
+4. Present: *"Here's the draft. What's wrong or missing?"*
+5. Only open input or output contract questions if ambiguity or risk remains after the first review.
+6. Revise once, then proceed to **Step 3 — Verification finalization**.
 
 ---
 
@@ -120,10 +127,11 @@ Present the review in five parts:
 1. Present the draft plus assumptions and decision points.
 2. Ask targeted questions only where multiple valid choices exist or where the draft crosses ambiguity or caller risk.
 3. Open input or output contract questions only when the contract is not confidently inferable or the choice affects downstream types, errors, or callers.
-4. Run anti-bloat probes for each new L0 entity the draft still proposes.
-5. Run consistency probes after the initial draft and again only for sections materially changed by the review.
-6. Revise the spec, then present one compact second review pass.
-7. Proceed to **Step 3 — Verification finalization**.
+4. Treat structured primitives as a required contract question, not optional polish. If a primitive field is consumed structurally and lacks `shape`, stop and resolve it before closing the review.
+5. Run anti-bloat probes for each new L0 entity the draft still proposes.
+6. Run consistency probes after the initial draft and again only for sections materially changed by the review.
+7. Revise the spec, then present one compact second review pass.
+8. Proceed to **Step 3 — Verification finalization**.
 
 ---
 
@@ -143,6 +151,7 @@ For each area:
 - revise the draft before moving to the next area
 
 Open input or output contract questions here only when ambiguity or risk warrants them. Do not ask the human to enumerate fields from scratch if the draft is already directionally correct.
+Primitive-shape ambiguity counts as contract ambiguity. A D3 atom cannot exit review while a structured primitive is still represented as an unqualified bare primitive.
 
 Proceed to **Step 3 — Verification finalization**.
 
@@ -184,7 +193,7 @@ forge context <atom_id> --spec-dir <spec-dir>
 Exit code 0 → zero unresolved refs → elicitation complete.
 Exit code 2 → unresolved refs → investigate before handing over. Common cause: a called atom doesn't exist yet; add to `open_questions` if intentional (next forge-atom session catches it).
 
-**5. Mark the atom `elicited`** in `discovery-notes.md`'s candidate list.
+**5. Mark the atom `elicited`** in `supporting-docs/discovery-notes.md`'s candidate list.
 
 **6. Handover — dual path:**
 

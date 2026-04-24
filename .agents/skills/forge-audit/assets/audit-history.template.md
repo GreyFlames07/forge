@@ -5,6 +5,8 @@ Persistent record of every finding ever surfaced across audit runs. Used by `for
 **Last updated:** <ISO-8601 timestamp>
 **Total findings ever surfaced:** <N>
 **Open:** <count>  **Resolved:** <count>  **Known-risk:** <count>  **Regressed:** <count>
+**Latest contract root:** <path | absent>
+**Latest contract hash:** <hash | absent>
 
 ---
 
@@ -26,7 +28,7 @@ Persistent record of every finding ever surfaced across audit runs. Used by `for
 
 **Resolution** (if status=resolved):
 - Resolved on: <YYYY-MM-DD>
-- Resolved by: approved edit in audit-<date>.md
+- Resolved by: approved edit in supporting-docs/audit-<date>.md
 - Commit/changelog ref: <file:changelog version>
 - Fix description: <what was done>
 
@@ -41,9 +43,9 @@ Persistent record of every finding ever surfaced across audit runs. Used by `for
 - Likely cause: <if known — e.g., "spec edit reverted the earlier fix">
 
 **Report references:**
-- audit-<YYYY-MM-DD-1>.md (first flagged)
-- audit-<YYYY-MM-DD-2>.md
-- audit-<YYYY-MM-DD-3>.md
+- supporting-docs/audit-<YYYY-MM-DD-1>.md (first flagged)
+- supporting-docs/audit-<YYYY-MM-DD-2>.md
+- supporting-docs/audit-<YYYY-MM-DD-3>.md
 
 ---
 
@@ -59,4 +61,4 @@ Persistent record of every finding ever surfaced across audit runs. Used by `for
 
 ## Archive policy
 
-When this file exceeds ~1000 entries, archive older resolved findings to `audit-history-archive-<YYYY-MM-DD>.md` and keep only open / known-risk / recently-resolved entries here. The archive stays searchable but stops loading on every audit run.
+When this file exceeds ~1000 entries, archive older resolved findings to `supporting-docs/audit-history-archive-<YYYY-MM-DD>.md` and keep only open / known-risk / recently-resolved entries here. The archive stays searchable but stops loading on every audit run.

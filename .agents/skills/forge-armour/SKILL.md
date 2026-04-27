@@ -38,9 +38,11 @@ Otherwise this file is self-sufficient for routine operation.
 2. **Human approval before any write.** You may analyze freely, but every spec change requires explicit approval after you explain the risk, the proposed control, and the exact files affected.
 3. **Project/module level first.** Prefer strengthening L1, L2 modules, L2 policies, and L5 operations before adding atom-local detail. Only push controls down to atoms when the risk is genuinely atom-specific.
 4. **Security posture must be explicit.** If core security assumptions are missing, ask. Do not silently assume tenant model, auth trust boundary, data sensitivity, regulatory posture, internet exposure, or operator model.
-5. **Best-practice, not cargo-cult.** Recommend controls because they mitigate a concrete risk in this project. Do not spray compliance-flavored boilerplate into the specs.
+5. **Concrete risk, not cargo-cult.** Recommend every control because it mitigates a specific risk in this project — no compliance-flavored boilerplate.
 6. **No silent entity creation.** New policies, constants, errors, or conventions may be proposed, but only written after approval and only when they materially improve the security posture.
 7. **Report is canonical.** Chat can summarize; the durable artifact is the armour report written to disk.
+8. **Controls are context-specific.** If deployment model, trust boundaries, or compliance drivers are unclear, ask before writing — never assume.
+9. **New structure routes to creator skills.** If a fix requires a new module or atom, route back to `/forge-decompose` or `/forge-atom` — do not improvise structure here.
 
 ## Workflow
 
@@ -53,9 +55,9 @@ forge list --spec-dir <spec-dir>
 ```
 
 Then check:
-- `audit-history.md` exists
+- `supporting-docs/audit-history.md` exists
 - most recent audit is newer than the latest spec change
-- no open `blocking` findings remain in `audit-history.md`
+- no open `blocking` findings remain in `supporting-docs/audit-history.md`
 
 If any check fails, say:
 
@@ -65,7 +67,7 @@ If the human explicitly chooses advisory-only mode, continue but do not present 
 
 ### Step 2 — Establish the security profile
 
-Before proposing writes, build or refresh `<spec-dir>/security-profile.md` using `assets/security-profile.template.md`. This file captures the assumptions the rest of the armour pass depends on.
+Before proposing writes, build or refresh `<spec-dir>/supporting-docs/security-profile.md` using `assets/security-profile.template.md`. This file captures the assumptions the rest of the armour pass depends on.
 
 Ask one question at a time until the profile is materially complete:
 - What categories of sensitive data does the system handle? (`public`, `internal`, `pii`, `financial`, `health`, `credentials`, `secrets`, other)
@@ -245,14 +247,14 @@ Default fixes:
 
 ### Step 4 — Compile the armour report
 
-Write `<spec-dir>/armour-<YYYY-MM-DD>.md` using `assets/armour-report.template.md` with:
+Write `<spec-dir>/supporting-docs/armour-<YYYY-MM-DD>.md` using `assets/armour-report.template.md` with:
 - security profile summary
 - findings grouped by severity
 - proposed write batches
 - open assumptions
 - implementation gate recommendation
 
-Also maintain `<spec-dir>/armour-history.md` using `assets/armour-history.template.md` with recurring findings and resolution state.
+Also maintain `<spec-dir>/supporting-docs/armour-history.md` using `assets/armour-history.template.md` with recurring findings and resolution state.
 
 Use severity levels:
 - `blocking` — implementation should not proceed until fixed
@@ -284,15 +286,15 @@ Allowed write targets:
 - `L2_policies/*.yaml`
 - `L3_atoms/*.yaml`
 - `L5_operations.yaml`
-- `security-profile.md`
-- `armour-*.md`
-- `armour-history.md`
+- `supporting-docs/security-profile.md`
+- `supporting-docs/armour-*.md`
+- `supporting-docs/armour-history.md`
 
 When editing specs:
 1. Make the minimal change that captures the approved control.
 2. Preserve Forge schema shape and naming conventions.
 3. Append changelog entries to any modified spec file.
-4. Record the resolution in `armour-history.md`.
+4. Record the resolution in `supporting-docs/armour-history.md`.
 
 ### Step 7 — Handover
 
@@ -312,7 +314,7 @@ If no blocking findings remain:
 - tighten entry-point security declarations
 - add atom-level edge cases, property assertions, and explicit security invariants
 - strengthen `L5` runtime and incident-response posture
-- create durable security review artifacts (`security-profile.md`, armour report/history)
+- create durable security review artifacts (`supporting-docs/security-profile.md`, armour report/history)
 
 `forge-armour` may not:
 - write implementation code
@@ -322,8 +324,6 @@ If no blocking findings remain:
 
 ## Gotchas
 
-- Security hardening is contextual. If the human has not stated the deployment model, trust boundaries, or compliance drivers, ask before writing.
 - Prefer one strong project-level control over many duplicated atom-level edits.
 - A missing policy is usually a module or L1 problem before it is an atom problem.
-- If a fix requires a brand-new module or atom, route back to the creator skills instead of improvising structure here.
-- If the human rejects a control as out of scope, record the accepted risk in `armour-history.md` rather than repeatedly re-proposing it without context.
+- If the human rejects a control as out of scope, record the accepted risk in `supporting-docs/armour-history.md` rather than repeatedly re-proposing it without context.

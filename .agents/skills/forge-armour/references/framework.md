@@ -6,6 +6,23 @@ It is not the compact `SKILL.md`; it exists so the skill can stay short while st
 
 ---
 
+## Contents
+
+| § | Section |
+|---|---|
+| §1 | What `forge-armour` is |
+| §2 | Role contrast |
+| §3 | When it runs |
+| §4 | Security profile interview |
+| §5 | The 8 armour passes |
+| §6 | Severity and approval model |
+| §7 | Preferred mutation targets |
+| §8 | Non-goals |
+| §9 | Durable artifacts |
+| §10 | Design guidance from the security skill corpus |
+
+---
+
 ## 1. What forge-armour is
 
 **Purpose.** `forge-armour` is a post-audit hardening gate that runs after `forge-audit` and before `forge-implement`. Its job is to ensure the spec corpus expresses a credible security posture at the project, module, and atom levels.
@@ -73,7 +90,7 @@ Required dimensions:
 - top abuse cases
 
 Output artifact:
-- `<spec-dir>/security-profile.md`
+- `<spec-dir>/supporting-docs/security-profile.md`
 
 This file should be short, durable, and decision-oriented. It is not a compliance essay. It exists so future audit, armour, and implementation sessions can see the assumptions that justify the controls.
 
@@ -202,7 +219,7 @@ If the human chooses to accept risk, the skill records:
 The skill should prefer the highest-leverage layer that solves the problem.
 
 Mutation priority:
-1. `security-profile.md`
+1. `supporting-docs/security-profile.md`
 2. `L1_conventions.yaml`
 3. `L2_modules/*.yaml`
 4. `L2_policies/*.yaml`
@@ -235,9 +252,9 @@ If a fix requires new domain structure, route back to:
 ## 9. Durable artifacts
 
 Recommended artifacts:
-- `security-profile.md`
-- `armour-YYYY-MM-DD.md`
-- `armour-history.md`
+- `supporting-docs/security-profile.md`
+- `supporting-docs/armour-YYYY-MM-DD.md`
+- `supporting-docs/armour-history.md`
 
 These artifacts let later sessions understand:
 - what security assumptions were adopted

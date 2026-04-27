@@ -1,9 +1,9 @@
-# Canonical implementation/progress.yaml shape.
+# Canonical supporting-docs/progress.yaml shape.
 # Written continuously by the forge-implement orchestrator as subagents
 # complete. Checkpointed to disk after every subagent completion so
 # resume is safe after interruption.
 
-plan_ref:             "<spec-dir>/implementation-plan.yaml"
+plan_ref:             "<spec-dir>/supporting-docs/implementation-plan.yaml"
 plan_generated_at:    "<ISO-8601>"
 progress_updated_at:  "<ISO-8601>"
 parallelism:          4     # --parallelism value in effect

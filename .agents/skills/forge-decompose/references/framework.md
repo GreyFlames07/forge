@@ -9,6 +9,25 @@ Audiences:
 
 ---
 
+## Contents
+
+| § | Section |
+|---|---|
+| §1 | What `forge-decompose` is |
+| §2 | Operating principles |
+| §3 | Decision criticality |
+| §4 | Adaptive questioning for decompose |
+| §5 | The four sub-phases (0–3) |
+| §6 | Exhaustiveness analysis — why multi-pass works |
+| §7 | Classification discipline (kind edge cases) |
+| §8 | Atomicity stopping rule |
+| §9 | What `forge-decompose` does NOT produce |
+| §10 | Artifact schemas |
+| §11 | Compatibility with skill formats |
+| §12 | Open design questions |
+
+---
+
 ## 1. What `forge-decompose` is
 
 **Purpose.** Take one module that has been bounded by `forge-discover` (identity + tech stack + dependency whitelist + empty `owned_atoms`) and produce an **exhaustive list of stubbed atoms** that live inside it. Write those stubs to disk, populate the module's `owned_atoms`, and stub any externally-triggered atoms' entry points.
@@ -31,7 +50,7 @@ Audiences:
 |---|---|---|
 | `L3_atoms/atm.<mod>.<name>.yaml` (one per atom) | `id`, `kind`, `owner_module`, `description`, empty `spec`, empty `verification`, one changelog entry | Discoverable stubs consumed by `forge-atom` |
 | `L2_modules/<MOD>.yaml` (updated) | Populated `owned_atoms`, stub `interface.entry_points` (kind + invokes only) | Module's atom inventory + externally-triggered atom bindings |
-| `discovery-notes.md` (updated) | Classified candidate list, storage-neutral entity hints, `open_questions` for unresolved cross-module deps | Context for subsequent decompose and forge-atom sessions |
+| `supporting-docs/discovery-notes.md` (updated) | Classified candidate list, storage-neutral entity hints, `open_questions` for unresolved cross-module deps | Context for subsequent decompose and forge-atom sessions |
 
 **What `forge-decompose` does NOT produce.** See §9.
 
@@ -93,14 +112,14 @@ Decompose draws from the same question shape taxonomy as discover (grounding, pr
 
 **Actions:**
 1. If no `<MOD>` argument, auto-select the most load-bearing unfilled module. Heuristic, in order:
-   - First module listed in `discovery-notes.md` `open_questions` (unresolved cross-module dep from a prior session)
+   - First module listed in `supporting-docs/discovery-notes.md` `open_questions` (unresolved cross-module dep from a prior session)
    - The module tagged "hardest to get right" during discover sub-phase 1
    - First module alphabetically whose `owned_atoms` is empty
    
    Announce the auto-pick before proceeding; let the human redirect.
 
 2. Run `forge inspect <MOD>` to load the current module state.
-3. Read `discovery-notes.md` — specifically the `capability_inventory`, `external_integrations_observed`, and the module's entries in the domain model (verbs, nouns, pains).
+3. Read `supporting-docs/discovery-notes.md` — specifically the `capability_inventory`, `external_integrations_observed`, and the module's entries in the domain model (verbs, nouns, pains).
 4. **Confirm with the human** that the module description is still accurate. If they want revisions, return to `forge-discover` with the revision hook; don't attempt to re-scope the module from within decompose.
 
 **Writes.** Nothing new — context load only.
@@ -115,7 +134,7 @@ Decompose draws from the same question shape taxonomy as discover (grounding, pr
 
 **Entry trigger.** Sub-phase 0 confirmed.
 
-**Output target:** a growing `candidate_atoms_for_<MOD>` section in `discovery-notes.md`, with each candidate tagged by which pass surfaced it.
+**Output target:** a growing `candidate_atoms_for_<MOD>` section in `supporting-docs/discovery-notes.md`, with each candidate tagged by which pass surfaced it.
 
 Run the four passes in order. No pass can be skipped.
 
@@ -205,7 +224,7 @@ These are the most commonly forgotten atoms — they're not in the "user clicks 
 
 #### Pass outputs
 
-After all four passes, `discovery-notes.md` contains:
+After all four passes, `supporting-docs/discovery-notes.md` contains:
 
 ```yaml
 candidate_atoms_for_<MOD>:
@@ -328,7 +347,7 @@ atom:
      ```
    - The `kind` and `invokes` fields are both knowable from the walkthrough. Everything else is deferred.
 
-3. **Write storage-neutral entity hints** to `discovery-notes.md`:
+3. **Write storage-neutral entity hints** to `supporting-docs/discovery-notes.md`:
    ```yaml
    likely_persisted_entities_for_<MOD>:
      - entity_concept: <logical entity name — e.g., Charge, UserSession>
@@ -340,7 +359,7 @@ atom:
 
 4. **Verify cross-module calls.** For each atom whose description mentions calling into another module (e.g., `atm.pay.charge_card` calls `atm.usr.fetch_customer`):
    - Run `forge inspect <called-atom>` to check existence.
-   - If exists: record the dependency in `discovery-notes.md`.
+   - If exists: record the dependency in `supporting-docs/discovery-notes.md`.
    - If not: add to `open_questions` as an unresolved dependency (e.g., *"atm.pay.charge_card references atm.usr.fetch_customer which does not exist; decompose USR to resolve"*).
    - **Never create atoms in another module from this decompose session.**
 
@@ -458,7 +477,7 @@ The enforced discipline: **decompose produces stubs, not specs.** Stubs are disc
 
 ## 10. Artifact schemas
 
-### Candidate list — `discovery-notes.md` addendum
+### Candidate list — `supporting-docs/discovery-notes.md` addendum
 
 ```yaml
 candidate_atoms_for_<MOD>:
@@ -472,7 +491,7 @@ candidate_atoms_for_<MOD>:
     stub_file:   L3_atoms/atm.<mod>.<name>.yaml
 ```
 
-### Entity hints — `discovery-notes.md` addendum
+### Entity hints — `supporting-docs/discovery-notes.md` addendum
 
 ```yaml
 likely_persisted_entities_for_<MOD>:
@@ -483,7 +502,7 @@ likely_persisted_entities_for_<MOD>:
     # form decided at forge-atom
 ```
 
-### Open questions — `discovery-notes.md` addendum
+### Open questions — `supporting-docs/discovery-notes.md` addendum
 
 ```yaml
 open_questions:

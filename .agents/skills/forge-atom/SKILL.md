@@ -1,20 +1,14 @@
 ---
 name: forge-atom
 description: >
-  Use this skill when the user needs to elicit the complete L3 spec for a
-  single atom stub that forge-decompose created — i.e., an atom exists in
-  L3_atoms/ with id, kind, owner_module, description set, but its spec
-  block is empty or partial. Activates on phrases like "elicit atom X",
-  "fill in the spec for atom X", "spec out atom X", "complete the atom",
-  or when forge context <atom_id> shows the spec block as empty. Starts
-  with a draft built from context, then runs one of three review depths
-  selected by criticality (D1: draft review, D2: draft plus focused
-  decisions, D3: draft plus critical challenge). Produces the full spec
-  block, verification meeting L1 floors, new L0 entries (types, errors,
-  constants) the atom forces, and module-level cascades
-  (persistence_schema datastores, access_permissions, filled entry
-  points). Runs anti-bloat probes (reuse-before-create) and consistency
-  probes (7 cross-system contradiction checks) throughout.
+  Use this skill to elicit the complete L3 spec for a single atom stub —
+  i.e., an atom exists in L3_atoms/ with id, kind, owner_module, and
+  description set but spec block empty or partial. Activates on phrases
+  like "elicit atom X", "fill in the spec for atom X", "spec out atom X",
+  "complete the atom", or when forge context shows the spec block as empty.
+  Produces the full spec block, verification meeting L1 floors, new L0
+  entries (types, errors, constants), and module-level cascades
+  (persistence_schema, access_permissions, filled entry points).
 ---
 
 # forge-atom
@@ -39,7 +33,7 @@ Otherwise this file is self-sufficient for routine operation.
 4. **Logic is prose-first.** Human describes corrections in natural language; you draft or revise the DSL; the human reviews. Never force the human to produce DSL syntax.
 5. **Verification emerges from draft + review.** Example cases, edge paths, and invariants surfaced while reviewing become `example_cases`, `edge_cases`, and `property_assertions`. L1 floors are met by construction, not by a separate brainstorming phase.
 6. **Anti-bloat probes fire before every L0 create.** Run `forge find` for types, errors, constants. Present matches advisorily. Never silently create.
-7. **Consistency probes are targeted, named, quiet when clean.** When a contradiction surfaces, cite the specific entity (`pol.X`, `atm.Y`, L1 section) and present options. Never narrate "I checked X, Y, Z" when no conflict exists.
+7. **Consistency probes: cite specific entities, quiet when clean.** When a contradiction surfaces, name the entity and present options. Never narrate checks that found nothing.
 8. **Partial spec: confirm+resume.** If fields exist from a prior session, acknowledge each, let the human correct, then continue from the first unfilled or uncertain field. Never wipe and restart unless explicitly asked.
 9. **Within-module chain mode.** Stay in one session across atoms in the same module. `/clear` between modules, not between atoms.
 10. **Stubs get filled, never recreated.** If an atom file already exists as a stub, you are completing it. You never write a new stub.
@@ -64,7 +58,7 @@ Read what comes back:
 - L1 conventions (defaults that activate once side_effects are declared)
 - Any L4 callers (flows, journeys) and their declared `on_error` expectations
 
-Also read `discovery-notes.md` for the atom's entity hints and any `open_questions` that reference it.
+Also read `supporting-docs/discovery-notes.md` for the atom's entity hints and any `open_questions` that reference it.
 
 **If the stub's spec is partial from a prior session:**
 1. List each filled field.
@@ -168,7 +162,19 @@ Verification should usually be mostly satisfied by the draft plus review cycle. 
 
 **For MODEL atoms:** add the required `bounds_verification` sub-section. Probe for how each `acceptable_bounds` metric will be measured in production.
 
-**Exit condition:** all L1 floors met; MODEL atoms have `bounds_verification`.
+**Contract boundary check (mandatory when the atom makes any CALLs).** Before closing verification, re-run consistency probe #3's four checks against the final draft for every `CALL <atom>` in the spec's logic:
+
+1. Every non-nullable callee input field is explicitly bound in the CALL step.
+2. The type at each bound position matches the callee's declared input type by L0 id or structural field equivalence.
+3. Every callee `failure_modes.error` is covered by a TRY/CATCH branch.
+4. Every callee `output.success` field read by this atom's logic exists on the callee's declared success contract with compatible type and nullability.
+
+If any check fails, surface it as a mandatory decision point:
+> *"Boundary mismatch with `<called_atom>`: `<specific issue>`. Options: (a) update this atom's CALL step to match the callee's declared contract, (b) update the called atom's spec, (c) introduce a shared L0 type to align both sides. Which?"*
+
+Do not exit verification while a boundary mismatch remains.
+
+**Exit condition:** all L1 floors met; MODEL atoms have `bounds_verification`; all CALL boundaries verified clean.
 
 ### Step 4 — Propagation + validation + handover (sub-phase 3)
 
@@ -193,7 +199,7 @@ forge context <atom_id> --spec-dir <spec-dir>
 Exit code 0 → zero unresolved refs → elicitation complete.
 Exit code 2 → unresolved refs → investigate before handing over. Common cause: a called atom doesn't exist yet; add to `open_questions` if intentional (next forge-atom session catches it).
 
-**5. Mark the atom `elicited`** in `discovery-notes.md`'s candidate list.
+**5. Mark the atom `elicited`** in `supporting-docs/discovery-notes.md`'s candidate list.
 
 **6. Handover — dual path:**
 
@@ -212,9 +218,7 @@ Exit code 2 → unresolved refs → investigate before handing over. Common caus
 
 ## Review depth detail
 
-Review depth selection happens at sub-phase 0 exit. Default to D2 unless the atom is clearly routine (D1) or clearly critical (D3).
-
-**Upgrade rule:** if mid-review you discover the atom is genuinely more critical or more ambiguous than first assessed, upgrade D1 → D2 or D2 → D3. Announce the upgrade: *"This atom carries more risk than I first gauged — switching to D3 for the remaining review."* Do not downgrade once a deeper challenge has started.
+Default to D2. Upgrade D1→D2 or D2→D3 mid-review if the atom proves riskier than first assessed — announce it. Never downgrade once a deeper challenge has started. Full selection rules: `references/framework.md §3`.
 
 ## L0 propagation
 
@@ -268,7 +272,7 @@ Seven check classes. Run silently; surface only when a contradiction is found. A
 |---|---|---|
 | 1 | Policy | Module's `policies` → each policy's `applies_when` vs atom's side_effects / id pattern / markers |
 | 2 | Sibling atom | `forge inspect <mod>` → sibling specs' invariants on shared types |
-| 3 | Called-atom contract | `forge inspect <called>` → declared `failure_modes` vs this atom's TRY/CATCH coverage |
+| 3 | Called-atom contract | `called_atom_signatures` section of the already-loaded `forge context <this_atom>` bundle contains `input`, `output`, and `side_effects` for every atom this atom calls — four checks: (a) every non-nullable callee `input` field has an explicit binding in this atom's `CALL` step, (b) the type passed at each position matches the callee's declared input type by L0 id or structural field equivalence (field names, types, nullability), (c) every error code in callee `output.errors` appears in this atom's TRY/CATCH branches, (d) every callee `output.success` field this atom's logic reads exists in the callee's signature with compatible type and nullability. No extra CLI call needed — the bundle already has this data. |
 | 4 | L1 convention | L1 `security.resource_authorization`, `audit.triggers`, `idempotency.key_source` vs atom's markers |
 | 5 | Access-permission | Atom logic references to `external.X.Y`, `env.Z`, network calls vs module's `access_permissions` whitelist |
 | 6 | Type invariant | Input/output L0 type invariants vs logic branches that produce output values |
@@ -310,8 +314,8 @@ Which fits?
 
 | Command | Used for |
 |---|---|
-| `forge context <atom_id>` | Sub-phase 0 context load (stub, module, siblings, L0, L1, callers) |
-| `forge inspect <id>` | Check a specific called-atom's contract (consistency probe 3) |
+| `forge context <atom_id>` | Sub-phase 0 context load — returns the atom stub, owning module, sibling atoms, L0 slice, L1 conventions, L4 callers, L5 ops, AND `called_atom_signatures` (input/output/side_effects for every atom this atom calls) |
+| `forge inspect <id>` | Quick existence check — returns kind, description, owner, side_effects, output_errors. Does NOT return input or output.success fields. Use the context bundle's `called_atom_signatures` for full contract data. |
 | `forge find <q> --kind type` | Type reuse probe before any L0.types write |
 | `forge find <q> --kind error` | Error reuse probe before any L0.errors write |
 | `forge find <q>` (no kind) | Event contract probe (consistency check 7) — find atoms consuming a given event |

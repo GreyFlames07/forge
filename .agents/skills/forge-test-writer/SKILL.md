@@ -17,13 +17,15 @@ description: >
 
 Subagent dispatched by `forge-implement` to generate tests for one Forge entity (atom / flow / journey) at one test level (unit / integration / system). You read the spec via `forge context`, generate tests, write the audit file, and exit.
 
+Load `references/framework.md` when you need to make judgment calls about live-vs-mock, domain value sourcing, or exhaustiveness vs. minimality.
+
 ## Inputs (from orchestrator)
 
 - `entity_id` — atom id (`atm.mod.name`), flow id (`flow.name`), or journey id (`jrn.name`)
 - `level` — `unit` | `integration` | `system`
 - `target_test_file` — absolute path where tests are written
 - `target_audit_file` — absolute path where the audit md is written
-- `architecture` — block from `implementation-plan.yaml` (test framework, language, styling, etc.)
+- `architecture` — block from `supporting-docs/implementation-plan.yaml` (test framework, language, styling, etc.)
 
 ## Non-negotiables
 
@@ -53,8 +55,46 @@ Read the architecture block the orchestrator passed. Note the test framework, la
 | DECLARATIVE atom | unit | unit tests + golden-file tests (output matches committed golden) |
 | COMPONENT atom | unit | unit tests + snapshot tests + user-event simulation |
 | MODEL atom | unit | unit tests + bounds verification + fallback-triggered tests |
-| Flow | integration | atoms composed with real calls, external services mocked |
-| Journey | system | end-to-end user path, real implementations, high-fidelity external mocks |
+| Flow | integration | live system started via L5 ops `run_command`; real HTTP/CLI/worker/event invocations against the running service; only genuine third-party external APIs mocked |
+| Journey | system | full E2E against live system; browser / CLI / API client drives all transitions; no internal mocks |
+
+### Live system startup (integration and system levels)
+
+For `level: integration` (flows) and `level: system` (journeys), tests run against a live instance of the system — not mocked internals.
+
+**Startup lifecycle.** Read from `L5_operations.yaml`:
+- `run_command` — how to start the system
+- `port` — where it listens
+- `health_check_path` — readiness probe (default `/health`)
+- `readiness_timeout` — how long to wait (default 30s)
+
+Generate `beforeAll` / `afterAll` (or language-equivalent `setup`/`teardown`) that:
+1. Start the system via `run_command` as a subprocess
+2. Poll the health endpoint every 2s until 200 OK or timeout
+3. Set `BASE_URL` / connection handle used by all tests in the file
+4. On teardown: terminate the subprocess cleanly
+
+If `L5_operations.yaml` has no `run_command` or `port`, include a `TODO` comment and a `beforeAll` that asserts `TEST_BASE_URL` env var is set — so the developer can provide an already-running system.
+
+**Surface-specific test style.** Generate live tests appropriate to the entry point kind declared in the L2 module's `interface.entry_points`:
+
+| Entry point kind | Test approach |
+|---|---|
+| `api` (HTTP REST) | HTTP client tests — `supertest` (Node), `httpx` / `requests` (Python), `net/http/httptest` (Go). Make real HTTP calls to `BASE_URL`. Assert exact status codes and response bodies field-by-field. |
+| `cli` | Subprocess invocation — `child_process.execSync` (Node), `subprocess.run` (Python), `exec.Command` (Go). Capture stdout, stderr, exit code. Assert exact output patterns from spec's `example_cases`. |
+| `event_consumer` | Publish an event to the real broker / queue (or an in-process test broker compatible with the project's stack). Assert side effects: DB rows written, outgoing events emitted, log patterns matched. |
+| `scheduled` | Invoke the scheduler entry point directly or trigger the job function via the exposed management API. Assert completion state and side effects. |
+| `grpc` | Generated gRPC client for the target service. Make real RPC calls against the running server on `port`. |
+| `web_journey_entry` | Browser automation (Playwright / Cypress / Selenium) or scripted HTTP session. Drive all journey transitions step by step against the live system. |
+| `websocket` | WebSocket client. Connect, send messages, assert received events in order. |
+
+**No internal mocks at integration/system level.** Do NOT mock internal atoms, modules, databases, caches, or message buses. Every internal dependency must run live. The only acceptable mocks are:
+- Genuine third-party external APIs declared in `L0.external_schemas` (e.g., Stripe, Twilio) — use their test-mode credentials or a local fake (e.g., Stripe CLI local webhook server, Wiremock)
+- Hardware/device dependencies that cannot be simulated in CI
+
+**Behavioral chain requirement.** For each `example_case` at integration or system level, the test must exercise the complete input → processing → observable outcome chain. A test that only asserts the response shape without verifying side effects is incomplete:
+- For API tests: send the request, assert response body AND verify the side effect (DB row exists, event emitted, external call made with correct args).
+- For CLI tests: run the command with real args, assert stdout/stderr AND verify any filesystem or DB changes the command makes.
 
 ### Mandatory coverage (per atom)
 
@@ -160,6 +200,10 @@ Do nothing else. Do not run the tests (orchestrator does that). Do not write imp
 - If `side_effects` contains a marker not in the mandatory-coverage list above (e.g., `PURE`, `IDEMPOTENT`), no side-effect test is needed for it.
 - Do NOT generate tests that verify the atom's implementation approach. Tests verify the atom's CONTRACT (input → output, invariants, side effects). The implementation is free to use any approach.
 - If the test framework is not inferable from architecture or `tech_stack.frameworks`, stop and return a failure: the orchestrator will handle re-architecture.
+- **Domain values are non-negotiable at all levels.** A test that uses `"test@example.com"` when the spec has `example_cases[0].input.email: "alice@acme.com"` is a quality failure. Before writing, scan all generated tests: any placeholder that doesn't come from the spec is a bug in this skill's output.
+- **Live system tests must poll for readiness.** Never send the first request immediately after starting the subprocess — always include a readiness polling loop in `beforeAll`. An unready system produces misleading failures.
+- **CLI tests must capture both stdout AND stderr.** A CLI that writes error output to stderr and exits 1 is correct behavior — don't just check exit code 0; assert the specific output pattern declared in the spec's `failure_modes`.
+- **Integration/system tests must not share startup state across test files.** Each test file gets its own `beforeAll`/`afterAll` lifecycle. Cross-file shared state causes flaky tests and obscures the source of failures.
 
 ## forge CLI commands used
 

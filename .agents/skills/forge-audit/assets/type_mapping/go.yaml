@@ -1,0 +1,27 @@
+language: go
+primitives:
+  string: { non_nullable: string, nullable: "*string" }
+  integer: { non_nullable: int, nullable: "*int" }
+  number: { non_nullable: float64, nullable: "*float64" }
+  boolean: { non_nullable: bool, nullable: "*bool" }
+  bigint: { non_nullable: int64, nullable: "*int64" }
+  bytes: { non_nullable: "[]byte", nullable: "[]byte" }
+  timestamp: { non_nullable: time.Time, nullable: "*time.Time" }
+  uuid: { non_nullable: string, nullable: "*string" }
+signature_shape:
+  success_with_errors: "(<Result>, error)"
+  success_only: "<Result>"
+seams:
+  WRITES_DB: interface_field
+  READS_DB: interface_field
+  CALLS_EXTERNAL: interface_field
+  EMITS_EVENT: interface_field
+  WRITES_FS: interface_field
+  WRITES_CACHE: interface_field
+error_return:
+  style: sentinel_error
+  comparison: errors.Is
+result_naming:
+  request_suffix: Input
+  response_suffix: Result
+  field_case: PascalCase

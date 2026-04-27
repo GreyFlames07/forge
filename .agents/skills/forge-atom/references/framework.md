@@ -9,6 +9,25 @@ Audiences:
 
 ---
 
+## Contents
+
+| § | Section |
+|---|---|
+| §1 | What `forge-atom` is |
+| §2 | Operating principles |
+| §3 | Review depth selection (D1 / D2 / D3) |
+| §4 | L0 propagation — tiered policy |
+| §5 | Anti-bloat probes — reuse-before-create |
+| §6 | Consistency probes — cross-system contradiction checks |
+| §7 | The four sub-phases (0–3) |
+| §8 | Kind-specific spec shape notes |
+| §9 | What `forge-atom` does NOT produce |
+| §10 | Artifact schemas |
+| §11 | Compatibility |
+| §12 | Open design questions |
+
+---
+
 ## 1. What `forge-atom` is
 
 **Purpose.** Take one atom stub produced by `forge-decompose` (id + kind + owner_module + description + empty `spec`) and produce a **complete, implementation-ready L3 atom spec** — the full `spec` block per kind, verification meeting L1 floors, and every cascade the atom forces: L0 writes (types, errors, constants), module-field completions (`persistence_schema.datastores`, `access_permissions`, filled `interface.entry_points`).
@@ -34,7 +53,7 @@ The workhorse skill. Run dozens to hundreds of times per project. The specs it p
 | `L3_atoms/<atom>.yaml` | Complete spec — `spec` block populated per kind, verification meeting L1 floors |
 | `L0_registry.yaml` | New types appended; new errors appended (confirmed); constants appended (with skepticism flag if single-consumer) |
 | `L2_modules/<owner>.yaml` | `persistence_schema.datastores` updated; `access_permissions` extended; `interface.entry_points` stub completed |
-| `discovery-notes.md` | Atom marked `status: elicited`; any new `open_questions` added |
+| `supporting-docs/discovery-notes.md` | Atom marked `status: elicited`; any new `open_questions` added |
 
 ---
 
@@ -222,7 +241,7 @@ Seven check classes, fired at anchored moments. Each uses existing CLI primitive
 |---|---|---|---|
 | 1 | **Policy** | Atom behavior violates a policy applied to its module | Iterate module's `policies`; evaluate each policy's `applies_when` against atom's side_effects / id / markers |
 | 2 | **Sibling atom** | Another atom in same module makes overlapping guarantees that conflict | `forge inspect <mod>` → read sibling specs; compare invariants on shared types |
-| 3 | **Called-atom contract** | Atom ignores `failure_modes` of a downstream atom it invokes | `forge inspect <called>` → cross-check declared failures against this atom's TRY/CATCH coverage |
+| 3 | **Called-atom contract** | Structural incompatibility or incomplete handling at a CALL boundary | `forge context <this_atom>` already includes `called_atom_signatures` with `input`, `output`, and `side_effects` for every atom this atom calls — no extra CLI call needed. Four checks: (a) every non-nullable callee `input` field has an explicit binding in this atom's CALL step; (b) the type at each bound position matches the callee's declared input type by L0 id or structural field equivalence (field names, types, nullability); (c) every error code in callee `output.errors` is covered by a TRY/CATCH branch; (d) every callee `output.success` field read by this atom's logic exists in the callee's signature with compatible type and nullability. All four must pass. |
 | 4 | **L1 convention** | Atom contradicts project-wide defaults (auth posture, audit, idempotency) | Read L1; check atom's markers against `security.resource_authorization`, `audit.triggers`, `idempotency.key_source` |
 | 5 | **Access-permission** | Atom references external/env/network not in module's whitelist | Parse atom's logic for `external.X.Y`, `env.Z`; check against module's `access_permissions` |
 | 6 | **Type invariant** | Atom produces values that violate its output type's invariants | Read L0 type invariants for input/output types; cross-check against logic branches that produce output values |
@@ -307,7 +326,7 @@ Example:
 
 **Actions:**
 1. Run `forge context <atom_id>` to load stub + surrounding context (module, siblings, L0 so far, applied policies, L1 defaults, any L4 callers that already reference this atom).
-2. Read `discovery-notes.md` for atom hints, persistence entity notes, open_questions.
+2. Read `supporting-docs/discovery-notes.md` for atom hints, persistence entity notes, open_questions.
 3. If the stub's `spec` is partial from a prior session, enter confirm+resume mode: walk through each filled field, confirm or correct, then continue from the first unfilled field.
 4. Confirm the stub description is still accurate; refine if vague.
 5. Read the stub's declared side_effects (or infer from description if not yet declared) and **select the review depth** (D1 / D2 / D3). Announce.
@@ -327,8 +346,15 @@ Required during this sub-phase: run the primitive shape review and resolve every
 1. Check L1 floors: `min_property_assertions`, `min_edge_cases`, `min_example_cases`.
 2. If any floor is unmet, probe for additional examples or edge paths until the floor is met.
 3. For `kind: MODEL` atoms, add `bounds_verification` sub-section (explicitly enumerate how acceptable_bounds will be validated).
+4. **Contract boundary check (mandatory when the atom makes any CALLs).** For every `CALL <atom>` in the spec's logic, re-run probe #3's four checks against the final draft. Data source: `called_atom_signatures` in the already-loaded context bundle — no extra CLI call needed.
+   - (a) every non-nullable callee input field is explicitly bound
+   - (b) type at each bound position matches callee's declared input type by L0 id or structural field equivalence
+   - (c) every error code in callee `output.errors` is covered by a TRY/CATCH branch
+   - (d) every callee `output.success` field read by this atom exists in the callee's signature with compatible type and nullability
 
-**Exit condition:** all L1 floors met; MODEL atoms have bounds_verification.
+   Any check failure → mandatory decision point: "(a) update this atom's CALL step, (b) update the callee's spec, or (c) introduce a shared L0 type to align both sides." Do not exit while a boundary mismatch remains.
+
+**Exit condition:** all L1 floors met; MODEL atoms have bounds_verification; all CALL boundaries verified clean.
 
 ### Sub-phase 3 — Propagation + validation + handover
 
@@ -468,7 +494,7 @@ Each addition carries a changelog entry with date, version, and description ("Ad
 
 ### Discovery notes updates
 
-`discovery-notes.md` atom entry status: `stubbed` → `elicited`. Any consistency probes that surfaced unresolved tensions (e.g., a policy that needs revision) get added to `open_questions`.
+`supporting-docs/discovery-notes.md` atom entry status: `stubbed` → `elicited`. Any consistency probes that surfaced unresolved tensions (e.g., a policy that needs revision) get added to `open_questions`.
 
 ---
 

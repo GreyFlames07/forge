@@ -25,15 +25,15 @@ Minimum prerequisites:
 
 1. Relevant atoms exist and have complete specs in `L3_atoms/`.
 2. Module entry points are present in `L2_modules/*.yaml`.
-3. `discovery-notes.md` exists and is treated as canonical context.
+3. `supporting-docs/discovery-notes.md` exists and is treated as canonical context.
 
 Additional constraints (if present):
 
-- `decision-log.md`
+- `supporting-docs/decision-log.md`
 - `docs/decisions/*.md`
 - `docs/adr/*.md`
-- `implementation-plan.yaml` (`architecture` section)
-- `security-profile.md`
+- `supporting-docs/implementation-plan.yaml` (`architecture` section)
+- `supporting-docs/security-profile.md`
 
 Decision precedence for conflicts:
 
@@ -108,7 +108,7 @@ Escalation rule:
 2. **Discovery updates:** composed status + orchestration notes + unresolved
    tensions in `open_questions`.
 3. **Decision updates:** append critical composition decisions to decision docs.
-   If no decision doc exists, initialize `decision-log.md`.
+   If no decision doc exists, initialize `supporting-docs/decision-log.md`.
 
 Decision log entry shape:
 

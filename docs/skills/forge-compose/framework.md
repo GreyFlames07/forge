@@ -30,15 +30,15 @@ Composition starts from contracted atoms and project context:
 
 1. `L3_atoms/*.yaml` (complete enough to compose)
 2. `L2_modules/*.yaml` entry points
-3. `discovery-notes.md` (authoritative context)
+3. `supporting-docs/discovery-notes.md` (authoritative context)
 
 If present, these are treated as constraints:
 
-- `decision-log.md`
+- `supporting-docs/decision-log.md`
 - `docs/decisions/*.md`
 - `docs/adr/*.md`
-- `implementation-plan.yaml` architecture block
-- `security-profile.md`
+- `supporting-docs/implementation-plan.yaml` architecture block
+- `supporting-docs/security-profile.md`
 
 Priority when signals conflict:
 
@@ -92,10 +92,10 @@ Contradictions are surfaced as option sets, never silently resolved.
 `forge-compose` writes:
 
 1. L4 spec files + changelog entries.
-2. `discovery-notes.md` updates (status, notes, unresolved tensions).
+2. `supporting-docs/discovery-notes.md` updates (status, notes, unresolved tensions).
 3. Decision log updates for critical composition choices.
 
-If no decision log exists, create `<spec-dir>/decision-log.md`.
+If no decision log exists, create `<spec-dir>/supporting-docs/decision-log.md`.
 
 Recommended decision entry:
 

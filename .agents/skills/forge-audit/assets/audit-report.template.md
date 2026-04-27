@@ -20,6 +20,7 @@
 
 **Regressions:** <count of findings that reappeared after prior resolution>
 **Escalations:** <count of findings escalated due to persistence>
+**Contract artifact:** <absent | stale | generated at <spec-dir>/contract/<lang>>
 
 ---
 

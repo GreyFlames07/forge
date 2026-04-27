@@ -3,7 +3,7 @@
 **Generated:** <ISO-8601 timestamp>
 **Scope:** <project-wide | module:MOD | atom:atom_id>
 **Mode:** <full | advisory>
-**Audit baseline:** <audit-YYYY-MM-DD.md | none>
+**Audit baseline:** <supporting-docs/audit-YYYY-MM-DD.md | none>
 
 ---
 

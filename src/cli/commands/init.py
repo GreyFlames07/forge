@@ -138,6 +138,7 @@ SKILL_NAMES = (
 # subsequent skill runs (discover writes L2_modules; decompose writes L3_atoms;
 # etc.).
 SPEC_SUBDIRS = (
+    "supporting-docs",
     "L2_modules",
     "L2_policies",
     "L3_atoms",
@@ -148,6 +149,7 @@ SPEC_SUBDIRS = (
 
 # Markers that indicate an existing forge project (refuse to init over unless --force).
 EXISTING_PROJECT_MARKERS = (
+    "supporting-docs/discovery-notes.md",
     "discovery-notes.md",
     "L0_registry.yaml",
     "L1_conventions.yaml",

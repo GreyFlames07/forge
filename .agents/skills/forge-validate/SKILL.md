@@ -8,20 +8,18 @@ description: >
   "validate the implementation", "check the system against specs", "run
   forge-validate", "verify live behaviour", or after forge-implement
   completes. Produces a validation report in chat and persists it as
-  <spec-dir>/validation-report.md.
+  supporting-docs/validation-report.md inside the spec directory.
 ---
 
 # forge-validate
 
-Post-implementation validator. You read the spec corpus, read the implementation, run the test suite, start the system if it is not already running, fire synthetic probes derived from L3 contracts, and compare results — exact for output contracts, LLM-reasoned for implied behavioral logic, log-verified for side effects. You produce a report in chat and write it to `<spec-dir>/validation-report.md`.
-
-You never modify specs or implementation. You never retry failed live probes. You always write the report, even on a partial run.
+Post-implementation validator. Read the spec corpus, read the implementation, run the test suite, start the system if needed, fire synthetic probes derived from L3 contracts, and compare results. Produce a report in chat and write it to `<spec-dir>/supporting-docs/validation-report.md`.
 
 ## Non-negotiables
 
 1. **Read-only.** Never modify a spec file or source file.
 2. **Exact contract assertion.** Response shapes must match L3 `output` schema field-by-field — no partial matching.
-3. **Behavioral assertion is LLM-reasoned with explicit rationale.** Load full spec context, reason from it, state the reasoning in the report. Never emit PASS/FAIL without a rationale sentence.
+3. **Behavioral assertions require explicit rationale.** Never emit PASS/FAIL without a sentence stating which spec element passed or failed and why. Cite the specific field or invariant.
 4. **Side effects require log evidence.** Do not mark a side effect `FOUND` without a matching log line or query result.
 5. **System startup is gated.** Only start the system if it is not already reachable. Never start it twice.
 6. **Scope determines targets.** Full project by default; `--scope` limits to a module or single atom.
@@ -45,7 +43,7 @@ You never modify specs or implementation. You never retry failed live probes. Yo
 ### Step 1 — Load context
 
 1. Resolve spec dir: `--spec-dir` flag > `$FORGE_SPEC_DIR` > auto-discover (walk upward for `.forge/`).
-2. Load `implementation-plan.yaml` from the spec dir — needed for source file mapping, test command, and audit matrix locations.
+2. Load `supporting-docs/implementation-plan.yaml` from the spec dir — needed for source file mapping, test command, and audit matrix locations.
 3. Determine scope. Full project by default. With `--scope <id>`: if `<id>` contains no `.` treat as module prefix; else treat as exact entity id.
 4. Enumerate targets: `forge list --kind atom --ids-only --spec-dir <dir>`. Filter by scope.
 5. Announce: *"forge-validate: N atoms in scope. Running phases: static analysis → test suite → live interactions → observability."*
@@ -57,7 +55,7 @@ You never modify specs or implementation. You never retry failed live probes. Yo
 For each atom in scope:
 
 1. Load full spec: `forge context <id> --spec-dir <dir>`.
-2. Locate source file via `implementation-plan.yaml` `units[id].target_files`. If absent: record `source_missing` finding, skip atom.
+2. Locate source file via `supporting-docs/implementation-plan.yaml` `units[id].target_files`. If absent: record `source_missing` finding, skip atom.
 3. Read the source file.
 4. Check:
    - **Input handling** — does the code accept and validate every field declared in L3 `input`? Flag: undeclared fields accepted (WARN), declared fields unhandled (FAIL).
@@ -72,9 +70,9 @@ Emit running tally after each module completes: *"Static: [PAY] 8 PASS, 1 WARN, 
 
 ### Step 3 — Phase 2: Test suite
 
-1. Read test command from `implementation-plan.yaml` `architecture.test_frameworks`. If ambiguous, ask the user once.
+1. Read test command from `supporting-docs/implementation-plan.yaml` `architecture.test_frameworks`. If ambiguous, ask the user once.
 2. Run the full test suite. Capture per-test pass/fail and overall coverage if available.
-3. Load forge-test-writer audit matrices. Path per unit: `implementation-plan.yaml` `units[id].audit_file`. Skip units with no audit file (note them).
+3. Load forge-test-writer audit matrices. Path per unit: `supporting-docs/implementation-plan.yaml` `units[id].audit_file`. Skip units with no audit file (note them).
 4. For each failing test: map test name to spec element via the audit matrix row. Record `entity_id`, `spec_element`, test name, failure message.
 5. For each spec element with no audit matrix row: record `uncovered` finding.
 6. Emit: *"Test suite: X passed, Y failed. Z spec elements have no test coverage."*
@@ -156,7 +154,7 @@ Emit: *"Observability: SLA assertions N atoms, metrics presence N metrics, alert
 
 ### Step 6 — Report
 
-Generate the report in chat, then write to `<spec-dir>/validation-report.md`. Include a Phase 4 section if observability was checked.
+Generate the report in chat, then write to `<spec-dir>/supporting-docs/validation-report.md`. Include a Phase 4 section if observability was checked.
 
 ```markdown
 # Validation Report — <project> — <ISO timestamp>
@@ -263,5 +261,5 @@ Announce in chat: one-paragraph summary of overall status, then paste the full r
 ## References
 
 - `references/framework.md` — full mental model (§3 static analysis, §4 test mapping, §5 live probes, §6 report schema)
-- `implementation-plan.yaml` — source file mapping, test command, audit matrix paths
+- `supporting-docs/implementation-plan.yaml` — source file mapping, test command, audit matrix paths
 - L5 ops spec — `run_command`, `port`, `health_check_path`, `readiness_timeout`, `log_file`

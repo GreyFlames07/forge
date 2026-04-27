@@ -1,6 +1,6 @@
 # Decomposition candidates — `<MOD>`
 
-Running list produced by `forge-decompose` during sub-phase 1 (multi-pass extraction). Appended to `discovery-notes.md` under the module's section. Each candidate carries the pass that surfaced it so gaps in a given pass are easy to spot.
+Running list produced by `forge-decompose` during sub-phase 1 (multi-pass extraction). Appended to `supporting-docs/discovery-notes.md` under the module's section. Each candidate carries the pass that surfaced it so gaps in a given pass are easy to spot.
 
 ## Candidate atoms
 

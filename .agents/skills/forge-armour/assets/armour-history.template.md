@@ -22,7 +22,7 @@ Persistent record of security findings surfaced by `forge-armour`.
 
 **Resolution** (if resolved):
 - Resolved on: <YYYY-MM-DD>
-- Resolved by: approved edit in armour-<date>.md
+- Resolved by: approved edit in supporting-docs/armour-<date>.md
 - Changelog ref: <file:version>
 - Fix description: <what changed>
 
@@ -32,5 +32,5 @@ Persistent record of security findings surfaced by `forge-armour`.
 - Review-after: <YYYY-MM-DD>
 
 **Report references:**
-- armour-<YYYY-MM-DD-1>.md
-- armour-<YYYY-MM-DD-2>.md
+- supporting-docs/armour-<YYYY-MM-DD-1>.md
+- supporting-docs/armour-<YYYY-MM-DD-2>.md

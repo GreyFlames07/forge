@@ -33,10 +33,9 @@ Otherwise, this file is self-sufficient for routine operation.
 1. **Batch within sub-phases; sequence across them.** Group questions that don't depend on each other into one turn — the human answers all at once rather than waiting through one-at-a-time prompts. Questions where answer B requires answer A stay sequential. Critical decisions (cloud, compute, persistence, event semantics, deployment strategy, auth posture) always get their own turn as an option-set — never batch a cascading choice with a routine one.
 2. **Extractive, not generative.** Do NOT invent modules, capabilities, or features. Do NOT say "you probably need a User module" before the human has named user-related capabilities. Surface what the human already knows.
 3. **Adapt every question to the domain model.** See `## The domain model (short-term memory)` below. Generic questions get generic answers; domain-grounded questions get spec-worthy ones.
-4. **Confirm by restating before writing.** "So: when X happens, the system does Y. Right?" — then write to disk. Silence is not agreement.
-5. **Critical decisions get option sets, not defaults.** For cascading choices (cloud, persistence, auth posture, event semantics, deployment strategy), present 2–4 options with tradeoffs instead of picking silently or proposing a single default. See `## Critical decisions`.
-6. **Resist premature naming.** Work with descriptive placeholders ("the thing that does X," "whatever handles Y") until the boundary is tested. Only commit a 3-letter module ID after the seam has been interrogated.
-7. **Scratchpad first, structured files second.** Everything captured goes into `supporting-docs/discovery-notes.md` as it surfaces. Commit to structured YAML (L0/L1/L2/L5) only at sub-phase exits, once the shape is stable.
+4. **Critical decisions get option sets, not defaults.** For cascading choices (cloud, persistence, auth posture, event semantics, deployment strategy), present 2–4 options with tradeoffs instead of picking silently or proposing a single default. See `references/framework.md §2a`.
+5. **Resist premature naming.** Work with descriptive placeholders ("the thing that does X," "whatever handles Y") until the boundary is tested. Only commit a 3-letter module ID after the seam has been interrogated.
+6. **Scratchpad first, structured files second.** Everything captured goes into `supporting-docs/discovery-notes.md` as it surfaces. Commit to structured YAML (L0/L1/L2/L5) only at sub-phase exits, once the shape is stable.
 
 Full rationale: `references/framework.md` §2.
 
@@ -86,6 +85,12 @@ Each sub-phase below has: seed questions (generic templates you start from), ada
 **Purpose.** Take the human from a vague idea to a crystallized product thesis. This sub-phase writes NO structured YAML — only `supporting-docs/discovery-notes.md`.
 
 **Before any questions:** copy `assets/discovery-notes.template.md` to `<spec-dir>/supporting-docs/discovery-notes.md`. All sub-phase 0 output writes into this file.
+
+**Fast-path detection.** Before running the full interview, check whether the human already has a concrete technical vision. Signals: they name specific modules or services, describe data entities or schemas, mention a tech stack, or say something like "I'm building X with Y and Z." If yes, offer:
+
+> *"It sounds like you already have a clear technical picture. I can skip the product workshopping and go straight to mapping your system's data model and module boundaries. Want to fast-track to sub-phase 1?"*
+
+If they accept: confirm the thesis in one sentence, establish the scope fence, write those two sections of `supporting-docs/discovery-notes.md`, and jump directly to sub-phase 1 with a focus on entity and capability extraction. Skip the pain/user interrogation entirely.
 
 **Seed questions — batch into three turns:**
 
@@ -137,9 +142,11 @@ Each sub-phase below has: seed questions (generic templates you start from), ada
 - Use the human's verbs verbatim. Whatever terminology they use, you use — never translate their terms into synonyms you prefer.
 - Use the pain from sub-phase 0 to probe where it happens in the session.
 - Every verb the human uses in the walkthrough is a **capability candidate**. Extract it to the `Capability inventory` list.
+- Every **noun** the human names that represents a thing the system stores, transforms, or acts on is an **entity candidate**. For each entity, record: name, the module most likely to own it, its key identifying fields if named, and which capabilities operate on it.
+- When the human describes a relationship between entities ("an Order belongs to a Customer"), record it — these become persistence schema hints and L0 type composition signals later.
 - Every external system mentioned is an external integration. Add each to `External integrations observed` with service name, purpose, and auth method if known.
 
-**Writes.** `Typical user session`, `Capability inventory`, `External integrations observed`, `Change axes`, `Critical failure modes` sections of `supporting-docs/discovery-notes.md`.
+**Writes.** `Typical user session`, `Capability inventory`, `Entity candidates`, `External integrations observed`, `Change axes`, `Critical failure modes` sections of `supporting-docs/discovery-notes.md`.
 
 **Exit when all true:**
 - At least one complete user session is written as a narrative.
@@ -255,7 +262,7 @@ Also update `supporting-docs/discovery-notes.md` with a `Module map` ASCII diagr
 
 #### Sub-phase 3 — Vocabulary baseline (L0 skeleton)
 
-**Purpose.** Populate `L0_registry.yaml` with the project-wide skeleton: `naming_ledger`, `error_categories`, `external_schemas`, `side_effect_markers`. Types, errors, and constants are left empty — they emerge from atoms in later skills.
+**Purpose.** Populate `L0_registry.yaml` with the project-wide skeleton: `naming_ledger`, `error_categories`, `external_schemas`, `side_effect_markers`. Also write preliminary entity type stubs for qualifying entities surfaced in sub-phase 1.
 
 **Seed questions — batch all four (independent confirmations):**
 1. "Default atom ID regex is `^atm\.[a-z]{3}\.[a-z_]+$` — fit, or custom?" (iterate over the 10 naming_ledger classes)
@@ -265,15 +272,41 @@ Also update `supporting-docs/discovery-notes.md` with a `Module map` ASCII diagr
 
 Ask all four at once. Process answers individually — if any trigger follow-up (e.g., a new error category needs a name), handle that before moving to L1.
 
+**Entity-to-framework mapping (5th step — runs after the four skeleton questions).** Take the `Entity candidates` list from sub-phase 1 and show how each qualifying entity maps into the Forge framework. For each entity that meets the threshold below, sketch a preliminary L0 type stub and explain where it will appear:
+
+> *"`Order` → `reg.ord.Order` in `L0_registry.yaml` — shared type across modules. Will appear as `input.order: reg.ord.Order` on atoms like `atm.ord.create_order`, `atm.pay.charge_card`, and `atm.ntf.send_confirmation`. Module `ORD` owns it in `persistence_schema`.*
+> *Stub written with `fields: {}`. forge-atom fills in each field (type, nullable, description) as it elicits the atoms that use it."*
+
+Write entity type stubs for entities that satisfy at least one of:
+- Referenced by ≥2 different capability verbs (the entity crosses multiple operations)
+- Referenced by atoms in more than one module (cross-module shared type)
+
+Single-module single-operation entities defer to forge-atom — writing them now is premature commitment.
+
+Stub format to write under `types:` in `L0_registry.yaml`. Type IDs follow the `reg.<mod>.<TypeName>` convention — by sub-phase 3, module codes are already committed so the `<mod>` prefix is known:
+```yaml
+reg.<mod>.<EntityName>:
+  kind: entity
+  description: "<from entity candidate notes>"
+  fields: {}   # populated by forge-atom — each field will be {type, nullable, description}
+  changelog:
+    - version: "0.1.0"
+      date: <YYYY-MM-DD>
+      change_type: added
+      description: "Stub created by forge-discover. Fields populated by forge-atom."
+```
+
+These stubs create type anchors before atom elicitation begins. forge-atom will reuse them rather than independently defining conflicting types — this is the primary mechanism for preventing cross-atom contract drift.
+
 **Adaptation rules:**
 - External integrations list comes from sub-phase 1 — don't re-ask, only confirm and fill in auth methods.
 - If sub-phase 0 surfaced regulatory or audit-trail constraints → suggest an `AUDIT` or `COMPLIANCE` error category.
 - If sub-phase 1 suggests ML/model components → ensure `READS_ARTIFACT` marker is in the set.
 - If the domain has heavy async workflows → suggest `SCHED` error category.
 
-**Write** `<spec-dir>/L0_registry.yaml` with four populated sections and three empty ones (`errors: {}`, `types: {}`, `constants: {}`).
+**Write** `<spec-dir>/L0_registry.yaml` with four populated skeleton sections, preliminary entity type stubs for qualifying entities, and two empty sections (`errors: {}`, `constants: {}`).
 
-**Exit when:** All four skeleton sections have human-confirmed content. File parses as valid YAML.
+**Exit when:** All four skeleton sections have human-confirmed content. Entity stubs are written for qualifying entities. File parses as valid YAML.
 
 **Transition line:** "Good. Now project-wide defaults every atom will inherit."
 
@@ -316,7 +349,7 @@ Ask all four at once. Process answers individually — if any trigger follow-up 
 
 **Critical decisions (present as option sets if not already signaled):**
 
-- **Cloud provider** — if not mentioned in sub-phases 0–2, use the option-set template in `## Critical decisions` below. Record in `deployment.platform.cloud` (free-form string).
+- **Cloud provider** — if not mentioned in sub-phases 0–2, present as an option-set (see `references/framework.md §2a`). Record in `deployment.platform.cloud` (free-form string).
 - **Default compute model** — given the chosen cloud, present 3–4 options (serverless / managed containers / kubernetes / VMs) with tradeoffs.
 - **Primary persistence model** — relational / document / key-value / mixed; present as options.
 - **Deployment strategy** — rolling / canary / blue-green / recreate; present options unless already clear.
@@ -368,44 +401,21 @@ Full termination protocol: `references/framework.md` §8.
 
 ## The domain model (short-term memory)
 
-This is the running state the agent maintains in `supporting-docs/discovery-notes.md`'s `Domain model` section. Every turn, update it FIRST, then use it to adapt the next question.
+Maintained in `supporting-docs/discovery-notes.md`. Update it FIRST every turn, then use it to adapt the next question.
 
 ```yaml
 domain_model:
-  actors:         # named roles — specific, not generic ("a user" is not specific enough)
+  actors:         # named roles — specific, not generic
   nouns:          # objects of concern in the human's vocabulary
   verbs:          # operations in the human's vocabulary
   pains:          # concrete frustrations with scenarios
   constraints:    # hard limits (regulatory, platform, temporal)
-  vocab:          # domain terms defined in the human's own words
-  comparisons:    # analogies the human accepted or rejected
+  vocab:          # domain terms in the human's own words
+  comparisons:    # analogies accepted or rejected
   open_questions: # things to revisit
 ```
 
-**Adaptation primer:** at turn 1, all questions are generic templates. At turn 2+, every question you ask should substitute at least one element from the domain model into the template. By turn 6, your questions should be answerable only by someone familiar with this specific domain.
-
-Worked example of question evolution across 6 turns: `references/framework.md` §3 ("How questions evolve").
-
-## Critical decisions: present options, don't default
-
-**When to present options instead of a default:** any decision that cascades through the spec, encodes domain-specific assumptions, or is hard to reverse. Specifically: cloud provider, compute model, primary persistence, event semantics, default transaction boundary, security posture, auth methods, deployment strategy, multi-tenancy model.
-
-**Option-set template:**
-
-```
-You haven't mentioned [decision]. This will cascade through the spec.
-Your options:
-
-1. **[Option A]** — [one-line benefit]. [one-line tradeoff]. Best for [context].
-2. **[Option B]** — [one-line benefit]. [one-line tradeoff]. Best for [context].
-3. **[Option C]** — [one-line benefit]. [one-line tradeoff]. Best for [context].
-
-Which fits your context? Happy to go deeper on any of these.
-```
-
-**Rule of thumb:** presenting options costs one turn; a silently-wrong default costs hours of rework. When in doubt, present options.
-
-Full decision-criticality framework (including heuristic for "is this critical?"): `references/framework.md` §2a.
+Worked example of question evolution across 6 turns: `references/framework.md §3`.
 
 ## Gotchas
 

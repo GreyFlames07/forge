@@ -40,6 +40,8 @@ Otherwise this file is self-sufficient for routine operation.
 6. **Partial completion is fine.** Succeeded units stay; failed units stash attempts; blocked units wait. Resume with `--resume`.
 7. **Minimality.** Subagents produce the smallest code satisfying the spec — no speculative abstractions.
 8. **Consult on implementation layout before writing the plan.** File grouping, directory layout, test placement, and entrypoint structure are architecture decisions. Ask first; do not silently lock them in from inference alone.
+9. **Skills are not Task subagent_types.** Always spawn with `subagent_type: "general-purpose"` and instruct the agent in the prompt to follow the named skill (`forge-test-writer` / `forge-implementer`). Calling `Task(subagent_type="forge-test-writer")` fails.
+10. **Subagents inherit no env.** Every subagent prompt must include the absolute `spec_dir` path and pass `--spec-dir <path>` to every `forge` invocation — no `$FORGE_SPEC_DIR`, CWD, or shell aliases cross the Task boundary.
 
 Full rationale: `references/framework.md §2`.
 

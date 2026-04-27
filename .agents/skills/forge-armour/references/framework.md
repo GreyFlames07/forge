@@ -6,6 +6,23 @@ It is not the compact `SKILL.md`; it exists so the skill can stay short while st
 
 ---
 
+## Contents
+
+| § | Section |
+|---|---|
+| §1 | What `forge-armour` is |
+| §2 | Role contrast |
+| §3 | When it runs |
+| §4 | Security profile interview |
+| §5 | The 8 armour passes |
+| §6 | Severity and approval model |
+| §7 | Preferred mutation targets |
+| §8 | Non-goals |
+| §9 | Durable artifacts |
+| §10 | Design guidance from the security skill corpus |
+
+---
+
 ## 1. What forge-armour is
 
 **Purpose.** `forge-armour` is a post-audit hardening gate that runs after `forge-audit` and before `forge-implement`. Its job is to ensure the spec corpus expresses a credible security posture at the project, module, and atom levels.

@@ -359,13 +359,6 @@ The two paths:
 2. The atom covering the capability tagged "hardest to get right" during discover
 3. The first atom alphabetically
 
-### Why "continue decomposing" is the recommended default
-
-- **Decompose is fast; forge-atom is slow.** Stubs take minutes; full specs take hours. Breadth-first decomposition lets you see the full module surface before committing to deep spec work.
-- **Cross-module gaps surface earlier.** If module B's walkthrough reveals it needs an atom that module A should own, catching that during A's decompose is much cheaper than catching it during B's forge-atom.
-- **Emotional momentum.** Completing decompose on a module feels like progress; starting a single atom's spec feels like a new slog.
-- **The `/clear` is the natural save point.** State is already on disk — nothing is lost by clearing, and the next invocation resumes via auto-pick without the human having to remember where they were.
-
 ## Critical decisions — option-set protocol
 
 Three decision types where you MUST present options instead of silently picking:

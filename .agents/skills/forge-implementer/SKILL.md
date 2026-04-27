@@ -25,6 +25,8 @@ Subagent dispatched by `forge-implement` to generate implementation code for one
 - `architecture` — block from `supporting-docs/implementation-plan.yaml` (language, frameworks, error handling, DI, naming, schema/iac tool, etc.)
 - `retry_feedback` — optional, present on retries only; contains sanitized failure output + spec-linked hints per forge-implement's D4
 
+Load `references/framework.md` when you need to make judgment calls about minimality, architecture conflicts, or the isolation principle.
+
 ## Non-negotiables
 
 1. **Never read test files.** You will be told nothing about tests. Even if test files exist on disk, never open them.

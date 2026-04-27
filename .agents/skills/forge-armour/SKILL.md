@@ -38,9 +38,11 @@ Otherwise this file is self-sufficient for routine operation.
 2. **Human approval before any write.** You may analyze freely, but every spec change requires explicit approval after you explain the risk, the proposed control, and the exact files affected.
 3. **Project/module level first.** Prefer strengthening L1, L2 modules, L2 policies, and L5 operations before adding atom-local detail. Only push controls down to atoms when the risk is genuinely atom-specific.
 4. **Security posture must be explicit.** If core security assumptions are missing, ask. Do not silently assume tenant model, auth trust boundary, data sensitivity, regulatory posture, internet exposure, or operator model.
-5. **Best-practice, not cargo-cult.** Recommend controls because they mitigate a concrete risk in this project. Do not spray compliance-flavored boilerplate into the specs.
+5. **Concrete risk, not cargo-cult.** Recommend every control because it mitigates a specific risk in this project — no compliance-flavored boilerplate.
 6. **No silent entity creation.** New policies, constants, errors, or conventions may be proposed, but only written after approval and only when they materially improve the security posture.
 7. **Report is canonical.** Chat can summarize; the durable artifact is the armour report written to disk.
+8. **Controls are context-specific.** If deployment model, trust boundaries, or compliance drivers are unclear, ask before writing — never assume.
+9. **New structure routes to creator skills.** If a fix requires a new module or atom, route back to `/forge-decompose` or `/forge-atom` — do not improvise structure here.
 
 ## Workflow
 
@@ -322,8 +324,6 @@ If no blocking findings remain:
 
 ## Gotchas
 
-- Security hardening is contextual. If the human has not stated the deployment model, trust boundaries, or compliance drivers, ask before writing.
 - Prefer one strong project-level control over many duplicated atom-level edits.
 - A missing policy is usually a module or L1 problem before it is an atom problem.
-- If a fix requires a brand-new module or atom, route back to the creator skills instead of improvising structure here.
 - If the human rejects a control as out of scope, record the accepted risk in `supporting-docs/armour-history.md` rather than repeatedly re-proposing it without context.

@@ -34,10 +34,10 @@ Otherwise this file is self-sufficient for routine operation.
 
 1. **Challenger, not creator.** Never write new atoms, types, errors, constants, modules, flows, journeys, or policies. When a finding needs creation, the proposed fix is to route the human back: *"Create missing atom via `/forge-decompose` then `/forge-atom`."*
 2. **Severity proposed, not enforced.** Assign severity per pass heuristics. The human may override during review; respect the override and record the rationale in `supporting-docs/audit-history.md`.
-3. **Batch presentation, individual approval.** Findings are assembled into one report, presented as one summary, but every edit requires explicit approval. Never apply edits silently.
+3. **Never apply edits silently.** Every edit requires explicit approval; batch findings into one report but approve individually.
 4. **Historical awareness drives escalation.** Findings flagged in ≥2 consecutive audits escalate one severity tier. At 3+ consecutive, force the escalation with an explicit note.
 5. **Report file is canonical.** Chat summary may be terse; the report file is the authoritative record. History entries link back to specific reports.
-6. **Auto-triggered audits announce and defer.** Never block forward motion. Announce findings summary; let the human choose engage-now or defer-later.
+6. **Auto-triggered audits announce and defer** — let the human choose engage-now or defer-later; never block forward motion.
 7. **Scope adapts to what exists.** Manual audits with no `--scope` cover whatever's been elicited so far. Auto-triggered audits are project-wide by construction (they only fire when the last atom is done).
 
 Full rationale: `references/framework.md §2`.
@@ -103,7 +103,7 @@ Run the seven forge-atom consistency probes, but across every atom in scope:
 |---|---|---|
 | 3a Policy | `applies_when` evaluated against each atom; check mandatory_behavior honored in logic | **blocking** |
 | 3b Sibling atom | Within each module: contradicting invariants on shared types | **high** |
-| 3c Called-atom contract | Every `CALL <atom>` covers callee's declared failure_modes | **blocking** |
+| 3c Called-atom contract | For each atom in scope: load its context bundle via `forge context <id>`; read `called_atom_signatures` which contains `input`, `output`, and `side_effects` for every atom it calls. Four checks must all pass: (a) every non-nullable callee `input` field is explicitly bound or forwarded, (b) the type at each bound position matches the callee's declared input type by L0 id or structural field equivalence (field names, types, nullability), (c) every error code in callee `output.errors` is covered by a TRY/CATCH branch in the caller, (d) every callee `output.success` field read by the caller exists in the callee's signature with compatible type and nullability. Any check failure → **blocking** |
 | 3d L1 convention | Atom markers vs L1 `security.resource_authorization`, `audit.triggers`, `idempotency.key_source` | **blocking** |
 | 3e Access-permission | `external.X.*`, `env.X`, network refs vs module's `access_permissions` | **blocking** |
 | 3f Type invariant | Logic branches that produce typed output values don't violate type invariants | **high** |
@@ -116,6 +116,8 @@ Run the seven forge-atom consistency probes, but across every atom in scope:
 - Count references per L0 constant. Zero → **medium**; single consumer → **low** ("consider demoting to local value").
 - For types with `kind: entity`: compute field-set Jaccard similarity across pairs. ≥0.8 overlap with different names → **medium** ("consider consolidating").
 - Same-category errors with ≥0.8 message text similarity → **low**.
+- **Type drift.** For each atom in scope: inspect inline field declarations in `input`, `output.success`, and `props` for fields that represent the same logical entity but are declared differently across atoms — e.g., one atom has `input.user_id: string` while another has `input.customer: { id: string }` for the same user concept. Flag as **high**: "type drift — `<entity>` described differently in `<atom_a>` and `<atom_b>`; consider converging on shared L0 type `L0.types.<Entity>`."
+- **Cross-atom structural incompatibility (L0 id drift).** For every CALL edge in scope: if the type passed at a call site uses a different L0 id from the callee's declared input type, but the shapes are structurally equivalent (same fields, same types), flag as **high**: "L0 id drift at `<caller>` → `<callee>`: caller passes `<TypeA>`, callee expects `<TypeB>`. Align to one shared type." If the shapes are structurally incompatible, flag as **blocking**.
 
 #### Pass 5 — L4 reachability
 
@@ -150,7 +152,7 @@ Sensitive-atom heuristics (any one triggers sensitivity):
 
 For each sensitive atom: check if any policy in its module's `policies` list has an `applies_when` that matches. Unguarded → **high** ("sensitive atom with no policy guard").
 
-Proposed fix: route to policy creation (currently manual edit of `L2_policies/<POLICY>.yaml`; future skill will support).
+Proposed fix: add a policy entry to `L2_policies/<POLICY>.yaml` and reference it in the module's `policies` list.
 
 #### Pass 8 — Inter-atom contract verification (full tier only)
 
@@ -289,13 +291,7 @@ Else:
 
 ## Severity escalation
 
-On each finding, before assigning final severity:
-1. Start with pass-heuristic proposed severity
-2. Look up stable_id in `supporting-docs/audit-history.md`
-3. If finding appears in ≥2 consecutive prior audits: bump severity one tier (max at blocking)
-4. If ≥3 consecutive: force blocking and note: *"this finding has persisted across `<N>` audits. Escalating to blocking."*
-
-Persistence reset: once a finding is `resolved`, its consecutive count resets. A regression starts fresh.
+Check `supporting-docs/audit-history.md` for each finding's history — bump one tier if it recurs in ≥2 consecutive audits, force blocking at ≥3. Full severity model and override rules: `references/framework.md §5`.
 
 ## Applying edits
 

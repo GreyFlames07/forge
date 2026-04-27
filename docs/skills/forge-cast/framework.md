@@ -4,6 +4,18 @@ This is the human-facing mental model for `forge-cast`: the hydration skill
 that translates an existing non-Forge codebase into a draft Forge corpus while
 staying anchored to repository evidence.
 
+## Contents
+
+| § | Section |
+|---|---|
+| §1 | Purpose and position in the pipeline |
+| §2 | Admissible evidence hierarchy |
+| §3 | Hydration strategy by layer |
+| §4 | Explicitness threshold for L4 |
+| §5 | The uncertainty report |
+
+---
+
 ## 1. Purpose and position in the pipeline
 
 `forge-cast` brings legacy or pre-existing projects into Forge:
@@ -151,8 +163,3 @@ Confidence levels:
 - `medium`: multiple aligned signals, some naming/structural interpolation
 - `low`: partial signals only; human review strongly recommended
 
-## 6. Handover routing
-
-- Hydrated corpus looks coherent: run `/forge-audit`
-- Security-sensitive codebase: run `/forge-armour` after audit
-- Large unresolved intent gaps: ask targeted clarification questions, then rerun `forge-cast` or continue with manual cleanup

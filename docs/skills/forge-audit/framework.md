@@ -112,17 +112,17 @@ Each pass is a deterministic scan against the spec corpus. Findings accumulate; 
 |---|---|---|
 | 3a | Policy | For every policy × every atom in applicable module: evaluate `applies_when`; verify `mandatory_behavior.before/after_success/after_failure` is honored in atom's logic |
 | 3b | Sibling atom | Within each module: cross-reference invariants that touch shared types for contradictions |
-| 3c | Called-atom contract | For every `CALL <atom>` in any logic block: verify this atom's error handling covers the callee's declared `failure_modes` |
+| 3c | Called-atom contract | For each atom in scope, load `forge context <id>` and read `called_atom_signatures` — the bundle already contains `input`, `output`, and `side_effects` for every atom it calls. Four checks must all pass: (a) every non-nullable callee `input` field is explicitly bound or forwarded, (b) the type at each bound position matches the callee's declared input type by L0 id or structural field equivalence (field names, types, nullability), (c) every error code in callee `output.errors` is covered by a TRY/CATCH branch in the caller, (d) every callee `output.success` field read by the caller exists in the callee's signature with compatible type and nullability |
 | 3d | L1 convention | For every atom: declared markers vs L1 `security.resource_authorization`, `audit.triggers`, `idempotency.key_source` |
 | 3e | Access-permission | For every `external.X.*`, `env.X`, network call in atom logic: verify against module's `access_permissions` whitelist |
 | 3f | Type invariant | For every atom producing a typed output: check logic branches don't produce values that violate the output type's invariants |
 | 3g | Event contract | For every `EMIT <event>`: compare emitted payload shape to consumers' declared expected payload types |
 
-**Severity:** 3a/3c/3d → **blocking** (policy violations and contract breaks cause real bugs). 3b/3f/3g → **high**. 3e → **blocking** if access is missing (schema-level violation).
+**Severity:** 3a/3c/3d → **blocking** (policy violations and contract breaks cause real bugs). 3b/3f/3g → **high**. 3e → **blocking** if access is missing (schema-level violation). For 3c: any of the four sub-checks failing is **blocking**.
 
 ### Pass 4 — L0 hygiene (quick tier)
 
-**What it detects:** unused or near-duplicate L0 entries.
+**What it detects:** unused, near-duplicate, or drifted L0 entries.
 
 **Checks:**
 - **Orphan types.** For each `L0.types` entry: count consumers (atoms referencing it via input, output, invariants, logic field paths; tables referencing it via `datastores[].type`). Zero consumers → **medium** ("orphan type — consolidate with existing or delete").
@@ -130,6 +130,8 @@ Each pass is a deterministic scan against the spec corpus. Findings accumulate; 
 - **Orphan constants.** For each `L0.constants` entry: count references in atom logic/invariants. Zero → **medium**; single consumer → **low** ("consider demoting to local value").
 - **Near-duplicate types.** For types with same `kind: entity`: compute field-set Jaccard similarity. ≥0.8 overlap and names are different → **medium** ("consider consolidating `reg.X.Y` and `reg.X.Z`").
 - **Near-duplicate errors.** Errors in the same category whose `message` has high text similarity → **low**.
+- **Type drift.** For each atom in scope: inspect inline field declarations in `input`, `output.success`, and `props` for fields that represent the same logical entity but are declared differently across atoms (e.g., one atom has `input.user_id: string` while another has `input.customer: { id: string }` for the same user concept). Flag as **high**: "type drift — `<entity>` described differently in `<atom_a>` and `<atom_b>`; consider converging on a shared L0 type."
+- **L0 id drift.** For every CALL edge in scope: if the type passed at a call site uses a different L0 id from the callee's declared input type but shapes are structurally equivalent → **high** ("L0 id drift — align to one shared type"). If shapes are structurally incompatible → **blocking**.
 
 ### Pass 5 — L4 reachability (quick tier)
 

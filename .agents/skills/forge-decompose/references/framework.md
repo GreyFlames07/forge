@@ -9,6 +9,25 @@ Audiences:
 
 ---
 
+## Contents
+
+| § | Section |
+|---|---|
+| §1 | What `forge-decompose` is |
+| §2 | Operating principles |
+| §3 | Decision criticality |
+| §4 | Adaptive questioning for decompose |
+| §5 | The four sub-phases (0–3) |
+| §6 | Exhaustiveness analysis — why multi-pass works |
+| §7 | Classification discipline (kind edge cases) |
+| §8 | Atomicity stopping rule |
+| §9 | What `forge-decompose` does NOT produce |
+| §10 | Artifact schemas |
+| §11 | Compatibility with skill formats |
+| §12 | Open design questions |
+
+---
+
 ## 1. What `forge-decompose` is
 
 **Purpose.** Take one module that has been bounded by `forge-discover` (identity + tech stack + dependency whitelist + empty `owned_atoms`) and produce an **exhaustive list of stubbed atoms** that live inside it. Write those stubs to disk, populate the module's `owned_atoms`, and stub any externally-triggered atoms' entry points.

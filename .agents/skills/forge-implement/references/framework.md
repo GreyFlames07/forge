@@ -9,6 +9,27 @@ Audiences:
 
 ---
 
+## Contents
+
+| § | Section |
+|---|---|
+| §1 | What `forge-implement` is |
+| §2 | Operating principles |
+| §3 | Pipeline overview |
+| §4 | Plan + architecture generation |
+| §5 | Audit gate |
+| §6 | Shared scaffolding generation |
+| §7 | Execution (per-unit pipeline) |
+| §8 | Final rollups |
+| §9 | Handover |
+| §10 | Failure, retry, resumability |
+| §11 | What `forge-implement` does NOT do |
+| §12 | Artifact schemas |
+| §13 | Compatibility |
+| §14 | Open design questions |
+
+---
+
 ## 1. What `forge-implement` is
 
 **Purpose.** Take a completed, audited Forge spec corpus and produce working implementation: code files, test files, scaffolding, and (optionally) git commits. Respects the spec-driven contract by never shortcutting the pipeline — tests precede implementation, subagents are isolated, failures are diagnosed cleanly.
@@ -37,14 +58,7 @@ Audiences:
 
 ## 2. Operating principles
 
-1. **Orchestrator is a pure dispatcher.** Never makes implementation decisions. Never inlines spec content in subagent prompts. Subagents use `forge context` to load their own state.
-2. **Test-before-implementation isolation.** Test-writer subagent runs first, completes (with red-phase verification), then implementation subagent runs in a fresh session, blind to tests.
-3. **Architecture is consulted before it is locked.** J1/J2/J3 — architecture section is first assembled provisionally, key layout decisions are confirmed with the human, then the plan is written and locked. Subagents may bail with `architecture_conflict` but never mutate the architecture.
-4. **Minimality in generated output.** Subagents produce the smallest code satisfying the spec. No speculative layers, helpers, or boilerplate.
-5. **Specs are frozen during a run.** Never modify spec files. Changes require re-audit + re-run.
-6. **Dep graph drives ordering.** Units run in topological order across modules; independent units parallelize per `--parallelism`.
-7. **Retries are spec-linked, not test-linked.** Implementation retries receive sanitized feedback referencing spec elements — never test assertion diffs.
-8. **Partial completion is fine.** Succeeded units stay; failed units stash attempts; blocked units wait. Resumable via `--resume`.
+See SKILL.md non-negotiables — the canonical list. Framework rationale for each principle is in the relevant execution sections below.
 
 ---
 

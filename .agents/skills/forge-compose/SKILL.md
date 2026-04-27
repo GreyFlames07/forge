@@ -277,8 +277,6 @@ journey:
 
 ## Gotchas
 
-- Don't add retries without idempotency.
-- Don't use saga compensation patterns under `acid` unless explicitly justified.
 - Don't encode implementation details in L4 specs.
 - If required atom contracts are incomplete, route back to `forge-atom` first.
 - Keep discovery and decision docs synchronized with final L4 decisions.

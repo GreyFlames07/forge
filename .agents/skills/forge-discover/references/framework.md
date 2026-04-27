@@ -10,6 +10,24 @@ The three audiences for this doc:
 
 ---
 
+## Contents
+
+| § | Section |
+|---|---|
+| §1 | What `forge-discover` is |
+| §2 | Operating principles |
+| §2a | Decision criticality — when to default vs. present options |
+| §3 | Adaptive questioning — the core concept |
+| §4 | Question shape taxonomy |
+| §5 | The six sub-phases (0–5) |
+| §6 | State detection protocol |
+| §7 | Revision protocol |
+| §8 | Termination |
+| §9 | What `forge-discover` does NOT produce |
+| §10 | Artifact schemas |
+
+---
+
 ## 1. What `forge-discover` is
 
 **Purpose.** Take a human from a vague idea to a complete foundation for the Forge spec system: a product thesis, a module map, and the project-wide vocabulary/conventions/posture files that every atom will later reference.
@@ -322,6 +340,7 @@ Each sub-phase has:
 
 **Techniques:**
 - **Extract capabilities as the session narrates.** Every verb is a capability candidate.
+- **Extract entity candidates alongside capabilities.** Every noun the human names that represents a thing the system stores, transforms, or acts on is an entity candidate. Record: name, likely owning module, key identifying fields if named, which capabilities operate on it. When the human describes relationships ("an Order belongs to a Customer"), record them — these become persistence schema hints and L0 type composition signals.
 - **Flag external dependencies as they arise.** When the human mentions a third-party system, probe: "That's an external integration — which provider? What's the auth method?" Add to the domain model.
 - **Name-only, don't commit.** Work with descriptive capability labels (what they do) before committing to 3-letter module codes.
 
@@ -333,6 +352,10 @@ Each sub-phase has:
 ## Capability inventory
 - <capability 1 — placeholder name>
 - <capability 2>
+- ...
+
+## Entity candidates
+- <entity name> — owned by: <likely module> — key fields: <if named> — operated on by: <capabilities>
 - ...
 
 ## External integrations observed
@@ -352,6 +375,7 @@ Each sub-phase has:
 **Exit condition.**
 - At least one complete user session is written with verbs the agent can point at later.
 - Capability inventory has ≥3 items.
+- Entity candidates list populated from nouns in the walkthrough.
 - External integrations are enumerated.
 - At least one critical failure mode named.
 
@@ -434,7 +458,7 @@ The rationale: the first few modules define the project's concept axes; later mo
 
 ### Sub-phase 3 — Vocabulary baseline (L0 skeleton)
 
-**Purpose.** Establish the project-wide vocabulary skeleton that every atom will later reference. **Not** types, errors, or constants — those emerge from atoms. Only the skeleton sections: `naming_ledger`, `error_categories`, `external_schemas`, `side_effect_markers`.
+**Purpose.** Establish the project-wide vocabulary skeleton that every atom will later reference. The four skeleton sections are `naming_ledger`, `error_categories`, `external_schemas`, `side_effect_markers`. In addition, write preliminary entity type stubs for qualifying entities — these act as type anchors before atom elicitation and are the primary mechanism for preventing cross-atom contract drift.
 
 **Entry trigger.** L2 modules drafted.
 
@@ -454,11 +478,32 @@ The rationale: the first few modules define the project's concept axes; later mo
 
 **Techniques:**
 - **Default-heavy.** The agent proposes a full skeleton `L0_registry.yaml` based on the example fixture plus what the domain model implies. Human edits by exception.
-- **Explicitly skip types/errors/constants.** "We'll define these when specific atoms force them. Creating them now is premature commitment."
+- **Entity-to-framework mapping (5th step after the four skeleton questions).** Take the `Entity candidates` list from sub-phase 1 and for each qualifying entity: (a) show the human how it maps into the framework — which atoms will use it as input/output, which module owns it in `persistence_schema`; (b) write a preliminary L0 type stub with empty `fields: []`. forge-atom will fill in the fields as it elicits each atom.
 
-**Outputs.** `L0_registry.yaml` with populated `naming_ledger`, `error_categories`, `external_schemas`, `side_effect_markers`. `types`, `errors`, `constants` are empty maps.
+  Write stubs only for entities that satisfy at least one of:
+  - Referenced by ≥2 different capability verbs (crosses multiple operations)
+  - Referenced by atoms in more than one module (cross-module shared type)
 
-**Exit condition.** Human has confirmed or deviated on each of the four skeleton sections. File validates against the L0 schema's skeleton requirements.
+  Single-module single-operation entities defer to forge-atom — writing them now is premature commitment.
+
+  Stub format — type IDs follow the `reg.<mod>.<TypeName>` naming convention (module codes are already committed by sub-phase 3):
+  ```yaml
+  reg.<mod>.<EntityName>:
+    kind: entity
+    description: "<from entity candidate notes>"
+    fields: {}   # populated by forge-atom; each field: {type, nullable, description}
+    changelog:
+      - version: "0.1.0"
+        date: <YYYY-MM-DD>
+        change_type: added
+        description: "Stub created by forge-discover. Fields populated by forge-atom."
+  ```
+
+- **Errors and constants remain deferred.** "We'll define errors and constants when specific atoms force them."
+
+**Outputs.** `L0_registry.yaml` with populated `naming_ledger`, `error_categories`, `external_schemas`, `side_effect_markers`; preliminary `types` stubs for qualifying entities using `reg.<mod>.<TypeName>` ids and empty `fields: {}`; empty `errors: {}` and `constants: {}`.
+
+**Exit condition.** Human has confirmed or deviated on each of the four skeleton sections. Entity stubs written for qualifying entities. File validates against the L0 schema's skeleton requirements.
 
 **Transition to sub-phase 4.** "Good. Now project-wide defaults every atom will inherit."
 

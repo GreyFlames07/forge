@@ -8,20 +8,18 @@ description: >
   "validate the implementation", "check the system against specs", "run
   forge-validate", "verify live behaviour", or after forge-implement
   completes. Produces a validation report in chat and persists it as
-  <spec-dir>/supporting-docs/validation-report.md.
+  supporting-docs/validation-report.md inside the spec directory.
 ---
 
 # forge-validate
 
-Post-implementation validator. You read the spec corpus, read the implementation, run the test suite, start the system if it is not already running, fire synthetic probes derived from L3 contracts, and compare results — exact for output contracts, LLM-reasoned for implied behavioral logic, log-verified for side effects. You produce a report in chat and write it to `<spec-dir>/supporting-docs/validation-report.md`.
-
-You never modify specs or implementation. You never retry failed live probes. You always write the report, even on a partial run.
+Post-implementation validator. Read the spec corpus, read the implementation, run the test suite, start the system if needed, fire synthetic probes derived from L3 contracts, and compare results. Produce a report in chat and write it to `<spec-dir>/supporting-docs/validation-report.md`.
 
 ## Non-negotiables
 
 1. **Read-only.** Never modify a spec file or source file.
 2. **Exact contract assertion.** Response shapes must match L3 `output` schema field-by-field — no partial matching.
-3. **Behavioral assertion is LLM-reasoned with explicit rationale.** Load full spec context, reason from it, state the reasoning in the report. Never emit PASS/FAIL without a rationale sentence.
+3. **Behavioral assertions require explicit rationale.** Never emit PASS/FAIL without a sentence stating which spec element passed or failed and why. Cite the specific field or invariant.
 4. **Side effects require log evidence.** Do not mark a side effect `FOUND` without a matching log line or query result.
 5. **System startup is gated.** Only start the system if it is not already reachable. Never start it twice.
 6. **Scope determines targets.** Full project by default; `--scope` limits to a module or single atom.

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Forge Graph — linkhub</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #0f1117;
+            color: #e2e8f0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+            gap: 1.5rem;
+        }
+        h1 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #94a3b8;
+            letter-spacing: 0.02em;
+        }
+        .diagram-container {
+            background: #1e2433;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+            width: 100%;
+            max-width: 1600px;
+            overflow-x: auto;
+        }
+        .mermaid { display: flex; justify-content: center; }
+        .legend {
+            font-size: 0.78rem;
+            color: #475569;
+            display: flex;
+            gap: 2rem;
+        }
+        .legend span::before { margin-right: 0.4em; }
+    </style>
+</head>
+<body>
+    <h1>Forge Graph — linkhub</h1>
+    <div class="diagram-container">
+        <div class="mermaid">
+            graph LR
+                subgraph linkhub_shortener_links["Links"]
+                    linkhub_shortener_links_link_manager(["LinkManager<br/><small>module</small>"])
+                    linkhub_shortener_links_link_manager_short_link["ShortLink<br/><small>element</small>"]
+                end
+                subgraph linkhub_shortener_traffic["Traffic"]
+                    linkhub_shortener_traffic_click_recorder(["ClickRecorder<br/><small>module</small>"])
+                    linkhub_shortener_traffic_click_recorder_click["Click<br/><small>element</small>"]
+                    linkhub_shortener_traffic_redirector(["Redirector<br/><small>module</small>"])
+                    linkhub_shortener_traffic_redirector_redirect["Redirect<br/><small>element</small>"]
+                end
+                linkhub_shortener_datastores_clicks_store[("ClicksStore<br/><small>datastore</small>")]
+                linkhub_shortener_datastores_links_db[("LinksDB<br/><small>datastore</small>")]
+
+                linkhub_shortener_links_link_manager -->|"LinksDB"| linkhub_shortener_datastores_links_db
+                linkhub_shortener_traffic_click_recorder_click -->|"references"| linkhub_shortener_links_link_manager_short_link
+                linkhub_shortener_links_link_manager -->|"ResolveShortLink"| linkhub_shortener_traffic_redirector
+                linkhub_shortener_links_link_manager -->|"CreateShortLink"| linkhub_shortener_traffic_redirector
+                linkhub_shortener_traffic_click_recorder -->|"ClicksStore"| linkhub_shortener_datastores_clicks_store
+                linkhub_shortener_traffic_redirector_redirect -. "RedirectorResolvesLink" .-> linkhub_shortener_links_link_manager_short_link
+                linkhub_shortener_links_link_manager_short_link -->|"references"| linkhub_shortener_traffic_click_recorder_click
+                linkhub_shortener_traffic_redirector_redirect -->|"depends_on"| linkhub_shortener_links_link_manager_short_link
+                linkhub_shortener_traffic_redirector_redirect -. "RedirectorRecordsClick" .-> linkhub_shortener_traffic_click_recorder_click
+
+        </div>
+    </div>
+    <div class="legend">
+        <span>[ ] element</span>
+        <span>([ ]) module</span>
+        <span>[( )] datastore</span>
+        <span>{ } contract</span>
+        <span>solid arrow: contract / datastore / relationship</span>
+        <span>dashed arrow: interaction</span>
+    </div>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: "dark",
+            flowchart: { curve: "basis", padding: 20, nodeSpacing: 60, rankSpacing: 80 },
+            securityLevel: "loose",
+        });
+    </script>
+</body>
+</html>

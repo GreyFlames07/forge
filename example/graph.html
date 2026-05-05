@@ -114,15 +114,15 @@
                 linkhub_shortener_datastores_clicks_store[("ClicksStore<br/><small>datastore</small>")]
                 linkhub_shortener_datastores_links_db[("LinksDB<br/><small>datastore</small>")]
 
-                linkhub_shortener_links_link_manager -->|"ResolveShortLink"| linkhub_shortener_traffic_redirector
+                linkhub_shortener_links_link_manager_short_link -->|"references"| linkhub_shortener_traffic_click_recorder_click
+                linkhub_shortener_traffic_redirector_redirect -. "RedirectorRecordsClick" .-> linkhub_shortener_traffic_click_recorder_click
+                linkhub_shortener_links_link_manager -->|"CreateShortLink"| linkhub_shortener_traffic_redirector
                 linkhub_shortener_traffic_redirector_redirect -->|"depends_on"| linkhub_shortener_links_link_manager_short_link
                 linkhub_shortener_traffic_click_recorder -->|"ClicksStore"| linkhub_shortener_datastores_clicks_store
                 linkhub_shortener_traffic_redirector_redirect -. "RedirectorResolvesLink" .-> linkhub_shortener_links_link_manager_short_link
-                linkhub_shortener_links_link_manager_short_link -->|"references"| linkhub_shortener_traffic_click_recorder_click
-                linkhub_shortener_traffic_redirector_redirect -. "RedirectorRecordsClick" .-> linkhub_shortener_traffic_click_recorder_click
-                linkhub_shortener_links_link_manager -->|"LinksDB"| linkhub_shortener_datastores_links_db
-                linkhub_shortener_links_link_manager -->|"CreateShortLink"| linkhub_shortener_traffic_redirector
                 linkhub_shortener_traffic_click_recorder_click -->|"references"| linkhub_shortener_links_link_manager_short_link
+                linkhub_shortener_links_link_manager -->|"ResolveShortLink"| linkhub_shortener_traffic_redirector
+                linkhub_shortener_links_link_manager -->|"LinksDB"| linkhub_shortener_datastores_links_db
 
         </div>
     </div>
@@ -134,8 +134,10 @@
         <div class="key-diagram">
             <div class="mermaid">
                 graph LR
-                    e["MyElement\nelement"]
-                    m(["MyModule\nmodule"])
+                    subgraph domain["Domain"]
+                        e["MyElement\nelement"]
+                        m(["MyModule\nmodule"])
+                    end
                     d[("MyStore\ndatastore")]
                     e -->|"contract / relationship"| m
                     m -->|"datastore name"| d

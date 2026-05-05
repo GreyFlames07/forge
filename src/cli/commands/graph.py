@@ -345,8 +345,10 @@ def _render_html(mermaid_text: str, scope_label: str | None, conception: str) ->
     # Key diagram: rendered by Mermaid so shapes/colours exactly match the main graph.
     key_diagram = textwrap.dedent("""\
         graph LR
-            e["MyElement\\nelement"]
-            m(["MyModule\\nmodule"])
+            subgraph domain["Domain"]
+                e["MyElement\\nelement"]
+                m(["MyModule\\nmodule"])
+            end
             d[("MyStore\\ndatastore")]
             e -->|"contract / relationship"| m
             m -->|"datastore name"| d

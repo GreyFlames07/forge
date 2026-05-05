@@ -360,7 +360,7 @@ def _render_html(mermaid_text: str, scope_label: str | None, conception: str) ->
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 2rem;
+            padding: 2rem 2rem 3rem;
             gap: 1.5rem;
         }}
         h1 {{
@@ -368,6 +368,14 @@ def _render_html(mermaid_text: str, scope_label: str | None, conception: str) ->
             font-weight: 600;
             color: #94a3b8;
             letter-spacing: 0.02em;
+        }}
+        .subtitle {{
+            font-size: 0.82rem;
+            color: #475569;
+            margin-top: -1rem;
+            text-align: center;
+            max-width: 680px;
+            line-height: 1.5;
         }}
         .diagram-container {{
             background: #1e2433;
@@ -379,30 +387,234 @@ def _render_html(mermaid_text: str, scope_label: str | None, conception: str) ->
             overflow-x: auto;
         }}
         .mermaid {{ display: flex; justify-content: center; }}
-        .legend {{
-            font-size: 0.78rem;
-            color: #475569;
-            display: flex;
-            gap: 2rem;
+
+        /* ── Key ─────────────────────────────────────────────────────── */
+        .key {{
+            width: 100%;
+            max-width: 1600px;
+            background: #1a1f2e;
+            border: 1px solid #2d3548;
+            border-radius: 10px;
+            padding: 1.25rem 1.75rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem 3rem;
         }}
-        .legend span::before {{ margin-right: 0.4em; }}
+        .key-section h3 {{
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #64748b;
+            margin-bottom: 0.75rem;
+        }}
+        .key-row {{
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            margin-bottom: 0.6rem;
+        }}
+        .key-row:last-child {{ margin-bottom: 0; }}
+
+        /* Node shape swatches */
+        .swatch {{
+            flex-shrink: 0;
+            width: 54px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6rem;
+            font-weight: 600;
+            color: #c8d6e5;
+        }}
+        .swatch-element {{
+            background: #1f3a5f;
+            border: 1.5px solid #3b82f6;
+            border-radius: 3px;
+        }}
+        .swatch-module {{
+            background: #1f3a5f;
+            border: 1.5px solid #3b82f6;
+            border-radius: 14px;
+        }}
+        .swatch-datastore {{
+            background: #1a3a2a;
+            border: 1.5px solid #22c55e;
+            border-radius: 3px 3px 0 0;
+            position: relative;
+        }}
+        .swatch-datastore::after {{
+            content: "";
+            position: absolute;
+            bottom: -5px;
+            left: -1.5px;
+            right: -1.5px;
+            height: 5px;
+            background: #1a3a2a;
+            border: 1.5px solid #22c55e;
+            border-top: none;
+            border-radius: 0 0 3px 3px;
+        }}
+        .swatch-contract {{
+            background: #2d1f3a;
+            border: 1.5px solid #a855f7;
+            clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+        }}
+
+        /* Edge swatches */
+        .edge-swatch {{
+            flex-shrink: 0;
+            width: 54px;
+            height: 2px;
+            position: relative;
+            margin-top: 0.65rem;
+        }}
+        .edge-solid {{
+            background: #94a3b8;
+        }}
+        .edge-solid::after {{
+            content: "";
+            position: absolute;
+            right: -1px;
+            top: -4px;
+            border: 5px solid transparent;
+            border-left-color: #94a3b8;
+            border-right: none;
+        }}
+        .edge-dashed {{
+            background: repeating-linear-gradient(
+                to right, #94a3b8 0px, #94a3b8 5px, transparent 5px, transparent 9px
+            );
+        }}
+        .edge-dashed::after {{
+            content: "";
+            position: absolute;
+            right: -1px;
+            top: -4px;
+            border: 5px solid transparent;
+            border-left-color: #94a3b8;
+            border-right: none;
+        }}
+        .edge-subgraph {{
+            background: transparent;
+            border: 1.5px dashed #475569;
+            height: 18px;
+            width: 54px;
+            border-radius: 4px;
+            margin-top: 0.1rem;
+        }}
+
+        .key-text {{ font-size: 0.78rem; line-height: 1.45; }}
+        .key-text strong {{ color: #cbd5e1; font-weight: 600; }}
+        .key-text p {{ color: #64748b; margin-top: 0.1rem; }}
     </style>
 </head>
 <body>
     <h1>{title}</h1>
+    <p class="subtitle">
+        Shows how the system's elements and modules depend on each other —
+        which services call which, which datastores are shared, and how
+        contracts bind producers to consumers.
+    </p>
+
     <div class="diagram-container">
         <div class="mermaid">
 {indented}
         </div>
     </div>
-    <div class="legend">
-        <span>[ ] element</span>
-        <span>([ ]) module</span>
-        <span>[( )] datastore</span>
-        <span>{{ }} contract</span>
-        <span>solid arrow: contract / datastore / relationship</span>
-        <span>dashed arrow: interaction</span>
+
+    <div class="key">
+        <div class="key-section">
+            <h3>Nodes</h3>
+
+            <div class="key-row">
+                <div class="swatch swatch-element">[ ]</div>
+                <div class="key-text">
+                    <strong>Element</strong>
+                    <p>The core implementation unit — an aggregate, entity, value object,
+                    service, or projection. This is what developers build.</p>
+                </div>
+            </div>
+
+            <div class="key-row">
+                <div class="swatch swatch-module">( )</div>
+                <div class="key-text">
+                    <strong>Module</strong>
+                    <p>A deployable unit (service, worker, function…) that owns
+                    one or more elements and is deployed as a single artifact.</p>
+                </div>
+            </div>
+
+            <div class="key-row">
+                <div class="swatch swatch-datastore" style="margin-bottom:6px;"></div>
+                <div class="key-text">
+                    <strong>Datastore</strong>
+                    <p>A database, cache, queue, or other persistence layer.
+                    Arrows show which modules read from or write to it.</p>
+                </div>
+            </div>
+
+            <div class="key-row">
+                <div class="swatch swatch-contract"></div>
+                <div class="key-text">
+                    <strong>Contract</strong>
+                    <p>A versioned API contract with defined inputs, outputs,
+                    and errors. Shown on edges between producer and consumers.</p>
+                </div>
+            </div>
+
+            <div class="key-row">
+                <div class="edge-subgraph"></div>
+                <div class="key-text">
+                    <strong>Domain (subgraph)</strong>
+                    <p>A bounded area of responsibility grouping related modules
+                    and elements. Domains do not cross system boundaries.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="key-section">
+            <h3>Edges</h3>
+
+            <div class="key-row">
+                <div class="edge-swatch edge-solid"></div>
+                <div class="key-text">
+                    <strong>Contract dependency</strong>
+                    <p>The labelled module produces this contract; the arrow
+                    points to each consuming module that depends on it.</p>
+                </div>
+            </div>
+
+            <div class="key-row">
+                <div class="edge-swatch edge-solid"></div>
+                <div class="key-text">
+                    <strong>Datastore usage</strong>
+                    <p>A module reads from or writes to the target datastore.
+                    The label is the datastore name.</p>
+                </div>
+            </div>
+
+            <div class="key-row">
+                <div class="edge-swatch edge-solid"></div>
+                <div class="key-text">
+                    <strong>Element relationship</strong>
+                    <p>An explicit structural dependency between two elements
+                    (depends_on, references, extends, contains, triggers).</p>
+                </div>
+            </div>
+
+            <div class="key-row">
+                <div class="edge-swatch edge-dashed"></div>
+                <div class="key-text">
+                    <strong>Interaction (dashed)</strong>
+                    <p>A direct runtime call from one element's operation to
+                    another's, as defined in the interactions registry.</p>
+                </div>
+            </div>
+        </div>
     </div>
+
     <script>
         mermaid.initialize({{
             startOnLoad: true,

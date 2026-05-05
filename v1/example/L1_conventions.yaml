@@ -1,0 +1,95 @@
+# Example L1 Conventions for a payments-enabled app.
+# Strict-layered: no atom kinds, no interface kinds.
+
+observability:
+  logging:
+    default_level: INFO
+    on_entry:   "{atom_id} started | actor={actor} trace={trace_id}"
+    on_success: "{atom_id} completed | duration_ms={duration_ms}"
+    on_failure: "{atom_id} failed | error={error_code} duration_ms={duration_ms}"
+    level_map:
+      VAL: INFO
+      BUS: WARN
+      NET: WARN
+      EXT: WARN
+      SYS: ERROR
+      SEC: ERROR
+      DAT: ERROR
+      CFG: ERROR
+  tracing:
+    span_name_template: "{owner_module}.{atom_id}"
+    propagate:          true
+
+failure:
+  defaults:
+    VAL:
+      action: return_to_caller
+    BUS:
+      action: return_to_caller
+    NET:
+      action:  retry
+      retries: 3
+      backoff: exponential
+    EXT:
+      action:  retry
+      retries: 2
+      backoff: exponential
+    SYS:
+      action: halt_and_alert
+    SEC:
+      action: halt_and_alert
+    DAT:
+      action: halt_and_alert
+    CFG:
+      action: halt_and_alert
+  propagation:
+    wrap_unexpected: true
+    unexpected_code: SYS.SYS.999
+
+audit:
+  triggers:
+    side_effect_markers: [WRITES_DB, WRITES_FS, EMITS_EVENT, CALLS_EXTERNAL]
+  entry_shape:
+    fields: [timestamp, atom_id, actor, input_digest, output_digest, error_code, duration_ms, trace_id]
+  sink:
+    kind:   db_table
+    target: audit_log
+
+security:
+  default_posture:
+    authentication: required
+    auth_methods:   [bearer, api_key]
+    roles:          []
+  roles:
+    user:     "Authenticated end user. Default role for human-originated sessions."
+    admin:    "Elevated privileges. Destructive operations like refunds and account deletion."
+    service:  "Machine-to-machine caller. Internal services and scheduled jobs."
+    auditor:  "Read-only access to audit trails. Cannot modify any state."
+  resource_authorization:
+    ownership_check_required_for_markers: [WRITES_DB]
+    ownership_field:                       owner_id
+    admin_bypass:                          true
+
+verification:
+  floors:
+    min_property_assertions: 1
+    min_edge_cases:          2
+    min_example_cases:       1
+
+idempotency:
+  key_source:
+    required_for_markers: [CALLS_EXTERNAL, WRITES_DB]
+    key_field:            idempotency_key
+  dedup:
+    strategy: database
+    ttl_sec:  86400
+
+overrides:
+  allowed_fields:
+    - "failure.defaults.<category>.action"
+    - "failure.defaults.<category>.retries"
+    - "failure.defaults.<category>.backoff"
+    - "observability.logging.level_map.<category>"
+    - "idempotency.dedup.strategy"
+    - "idempotency.dedup.ttl_sec"
+  requires_justification: true

@@ -16,6 +16,9 @@ forge = "cli.forge:main"
 where = ["src"]
 include = ["cli*"]
 
+[tool.setuptools.package-data]
+cli = ["framework.yaml"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]

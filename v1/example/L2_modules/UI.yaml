@@ -1,0 +1,51 @@
+module:
+  id:          UI
+  name:        Shared UI Components
+  description: >
+    Project-wide shared UI primitives used by COMPONENT atoms in
+    feature modules. Text inputs, buttons, labels, error surfaces.
+    No persistence, no interface entry points — pure composition
+    targets for higher-level screen components.
+
+  tech_stack:
+    language:            typescript
+    language_version:    "5.4"
+    runtime:             node
+    runtime_version:     "20.x"
+    frameworks:          [react@18]
+    mandatory_libraries: []
+
+  owned_atoms:
+    - atm.ui.text_input
+    - atm.ui.error_label
+    - atm.ui.primary_button
+
+  owned_artifacts: []
+
+  persistence_schema:
+    datastores:      []
+    storage_buckets: []
+    caches:          []
+    ownership:       exclusive
+    shared_with:     []
+
+  interface:
+    entry_points: []
+
+  access_permissions:
+    env_vars:         []
+    filesystem:       []
+    network:          []
+    secrets:          []
+    external_schemas: []
+
+  dependency_whitelist:
+    modules: []
+
+  policies: []
+
+  changelog:
+    - version:     "0.1.0"
+      date:        "2026-04-10"
+      change_type: added
+      description: "Initial shared UI module."

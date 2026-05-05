@@ -1,70 +1,63 @@
-"""`forge init` — scaffold a new Forge project in the current directory.
+"""`forge init` — scaffold a new Forge v2 project in the current directory.
 
-Creates the spec directory layout and symlinks the agent skills from the
-forge install into this project's skill-discovery paths so Claude Code,
-VS Code Copilot, and Codex can all find them.
+Creates spec/ with framework.yaml (bundled vocabulary) and a blank
+conception.yaml stub. The directory layout under spec/ is created by the
+user as they build out the spec; init only provides the anchors.
 """
 
 from __future__ import annotations
 
 import argparse
-import os
 import shutil
 import sys
-import tarfile
-import tempfile
 import time
-import urllib.error
-import urllib.request
-from importlib import metadata
 from pathlib import Path
 
 import cli
 
-# --- Intro animation (adapted from the hammer-cli forge-fire banner) -------
+NAME = "init"
+HELP = "Scaffold a new Forge project in the current directory."
+DESCRIPTION = (
+    "Creates the spec/ directory and copies framework.yaml (the bundled "
+    "framework vocabulary: enums, built-in scalars, built-in errors) into it. "
+    "Also writes a blank conception.yaml stub. Run in a new or empty project "
+    "directory to bootstrap."
+)
+
+# Markers that indicate an existing v2 Forge project.
+_EXISTING_MARKERS = ("conception.yaml", "framework.yaml")
+
+# --- Banner -------------------------------------------------------------------
 
 _RESET = "\033[0m"
 _HIDE_CURSOR = "\033[?25l"
 _SHOW_CURSOR = "\033[?25h"
-_ORANGE = 208
 _BANNER_TEXT = "INITIALISING FORGE"
-_SPARKS = [(238, "·"), (166, ":"), (172, "•"), (202, "*"), (_ORANGE, "✦")]
+_SPARKS = [(238, "·"), (166, ":"), (172, "•"), (202, "*"), (208, "✦")]
 _FIRE = [160, 166, 172, 178, 184, 220, 214, 208, 202]
-
-# Extended palette for init output (reusing fire tones for continuity).
-_FIRE_PRIMARY = 208   # main warm highlight
-_FIRE_SOFT = 220      # lighter amber, section dividers
-_FIRE_DEEP = 166      # deeper red-orange, marker/arrow
-_OK_GREEN = 34        # forest green for ✓ (softer than default bright green)
-_META = 245           # soft gray for paths + meta info
+_FIRE_PRIMARY = 208
+_FIRE_DEEP = 166
+_OK_GREEN = 34
+_META = 245
 
 
 def _styled() -> bool:
-    """True when stdout supports ANSI output."""
-    import os
-    return sys.stdout.isatty() and not os.environ.get("NO_COLOR")
+    return sys.stdout.isatty() and not __import__("os").environ.get("NO_COLOR")
 
 
 def _color(code: int, text: str) -> str:
-    if not _styled():
-        return text
-    return f"\033[38;5;{code}m{text}{_RESET}"
+    return f"\033[38;5;{code}m{text}{_RESET}" if _styled() else text
 
 
 def _bold(text: str) -> str:
-    if not _styled():
-        return text
-    return f"\033[1m{text}{_RESET}"
+    return f"\033[1m{text}{_RESET}" if _styled() else text
 
 
 def _dim(text: str) -> str:
-    if not _styled():
-        return text
-    return f"\033[2m{text}{_RESET}"
+    return f"\033[2m{text}{_RESET}" if _styled() else text
 
 
 def _divider(label: str) -> str:
-    """Section divider: ── label ──, fire-orange colored."""
     bar = "─" * 5
     return _color(_FIRE_DEEP, bar + " ") + _bold(_color(_FIRE_PRIMARY, label)) + _color(_FIRE_DEEP, " " + bar)
 
@@ -78,9 +71,8 @@ def _fire_text(visible: int, shift: int) -> str:
 
 
 def _play_banner() -> None:
-    """Ember-sparks → progressive reveal → fire flicker, once."""
     text_len = len(_BANNER_TEXT)
-    columns, _lines = shutil.get_terminal_size((80, 24))
+    columns, _ = shutil.get_terminal_size((80, 24))
     clear = " " * max(columns - 1, 0)
 
     def draw(frame: str, delay: float) -> None:
@@ -106,182 +98,35 @@ def _play_banner() -> None:
         sys.stdout.write(_RESET + _SHOW_CURSOR + "\n")
         sys.stdout.flush()
 
-NAME = "init"
-HELP = "Scaffold a new Forge project in the current directory."
-DESCRIPTION = (
-    "Creates the spec directory layout (.forge/ with L-layer subdirs) "
-    "symlinks the 12 schema template files from the forge source into "
-    ".forge/templates/ for in-project reference, and symlinks the forge "
-    "agent skills into .claude/skills/ (Claude Code), .codex/skills/ "
-    "(OpenAI Codex CLI), and .agents/skills/ (agentskills.io clients — "
-    "VS Code Copilot, Cursor). Run in a new or empty project directory "
-    "to bootstrap."
-)
 
-# Skills to symlink. Must match the set installed into the forge source's
-# .agents/skills/ directory.
-SKILL_NAMES = (
-    "forge-discover",
-    "forge-decompose",
-    "forge-atom",
-    "forge-compose",
-    "forge-cast",
-    "forge-audit",
-    "forge-armour",
-    "forge-implement",
-    "forge-test-writer",
-    "forge-implementer",
-    "forge-validate",
-)
+# --- Scaffold -----------------------------------------------------------------
 
-# Subdirectories created under the spec dir. Empty at init; populated by
-# subsequent skill runs (discover writes L2_modules; decompose writes L3_atoms;
-# etc.).
-SPEC_SUBDIRS = (
-    "supporting-docs",
-    "L2_modules",
-    "L2_policies",
-    "L3_atoms",
-    "L3_artifacts",
-    "L4_flows",
-    "L4_journeys",
-)
-
-# Markers that indicate an existing forge project (refuse to init over unless --force).
-EXISTING_PROJECT_MARKERS = (
-    "supporting-docs/discovery-notes.md",
-    "discovery-notes.md",
-    "L0_registry.yaml",
-    "L1_conventions.yaml",
-    "L5_operations.yaml",
-)
-
-_FORGE_GITHUB_ARCHIVE = "https://codeload.github.com/GreyFlames07/forge/tar.gz/refs/tags"
-
-
-def _installed_cli_version() -> str | None:
-    """Return the installed distribution version for this CLI."""
-    for dist_name in ("ai-forge-cli", "forge-ai-cli", "forge-cli"):
-        try:
-            return metadata.version(dist_name)
-        except metadata.PackageNotFoundError:
-            continue
-    return None
-
-
-def _cache_base_dir() -> Path:
-    """Return a writable user cache directory for downloaded Forge assets."""
-    if sys.platform == "darwin":
-        return Path.home() / "Library" / "Caches" / "forge-ai-cli"
-    return Path(os.environ.get("XDG_CACHE_HOME", str(Path.home() / ".cache"))) / "forge-ai-cli"
-
-
-def _cached_forge_repo() -> Path | None:
-    """Get Forge assets from cache, downloading from the tagged GitHub archive if needed."""
-    version = _installed_cli_version()
-    if not version:
-        return None
-
-    tag = f"v{version}"
-    cache_root = _cache_base_dir() / tag
-    repo_dest = cache_root / "repo"
-    skills_dest = repo_dest / ".agents" / "skills"
-    templates_dest = repo_dest / "src" / "templates"
-    if skills_dest.is_dir() and templates_dest.is_dir():
-        return repo_dest
-
-    cache_root.mkdir(parents=True, exist_ok=True)
-    archive_url = f"{_FORGE_GITHUB_ARCHIVE}/{tag}"
-
-    fd, archive_path_str = tempfile.mkstemp(prefix=f"forge-{tag}-", suffix=".tar.gz")
-    os.close(fd)
-    archive_path = Path(archive_path_str)
-    extract_root = cache_root / "extract"
-    try:
-        urllib.request.urlretrieve(archive_url, archive_path)
-        if extract_root.exists():
-            shutil.rmtree(extract_root)
-        extract_root.mkdir(parents=True, exist_ok=True)
-        with tarfile.open(archive_path, mode="r:gz") as tf:
-            extract_root_resolved = extract_root.resolve()
-            for member in tf.getmembers():
-                member_path = (extract_root / member.name).resolve()
-                if not member_path.is_relative_to(extract_root_resolved):
-                    return None
-            tf.extractall(extract_root)
-    except (urllib.error.URLError, OSError, tarfile.TarError):
-        return None
-    finally:
-        if archive_path.exists():
-            archive_path.unlink()
-
-    for child in extract_root.iterdir():
-        if not child.is_dir():
-            continue
-        if (child / ".agents" / "skills").is_dir() and (child / "src" / "templates").is_dir():
-            if repo_dest.exists():
-                shutil.rmtree(repo_dest)
-            shutil.move(str(child), str(repo_dest))
-            shutil.rmtree(extract_root, ignore_errors=True)
-            return repo_dest
-
-    return None
-
-
-def _resolve_forge_sources() -> tuple[Path, Path]:
-    """Locate the forge repo root and bundled skills directory."""
-    cli_dir = Path(cli.__file__).resolve().parent
-    forge_repo = cli_dir.parent.parent  # src/cli/ -> src/ -> repo root
-    skills_src = forge_repo / ".agents" / "skills"
-
-    if skills_src.is_dir():
-        return forge_repo, skills_src
-
-    cached_repo = _cached_forge_repo()
-    if cached_repo is not None:
-        cached_skills = cached_repo / ".agents" / "skills"
-        if cached_skills.is_dir():
-            return cached_repo, cached_skills
-
-    raise FileNotFoundError(
-        f"cannot locate forge skills at {skills_src}\n"
-        "If running from source, install in editable mode from the forge repo root:\n"
-        "  uv pip install -e .\n"
-        "If installed via pip, ensure network access for one-time asset bootstrap "
-        f"from {_FORGE_GITHUB_ARCHIVE}/v<version>."
-    )
-
-
-def _ensure_spec_structure(project_root: Path, spec_dir: Path, *, ok: str) -> None:
-    """Ensure the managed Forge spec layout exists under spec_dir."""
-    spec_dir.mkdir(parents=True, exist_ok=True)
-    spec_rel = spec_dir.relative_to(project_root)
-    print(f"  {ok} {_bold(str(spec_rel) + '/')}")
-
-    for sub in SPEC_SUBDIRS:
-        d = spec_dir / sub
-        d.mkdir(exist_ok=True)
-        gitkeep = d / ".gitkeep"
-        if not gitkeep.exists():
-            gitkeep.write_text("")
-
-    print(f"  {ok} {len(SPEC_SUBDIRS)} spec subdirectories "
-          + _dim("(L2_modules, L2_policies, L3_atoms, L3_artifacts, L4_flows, L4_journeys)"))
+_CONCEPTION_STUB = """\
+id: <conception>
+type: conception
+name: <ConceptionName>
+description: <one-sentence description>
+status: draft
+owner: <team or individual>
+intent: >
+  <multi-line statement of what this conception aims to achieve
+  and the constraints that define it>
+systems: []
+actors: []
+glossary: []
+policies: []
+"""
 
 
 def register(sub: argparse._SubParsersAction) -> None:
     p = sub.add_parser(NAME, help=HELP, description=DESCRIPTION)
     p.add_argument(
-        "--spec-subdir", default=".forge",
-        help="Relative path from project root for the spec directory. Default: .forge",
-    )
-    p.add_argument(
-        "--skip-skills", action="store_true",
-        help="Skip skill symlink creation.",
+        "--spec-subdir", default="spec",
+        help="Relative path from project root for the spec directory. Default: spec",
     )
     p.add_argument(
         "--force", action="store_true",
-        help="Overwrite existing symlinks and proceed over existing projects.",
+        help="Overwrite existing files and proceed over existing projects.",
     )
     p.add_argument(
         "--no-banner", action="store_true",
@@ -291,162 +136,84 @@ def register(sub: argparse._SubParsersAction) -> None:
 
 
 def run(args: argparse.Namespace) -> int:
-    # Banner animation: only when stdout is a terminal, and only if not suppressed.
     if sys.stdout.isatty() and not args.no_banner:
         _play_banner()
 
     project_root = Path.cwd()
     spec_dir = project_root / args.spec_subdir
 
-    try:
-        forge_repo, skills_src = _resolve_forge_sources()
-    except FileNotFoundError as e:
-        lines = str(e).splitlines()
-        print(f"error: {lines[0]}", file=sys.stderr)
-        for line in lines[1:]:
-            print(line, file=sys.stderr)
-        return 1
-
     # Refuse to init over an existing project unless --force.
-    existing = [spec_dir / m for m in EXISTING_PROJECT_MARKERS]
-    if any(p.exists() for p in existing) and not args.force:
-        print(f"error: existing forge project detected at {spec_dir}/", file=sys.stderr)
-        print("Use --force to init over it (will not overwrite existing spec files).", file=sys.stderr)
-        return 1
+    if not args.force:
+        for marker in _EXISTING_MARKERS:
+            if (spec_dir / marker).exists():
+                print(
+                    f"error: existing forge project detected at {spec_dir}/",
+                    file=sys.stderr,
+                )
+                print("Use --force to reinitialise.", file=sys.stderr)
+                return 1
 
     print()
     print(_color(_FIRE_PRIMARY, "▸ ") + _bold("Forge init ") + _dim(f"in {project_root}"))
     print()
 
     ok = _color(_OK_GREEN, "✓")
-    _ensure_spec_structure(project_root, spec_dir, ok=ok)
 
-    # Step 2: symlink schema templates into .forge/templates/ for in-project reference.
-    _install_schema_templates(spec_dir, forge_repo, force=args.force, ok=ok)
+    # Create spec/ directory.
+    spec_dir.mkdir(parents=True, exist_ok=True)
+    spec_rel = spec_dir.relative_to(project_root)
+    print(f"  {ok} {_bold(str(spec_rel) + '/')}")
 
-    # Step 3: symlink skills.
-    if not args.skip_skills:
-        _install_skill_symlinks(project_root, skills_src, force=args.force, ok=ok)
+    # Copy framework.yaml from the bundled CLI package.
+    _install_framework(spec_dir, force=args.force, ok=ok)
 
-    # Step 4: next steps section.
+    # Write blank conception.yaml stub.
+    _install_conception(spec_dir, force=args.force, ok=ok)
+
     print()
     print(_divider("Next steps"))
     print()
-    print(_dim("  Set the spec dir ") + _dim("(add to your shell rc to persist):"))
+    print(_dim("  Edit spec/conception.yaml and replace placeholders:"))
+    print(f"    {_bold('id:')}{_dim('  <conception>')}")
+    print(f"    {_bold('name:')}{_dim(' <ConceptionName>')}")
+    print()
+    print(_dim("  Create your first system directory:"))
+    print(f"    {_bold('mkdir -p spec/<system>')}")
+    print(f"    {_bold('touch spec/<system>/system.yaml')}")
+    print()
+    print(_dim("  Set the spec dir (add to shell rc to persist):"))
     print(f"    {_bold('export FORGE_SPEC_DIR=\"' + str(spec_dir) + '\"')}")
     print()
-    print(_dim("  Start a session in this directory:"))
-    print(f"    {_bold(_color(_FIRE_PRIMARY, 'claude'))}  "
-          + _dim("│ ") + f"{_bold(_color(_FIRE_PRIMARY, 'codex'))}  "
-          + _dim("│ ") + _dim("any agentskills.io client (VS Code Copilot, Cursor)"))
-    print()
-    print(_dim("  Trigger a forge skill with a natural-language prompt:"))
-    print(f"    {_bold('\"I want to build a tool that does X\"')}")
-    print(f"    {_bold('\"Decompose the PAY module into atoms\"')}")
-    print(f"    {_bold('\"Compose flows and journeys from completed atoms\"')}")
-    print(f"    {_bold('\"Cast this existing repo into Forge docs\"')}")
-    print(f"    {_bold('\"Audit the specs before implementation\"')}")
-    print(f"    {_bold('\"Harden the specs for security before implementation\"')}")
-    print(f"    {_bold('\"Validate the implementation against specs\"')}")
-    print()
-    print(_dim("  Claude Code also supports slash-command shortcuts:"))
-    print(f"    {_color(_FIRE_PRIMARY, '/forge-discover')}  "
-          + _color(_FIRE_PRIMARY, "/forge-decompose")  + "  "
-          + _color(_FIRE_PRIMARY, "/forge-atom")       + "  "
-          + _color(_FIRE_PRIMARY, "/forge-compose")    + "  "
-          + _color(_FIRE_PRIMARY, "/forge-cast")       + "  "
-          + _color(_FIRE_PRIMARY, "/forge-audit")      + "  "
-          + _color(_FIRE_PRIMARY, "/forge-armour")     + "  "
-          + _color(_FIRE_PRIMARY, "/forge-implement")  + "  "
-          + _color(_FIRE_PRIMARY, "/forge-validate"))
+    print(_dim("  Validate at any time:"))
+    print(f"    {_bold('forge validate')}")
     print()
 
     return 0
 
 
-def _install_schema_templates(spec_dir: Path, forge_repo: Path, *, force: bool, ok: str) -> None:
-    """Symlink every schema/guide template from src/templates/L*/ into
-    <spec_dir>/templates/ (flat). Templates travel with the forge version —
-    broken symlinks after a forge repo move are a clear signal to re-run
-    `forge init --force`.
-    """
-    templates_src = forge_repo / "src" / "templates"
-    templates_dest = spec_dir / "templates"
+def _install_framework(spec_dir: Path, *, force: bool, ok: str) -> None:
+    """Copy the bundled framework.yaml into the spec directory."""
+    cli_dir = Path(cli.__file__).resolve().parent
+    src = cli_dir / "framework.yaml"
+    dest = spec_dir / "framework.yaml"
 
-    if not templates_src.is_dir():
-        print(f"  {_color(160, '✗')} templates source missing at {templates_src}; skipping")
+    if not src.is_file():
+        print(f"  {_color(160, '✗')} framework.yaml not found at {src}; skipping")
         return
 
-    templates_dest.mkdir(exist_ok=True)
+    if dest.exists() and not force:
+        print(_dim(f"  - framework.yaml already present; use --force to overwrite"))
+        return
 
-    linked = 0
-    skipped = 0
-    for layer_dir in sorted(templates_src.iterdir()):
-        if not layer_dir.is_dir():
-            continue
-        for template in sorted(layer_dir.iterdir()):
-            if template.suffix != ".md":
-                continue
-            dest = templates_dest / template.name
-            if dest.is_symlink() or dest.exists():
-                if force and (dest.is_symlink() or dest.is_file()):
-                    dest.unlink()
-                else:
-                    skipped += 1
-                    continue
-            dest.symlink_to(template.resolve())
-            linked += 1
-
-    templates_rel = templates_dest.relative_to(spec_dir.parent)
-    print(f"  {ok} {linked} schema templates " + _dim(f"→ {templates_rel}/"))
-    if skipped:
-        print(_dim(f"    ({skipped} already present; use --force to recreate)"))
+    shutil.copy2(src, dest)
+    print(f"  {ok} spec/framework.yaml {_dim('(framework vocabulary)')}")
 
 
-def _install_skill_symlinks(project_root: Path, skills_src: Path, *, force: bool, ok: str) -> None:
-    """Symlink every known skill into the discovery paths used by Claude Code,
-    Codex CLI, and agentskills.io clients (Copilot, Cursor, VS Code).
-    """
-    dest_parents = [
-        project_root / ".claude" / "skills",   # Claude Code
-        project_root / ".codex"  / "skills",   # OpenAI Codex CLI
-        project_root / ".agents" / "skills",   # agentskills.io (Copilot, Cursor, ...)
-    ]
-    for parent in dest_parents:
-        parent.mkdir(parents=True, exist_ok=True)
-
-    linked = 0
-    skipped = 0
-    missing = 0
-
-    for name in SKILL_NAMES:
-        src = skills_src / name
-        if not src.is_dir():
-            missing += 1
-            print(f"  {_color(160, '✗')} skill source missing: {src}")
-            continue
-
-        for dest_parent in dest_parents:
-            dest = dest_parent / name
-            if dest.is_symlink() or dest.exists():
-                if force:
-                    if dest.is_symlink() or dest.is_file():
-                        dest.unlink()
-                    else:
-                        # Directory exists (not a symlink); refuse to remove.
-                        skipped += 1
-                        print(_dim(f"  - {dest} is a real directory; not touching"))
-                        continue
-                else:
-                    skipped += 1
-                    continue
-            dest.symlink_to(src)
-            linked += 1
-
-    total_attempted = len(SKILL_NAMES) * len(dest_parents)
-    print(f"  {ok} {linked}/{total_attempted} skill symlinks "
-          + _dim("→ .claude/skills/, .codex/skills/, .agents/skills/"))
-    if skipped:
-        print(_dim(f"    ({skipped} already present; use --force to recreate)"))
-    if missing:
-        print(_dim(f"    ({missing} skills missing from source)"))
+def _install_conception(spec_dir: Path, *, force: bool, ok: str) -> None:
+    """Write a blank conception.yaml stub."""
+    dest = spec_dir / "conception.yaml"
+    if dest.exists() and not force:
+        print(_dim(f"  - conception.yaml already present; use --force to overwrite"))
+        return
+    dest.write_text(_CONCEPTION_STUB, encoding="utf-8")
+    print(f"  {ok} spec/conception.yaml {_dim('(fill in your conception details)')}")

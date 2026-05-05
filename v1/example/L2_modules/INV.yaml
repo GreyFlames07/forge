@@ -1,0 +1,53 @@
+module:
+  id:          INV
+  name:        Inventory
+  description: >
+    Manages item availability, reservations, and dispatch.
+    Owns the items table. Holds reserved counts during the order
+    flow and releases them on saga compensation.
+
+  tech_stack:
+    language:            typescript
+    language_version:    "5.4"
+    runtime:             node
+    runtime_version:     "20.x"
+    frameworks:          [nestjs@10, prisma@5]
+    mandatory_libraries: []
+
+  owned_atoms:
+    - atm.inv.reserve_items
+    - atm.inv.release_items
+    - atm.inv.dispatch_order
+
+  owned_artifacts: []
+
+  persistence_schema:
+    datastores:
+      - name: items
+        type: reg.inv.Item
+        form: relational
+    storage_buckets: []
+    caches: []
+    ownership:   exclusive
+    shared_with: []
+
+  interface:
+    entry_points: []
+
+  access_permissions:
+    env_vars:         [DATABASE_URL]
+    filesystem:       []
+    network:          []
+    secrets:          []
+    external_schemas: []
+
+  dependency_whitelist:
+    modules: []
+
+  policies: []
+
+  changelog:
+    - version:     "0.1.0"
+      date:        "2026-04-10"
+      change_type: added
+      description: "Initial inventory module."

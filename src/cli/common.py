@@ -15,12 +15,17 @@ from typing import Any
 from cli import index as index_mod
 
 
-# Kind constants used by `list` filter and `inspect` branching.
-BUNDLEABLE_KINDS: tuple[str, ...] = ("atom", "module", "journey", "flow", "artifact")
+# All known node kinds in the v2 framework.
 ALL_KINDS: tuple[str, ...] = (
-    "atom", "module", "journey", "flow", "artifact",
-    "policy", "type", "error", "constant", "external_schema", "marker",
+    "conception", "system", "domain", "module", "element",
+    "property", "operation",
+    "type", "error", "policy", "contract", "integration",
+    "interaction", "flow", "constant",
+    "datastore", "test", "environment", "deployment",
 )
+
+# Kinds that can be bundled via `forge context`.
+BUNDLEABLE_KINDS: tuple[str, ...] = ("element",)
 
 
 # ----------------------------------------------------------------------
@@ -28,8 +33,7 @@ ALL_KINDS: tuple[str, ...] = (
 # ----------------------------------------------------------------------
 
 def add_spec_dir_arg(parser: argparse.ArgumentParser) -> None:
-    """Adds the standard --spec-dir flag. Resolution order is documented in
-    resolve_spec_dir: --spec-dir > $FORGE_SPEC_DIR > auto-discover."""
+    """Adds the standard --spec-dir flag."""
     parser.add_argument(
         "--spec-dir", default=None,
         help="Path to spec directory. Overrides $FORGE_SPEC_DIR and auto-discovery.",
@@ -44,8 +48,6 @@ def load_index(spec_dir_arg: str | None) -> tuple[index_mod.Index | None, int]:
     """Resolve spec dir and load an Index.
 
     Returns (index, 0) on success or (None, 1) if resolution/loading fails.
-    The error is already printed to stderr by the time 1 is returned, so
-    callers can bail with the returned code directly.
     """
     try:
         spec_dir = index_mod.resolve_spec_dir(spec_dir_arg)
@@ -57,24 +59,17 @@ def load_index(spec_dir_arg: str | None) -> tuple[index_mod.Index | None, int]:
 
 
 # ----------------------------------------------------------------------
-# Id suggestion — used by commands that accept an id argument to help
-# users recover from typos.
+# Id suggestion — used by commands that accept an id argument.
 # ----------------------------------------------------------------------
 
 def suggest_similar(idx: index_mod.Index, target: str, limit: int = 5) -> None:
-    """Print up to `limit` ids close to `target`, best matches first.
-
-    Scoring prefers ids in the same namespace (shared dot-separated
-    prefix) over coincidental substring matches. Writes to stderr.
-    Silent if there are no reasonable candidates.
-    """
+    """Print up to `limit` ids close to `target`, best matches first."""
     target_low = target.lower()
     target_parts = target_low.split(".")
 
     scored: list[tuple[int, str]] = []
     for e in idx.entries.values():
         eid_low = e.id.lower()
-        # Score = number of matching leading dot-segments (higher is better).
         eid_parts = eid_low.split(".")
         shared_prefix = 0
         for a, b in zip(target_parts, eid_parts):
@@ -84,7 +79,6 @@ def suggest_similar(idx: index_mod.Index, target: str, limit: int = 5) -> None:
                 break
         substring_hit = target_low in eid_low or eid_low in target_low
         if shared_prefix > 0 or substring_hit:
-            # Primary key: shared prefix segments; secondary: substring hit.
             score = shared_prefix * 10 + (1 if substring_hit else 0)
             scored.append((score, e.id))
 

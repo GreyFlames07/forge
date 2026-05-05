@@ -1,0 +1,66 @@
+atom:
+  id:           atm.pay.charges_schema
+  kind:         DECLARATIVE
+  owner_module: PAY
+  description: >
+    Declares the desired state of the charges table. Reconciled
+    via migration strategy — generates incremental DDL changes.
+
+  spec:
+    target: database_schema
+    desired_state:
+      table: charges
+      columns:
+        - name: id
+          type: uuid
+          primary_key: true
+        - name: customer_id
+          type: uuid
+          nullable: false
+          references: users.id
+        - name: amount_cents
+          type: bigint
+          nullable: false
+          check: "amount_cents > 0"
+        - name: idempotency_key
+          type: string
+          max_length: 64
+          unique: true
+          nullable: false
+        - name: processor_id
+          type: string
+          nullable: true
+        - name: created_at
+          type: timestamp
+          default: "now()"
+      indexes:
+        - columns: [customer_id, created_at]
+          order: DESC
+
+    reconciliation:
+      strategy:    migration
+      on_conflict: fail_and_report
+
+    failure_modes:
+      - trigger: "desired state unreachable from current state"
+        error:   PAY.DAT.001
+
+  verification:
+    property_assertions:
+      - "charges table always has idempotency_key unique constraint"
+    example_cases:
+      - input:    "empty database"
+        expected: "charges table created with all columns and indexes"
+    edge_cases:
+      - "table already exists with matching schema (no-op)"
+      - "table exists with missing column (migration adds it)"
+      - "table exists with conflicting column type"
+
+  convention_overrides: []
+  policy_overrides:     []
+
+  changelog:
+    - version:     "0.1.0"
+      date:        "2026-04-10"
+      change_type: added
+      description: "Initial charges schema."

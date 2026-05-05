@@ -1,0 +1,25 @@
+policy:
+  id:          pol.pay.require_admin_for_refunds
+  name:        Require admin role for refund operations
+  description: >
+    All refund-related atoms in the payments module must verify the
+    calling actor has admin role before executing. This policy exists
+    because refunds move money out and require elevated trust per
+    our compliance requirements.
+
+  applies_when: 'atom.id matches "atm.pay.refund_*"'
+
+  mandatory_behavior:
+    before:        'assert actor.role == admin else raise SEC.SEC.003'
+    after_success: null
+    after_failure: null
+
+  opt_out:
+    allowed:                false
+    requires_justification: false
+
+  changelog:
+    - version:     "0.2.0"
+      date:        "2026-04-15"
+      change_type: added
+      description: "Introduced after refund feature added."

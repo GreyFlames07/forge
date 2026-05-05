@@ -69,43 +69,85 @@ def run(args: argparse.Namespace) -> int:
 
 def _populate_kind_extras(info: OrderedDict[str, Any], kind: str, data: dict[str, Any]) -> None:
     """Add per-kind useful metadata to the inspect output."""
-    if kind == "atom":
-        spec = data.get("spec") or {}
-        info["atom_kind"] = data.get("kind")
-        info["owner_module"] = data.get("owner_module")
-        info["side_effects"] = spec.get("side_effects") or []
-        info["output_errors"] = (spec.get("output") or {}).get("errors") or []
-    elif kind == "module":
-        info["owned_atoms"] = data.get("owned_atoms") or []
-        info["owned_artifacts"] = data.get("owned_artifacts") or []
-        info["dependency_whitelist"] = (data.get("dependency_whitelist") or {}).get("modules") or []
+    if kind == "conception":
+        info["systems"] = data.get("systems") or []
+        info["owner"] = data.get("owner")
+    elif kind == "system":
+        info["domains"] = data.get("domains") or []
+        info["platform"] = data.get("platform")
+        info["language"] = data.get("language")
+        info["deployment"] = data.get("deployment")
         info["policies"] = data.get("policies") or []
-    elif kind == "flow":
-        info["transaction_boundary"] = data.get("transaction_boundary")
-        info["trigger"] = data.get("trigger")
-        info["steps"] = [s.get("step") for s in data.get("sequence") or []]
-    elif kind == "journey":
-        info["surface"] = data.get("surface")
-        info["states"] = data.get("states") or []
-        info["exit_states"] = data.get("exit_states") or []
-    elif kind == "artifact":
-        info["owner_module"] = data.get("owner_module")
-        info["format"] = data.get("format")
-        info["produced_by"] = (data.get("provenance") or {}).get("produced_by")
-        info["consumers"] = data.get("consumers") or []
-    elif kind == "error":
-        info["category"] = data.get("category")
-        info["message"] = data.get("message")
+    elif kind == "domain":
+        info["modules"] = data.get("modules") or []
+        info["owner"] = data.get("owner")
+        info["policies"] = data.get("policies") or []
+    elif kind == "module":
+        info["elements"] = data.get("elements") or []
+        info["version"] = data.get("version")
+        packaging = data.get("packaging") or {}
+        info["packaging"] = packaging.get("kind")
+        info["runtime"] = packaging.get("runtime")
+        info["external_dependencies"] = data.get("external_dependencies") or []
+        info["policies"] = data.get("policies") or []
+    elif kind == "element":
+        info["element_kind"] = data.get("kind")
+        info["properties"] = [p.get("id") for p in data.get("properties") or [] if isinstance(p, dict)]
+        info["operations"] = [o.get("id") for o in data.get("operations") or [] if isinstance(o, dict)]
+        info["relationships"] = data.get("relationships") or []
+        info["policies"] = data.get("policies") or []
     elif kind == "type":
         info["type_kind"] = data.get("kind")
-        if data.get("kind") == "entity":
-            info["fields"] = list((data.get("fields") or {}).keys())
-        elif data.get("kind") == "enum":
-            info["values"] = data.get("values")
-    elif kind == "constant":
-        info["type"] = data.get("type")
-        info["value"] = data.get("value")
-    elif kind == "external_schema":
+        info["base"] = data.get("base")
+        info["version"] = data.get("version")
+        if data.get("kind") == "composite":
+            info["property_count"] = len(data.get("properties") or [])
+        constraints = data.get("constraints") or {}
+        if constraints:
+            info["constraints"] = constraints
+    elif kind == "error":
+        info["code"] = data.get("code")
+        info["http_status"] = data.get("http_status")
+    elif kind == "policy":
+        info["policy_kind"] = data.get("kind")
+        info["owner"] = data.get("owner")
+        info["enforcement"] = data.get("enforcement")
+    elif kind == "contract":
+        info["version"] = data.get("version")
+        info["protocol"] = data.get("protocol")
+        info["producer"] = data.get("producer")
+        info["consumers"] = data.get("consumers") or []
+        info["inputs"] = data.get("inputs") or []
+        info["outputs"] = data.get("outputs") or []
+    elif kind == "integration":
         info["provider"] = data.get("provider")
-        info["base_url"] = data.get("base_url")
-        info["auth_method"] = data.get("auth_method")
+        info["contract"] = data.get("contract")
+        info["auth_mechanism"] = data.get("auth_mechanism")
+    elif kind == "interaction":
+        info["caller"] = data.get("caller")
+        info["callee"] = data.get("callee")
+        info["trigger"] = data.get("trigger")
+    elif kind == "flow":
+        info["trigger"] = data.get("trigger")
+        info["step_count"] = len(data.get("steps") or [])
+        info["owner"] = data.get("owner")
+    elif kind == "constant":
+        info["data_type"] = data.get("data_type")
+        info["value"] = data.get("value")
+    elif kind == "datastore":
+        info["storage_kind"] = data.get("kind")
+        info["engine"] = data.get("engine")
+        info["purpose"] = data.get("purpose")
+        info["consumers"] = data.get("consumers") or []
+        info["version"] = data.get("version")
+    elif kind == "test":
+        info["test_kind"] = data.get("kind")
+        info["target"] = data.get("target")
+    elif kind == "environment":
+        info["env_kind"] = data.get("kind")
+        info["region"] = data.get("region")
+    elif kind == "deployment":
+        info["module"] = data.get("module")
+        info["environment"] = data.get("environment")
+        info["version"] = data.get("version")
+        info["deployed_at"] = data.get("deployed_at")

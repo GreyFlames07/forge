@@ -11,13 +11,12 @@ from cli import index as index_mod
 from cli import walker
 
 NAME = "context"
-HELP = "Build a full implementation-ready context bundle for an id."
+HELP = "Build a full implementation-ready context bundle for an element."
 DESCRIPTION = (
-    "Walks the spec dependency graph from <id> and emits everything "
-    "an agent needs to implement it: the target spec, referenced L0 "
-    "entries (sliced, not the whole registry), the owning module, "
-    "applicable policies, L1 conventions, L4 callers with derived "
-    "implications, and L5 operations."
+    "Walks the spec dependency graph from <element-id> and emits everything "
+    "an agent needs to implement it: the element (with inline properties and "
+    "operations), parent module/domain/system, referenced contracts, types "
+    "(transitive), errors, interactions, cascaded policies, and datastores."
 )
 
 
@@ -25,7 +24,7 @@ def register(sub: argparse._SubParsersAction) -> None:
     p = sub.add_parser(NAME, help=HELP, description=DESCRIPTION)
     p.add_argument(
         "id",
-        help="Target id. Must be an atom, module, journey, flow, or artifact.",
+        help="Target element id (e.g. myapp.billing.payments.charge_processor.charge).",
     )
     common.add_spec_dir_arg(p)
     p.add_argument(

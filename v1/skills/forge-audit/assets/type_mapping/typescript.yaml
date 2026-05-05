@@ -1,0 +1,27 @@
+language: typescript
+primitives:
+  string: { non_nullable: string, nullable: "string | null" }
+  integer: { non_nullable: number, nullable: "number | null" }
+  number: { non_nullable: number, nullable: "number | null" }
+  boolean: { non_nullable: boolean, nullable: "boolean | null" }
+  bigint: { non_nullable: bigint, nullable: "bigint | null" }
+  bytes: { non_nullable: Uint8Array, nullable: "Uint8Array | null" }
+  timestamp: { non_nullable: Date, nullable: "Date | null" }
+  uuid: { non_nullable: string, nullable: "string | null" }
+signature_shape:
+  success_with_errors: "Promise<<Result>>"
+  success_only: "<Result>"
+seams:
+  WRITES_DB: injected_dependency
+  READS_DB: injected_dependency
+  CALLS_EXTERNAL: injected_dependency
+  EMITS_EVENT: injected_dependency
+  WRITES_FS: injected_dependency
+  WRITES_CACHE: injected_dependency
+error_return:
+  style: throw
+  comparison: instance_of
+result_naming:
+  request_suffix: Input
+  response_suffix: Result
+  field_case: camelCase

@@ -1,0 +1,68 @@
+atom:
+  id:           atm.pay.handle_order_event
+  kind:         PROCEDURAL
+  owner_module: PAY
+  description: >
+    Processes incoming order events. On order.placed, emits
+    payment.required. On order.cancelled, cancels pending payment.
+    Triggered by event_consumer interface in PAY module.
+
+  spec:
+    input:
+      event_type:
+        type:     string
+        nullable: false
+      order_id:
+        type:     uuid
+        nullable: false
+      total_cents:
+        type:        bigint
+        nullable:    true
+        description: "Present on order.placed events."
+
+    output:
+      success:
+        handled:
+          type:     boolean
+          nullable: false
+      errors: [PAY.VAL.010]
+
+    side_effects: [EMITS_EVENT]
+
+    invariants:
+      pre:
+        - "input.event_type is one of ['order.placed', 'order.cancelled']"
+      post:
+        - "on order.placed: payment.required event emitted"
+
+    logic:
+      - 'WHEN input.event_type == "order.placed" THEN EMIT payment.required WITH { order_id: input.order_id, amount: input.total_cents }; RETURN { handled: true }'
+      - 'WHEN input.event_type == "order.cancelled" THEN CALL atm.pay.cancel_pending WITH { order_id: input.order_id }; RETURN { handled: true }'
+      - 'RETURN PAY.VAL.010'
+
+    failure_modes:
+      - trigger: "unrecognized event type"
+        error:   PAY.VAL.010
+
+  verification:
+    property_assertions:
+      - "output.handled is true for all recognized event types"
+    example_cases:
+      - input:    { event_type: "order.placed", order_id: "ord_1", total_cents: 5000 }
+        expected: success
+      - input:    { event_type: "order.cancelled", order_id: "ord_1", total_cents: null }
+        expected: success
+      - input:    { event_type: "order.unknown", order_id: "ord_1", total_cents: null }
+        expected: PAY.VAL.010
+    edge_cases:
+      - "order.placed with total_cents of 0"
+      - "order.cancelled for an order with no pending payment"
+
+  convention_overrides: []
+  policy_overrides:     []
+
+  changelog:
+    - version:     "0.1.0"
+      date:        "2026-04-10"
+      change_type: added
+      description: "Initial order event handler."

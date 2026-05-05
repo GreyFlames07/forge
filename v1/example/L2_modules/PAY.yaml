@@ -1,0 +1,95 @@
+module:
+  id:          PAY
+  name:        Payments
+  description: >
+    Handles all payment operations including charging customers,
+    processing refunds, and tracking payment status. Integrates with
+    Stripe as the sole payment processor. Owns the charges and refunds
+    tables. Depends on USR for customer lookup and NTF for sending
+    payment confirmation emails.
+
+  tech_stack:
+    language:            typescript
+    language_version:    "5.4"
+    runtime:             node
+    runtime_version:     "20.x"
+    frameworks:          [nestjs@10, prisma@5]
+    mandatory_libraries: [stripe-node@14]
+    compute:             ecs-fargate
+    managed_services:
+      - service: aws-rds
+        purpose: "Postgres store for charges and refunds tables."
+      - service: aws-secrets-manager
+        purpose: "Holds stripe_secret_key; injected at task start."
+      - service: aws-sqs
+        purpose: "Inbound order.placed event consumer queue."
+
+  owned_atoms:
+    - atm.pay.charge_card
+    - atm.pay.refund_charge
+    - atm.pay.calculate_tax
+    - atm.pay.find_by_idempotency_key
+    - atm.pay.persist_charge
+
+  owned_artifacts:
+    - art.pay.tax_rules_table
+
+  persistence_schema:
+    datastores:
+      - name: charges
+        type: reg.pay.Charge
+        form: relational
+      - name: refunds
+        type: reg.pay.Refund
+        form: relational
+    storage_buckets: []
+    caches: []
+    ownership:   exclusive
+    shared_with: []
+
+  interface:
+    entry_points:
+      - kind:          api
+        endpoint:      /payments/charge
+        method:        POST
+        invokes:       atm.pay.charge_card
+        request_type:  reg.pay.ChargeRequest
+        response_type: reg.pay.ChargeResponse
+
+      - kind:          api
+        endpoint:      /payments/refund
+        method:        POST
+        invokes:       atm.pay.refund_charge
+        request_type:  reg.pay.RefundRequest
+        response_type: reg.pay.RefundResponse
+        security:
+          authentication: required
+          auth_methods:   [bearer]
+          roles:          [admin]
+
+      - kind:          event_consumer
+        event:         order.placed
+        invokes:       flow.process_order_payment
+
+  access_permissions:
+    env_vars:         [STRIPE_API_KEY, DATABASE_URL]
+    filesystem:       []
+    network:          [api.stripe.com]
+    secrets:          [stripe_secret_key]
+    external_schemas: [stripe]
+
+  dependency_whitelist:
+    modules: [USR, NTF, INV, ORD]
+
+  policies:
+    - pol.pay.require_admin_for_refunds
+
+  changelog:
+    - version:     "0.1.0"
+      date:        "2026-04-10"
+      change_type: added
+      description: "Initial payments module."
+    - version:     "0.2.0"
+      date:        "2026-04-15"
+      change_type: modified
+      description: "Added refund support and admin-only policy."

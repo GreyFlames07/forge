@@ -1,0 +1,114 @@
+orchestration:
+  id:          flow.process_order_payment
+  description: >
+    End-to-end payment processing triggered when an order is placed.
+    Validates the order, reserves inventory, charges the customer,
+    dispatches fulfillment, and sends confirmation. Uses saga
+    transaction boundary with compensation for inventory and payment.
+
+  trigger:
+    kind:         event
+    event:        order.placed
+    payload_type: reg.ord.OrderPlacedEvent
+
+  transaction_boundary: saga
+
+  sequence:
+    - step:   validate
+      invoke: atm.ord.validate_order
+      with:   { order_id: trigger.order_id }
+      on_error:
+        "PAY.VAL.*": HALT_AND_EMIT order.payment_failed
+      compensation: null
+
+    - step:   reserve_inventory
+      invoke: atm.inv.reserve_items
+      with:   { items: validate.output.items }
+      on_error:
+        "INV.BUS.*": HALT_AND_EMIT order.payment_failed
+      compensation: atm.inv.release_items
+
+    - step:   charge
+      invoke: atm.pay.charge_card
+      with:
+        customer_id:     trigger.customer_id
+        amount_cents:    validate.output.total_cents
+        idempotency_key: trigger.idempotency_key
+      on_error:
+        "PAY.NET.*":   RETRY(max=3)
+        "PAY.EXT.003": COMPENSATE_AND_HALT
+      compensation: atm.pay.refund_charge
+
+    - step:   fulfill
+      invoke: atm.inv.dispatch_order
+      with:   { order_id: trigger.order_id }
+      on_error:
+        "INV.SYS.*": COMPENSATE_AND_HALT
+      compensation: null
+
+    - step:   notify
+      invoke: atm.ntf.send_order_confirmation
+      with:
+        order_id:    trigger.order_id
+        customer_id: trigger.customer_id
+      on_error:
+        "NTF.*": CONTINUE
+      compensation: null
+
+  state_transitions:
+    - on:     "all steps succeed"
+      change: "order.status = FULFILLED"
+      emit:   order.completed
+
+    - on:     "charge fails after retry exhaustion"
+      change: "order.status = PAYMENT_FAILED"
+      emit:   order.payment_failed
+
+    - on:     "charge declined (PAY.EXT.003)"
+      change: "order.status = PAYMENT_FAILED"
+      emit:   order.payment_failed
+
+    - on:     "fulfill fails"
+      change: "order.status = REFUNDED (via compensation)"
+      emit:   order.refunded
+
+  verification_criteria:
+    - scenario: "Successful payment and fulfillment"
+      asserts:
+        - "charges table has row with trigger.order_id"
+        - "inventory reduced for all items"
+        - "confirmation email sent"
+        - "order.status == FULFILLED"
+        - "event order.completed emitted"
+
+    - scenario: "Charge declined"
+      asserts:
+        - "no row in charges table"
+        - "inventory not reduced (reserve_inventory compensated)"
+        - "no confirmation email"
+        - "order.status == PAYMENT_FAILED"
+        - "event order.payment_failed emitted"
+
+    - scenario: "Fulfillment failure after successful charge"
+      asserts:
+        - "charge refunded (charge compensation called)"
+        - "inventory released (reserve_inventory compensation called)"
+        - "no confirmation email"
+        - "order.status == REFUNDED"
+        - "event order.refunded emitted"
+
+    - scenario: "Notification failure after everything else succeeds"
+      asserts:
+        - "charge exists, inventory reduced, order fulfilled"
+        - "order.status == FULFILLED (notification is non-critical)"
+        - "notification error logged but flow completed"
+
+  changelog:
+    - version:     "0.1.0"
+      date:        "2026-04-10"
+      change_type: added
+      description: "Initial payment orchestration."
+    - version:     "0.2.0"
+      date:        "2026-04-15"
+      change_type: modified
+      description: "Added inventory compensation."

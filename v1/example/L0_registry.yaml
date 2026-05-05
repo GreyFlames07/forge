@@ -1,0 +1,480 @@
+# Example L0 Registry for a fictional payments-enabled app.
+# Use this to verify your schema parser and validator produce expected results.
+
+naming_ledger:
+  module_id:    '^[A-Z]{3}$'
+  atom_id:      '^atm\.[a-z]{3}\.[a-z_]+$'
+  artifact_id:  '^art\.[a-z]{3}\.[a-z_]+$'
+  flow_id:      '^flow\.[a-z_]+$'
+  journey_id:   '^jrn\.[a-z_]+$'
+  type_id:      '^reg\.[a-z]+\.[A-Z][a-zA-Z]+$'
+  error_code:   '^[A-Z]{3}\.[A-Z]{3}\.\d{3}$'
+  event_name:   '^[a-z]+\.[a-z_]+$'
+  constant_id:  '^[A-Z][A-Z0-9_]+$'
+  policy_id:    '^pol\.[a-z]{3}\.[a-z_]+$'
+
+error_categories:
+  VAL: "Validation — input failed a contract check."
+  SYS: "Infrastructure — disk, memory, OS-level failure."
+  BUS: "Business logic — domain rule violated."
+  SEC: "Security — authentication or authorization failure."
+  NET: "Networking — upstream, DNS, timeout."
+  DAT: "Data — database constraint or corruption."
+  CFG: "Configuration — missing or malformed config."
+  EXT: "External — third-party service returned failure."
+
+errors:
+  PAY.VAL.001:
+    message:  "Charge amount must be strictly positive."
+    category: VAL
+    changelog:
+      - version:     "0.1.0"
+        date:        "2026-04-10"
+        change_type: added
+        description: "Initial error set for charge validation."
+
+  PAY.VAL.002:
+    message:  "Customer not found for given customer_id."
+    category: VAL
+    changelog:
+      - version:     "0.1.0"
+        date:        "2026-04-10"
+        change_type: added
+        description: "Initial error set for charge validation."
+
+  PAY.NET.001:
+    message:  "Upstream payment processor timed out."
+    category: NET
+    changelog:
+      - version:     "0.1.0"
+        date:        "2026-04-10"
+        change_type: added
+        description: "Initial error set for charge validation."
+
+  PAY.EXT.003:
+    message:  "Payment processor declined the charge."
+    category: EXT
+    changelog:
+      - version:     "0.1.0"
+        date:        "2026-04-10"
+        change_type: added
+        description: "Initial error set for charge validation."
+
+  PAY.VAL.010:
+    message:  "Unrecognized order event type."
+    category: VAL
+    changelog:
+      - version:     "0.1.0"
+        date:        "2026-04-10"
+        change_type: added
+        description: "Order event handler validation."
+
+  PAY.DAT.001:
+    message:  "Database schema reconciliation failed; desired state unreachable."
+    category: DAT
+    changelog:
+      - version:     "0.1.0"
+        date:        "2026-04-10"
+        change_type: added
+        description: "Declarative schema reconciliation failure."
+
+  USR.VAL.001:
+    message:  "Email address does not match expected format."
+    category: VAL
+    changelog:
+      - version:     "0.1.0"
+        date:        "2026-04-10"
+        change_type: added
+        description: "Initial user validation errors."
+
+  USR.VAL.002:
+    message:  "Password does not meet complexity requirements."
+    category: VAL
+    changelog:
+      - version:     "0.1.0"
+        date:        "2026-04-10"
+        change_type: added
+        description: "Password validation."
+
+  USR.SYS.001:
+    message:  "User account creation failed due to infrastructure error."
+    category: SYS
+    changelog:
+      - version:     "0.1.0"
+        date:        "2026-04-10"
+        change_type: added
+        description: "Account creation infra failure."
+
+  USR.SEC.001:
+    message:  "Email verification token invalid, expired, or already used."
+    category: SEC
+    changelog:
+      - version:     "0.1.0"
+        date:        "2026-04-10"
+        change_type: added
+        description: "Verification token validation."
+
+  INV.BUS.001:
+    message:  "Insufficient inventory to reserve requested items."
+    category: BUS
+    changelog:
+      - version:     "0.1.0"
+        date:        "2026-04-10"
+        change_type: added
+        description: "Inventory reservation business rule."
+
+  INV.SYS.001:
+    message:  "Inventory fulfillment infrastructure failure."
+    category: SYS
+    changelog:
+      - version:     "0.1.0"
+        date:        "2026-04-10"
+        change_type: added
+        description: "Fulfillment dispatch failure."
+
+  NTF.SYS.001:
+    message:  "Notification dispatch failed."
+    category: SYS
+    changelog:
+      - version:     "0.1.0"
+        date:        "2026-04-10"
+        change_type: added
+        description: "Notification infrastructure failure."
+
+  SYS.SYS.999:
+    message:  "Unexpected runtime error wrapped by L1 propagation convention."
+    category: SYS
+    changelog:
+      - version:     "0.1.0"
+        date:        "2026-04-10"
+        change_type: added
+        description: "Catch-all used by L1 wrap_unexpected."
+
+types:
+  reg.usr.Status:
+    kind: enum
+    values: [PENDING, ACTIVE, SUSPENDED, DELETED]
+    changelog:
+      - version: "0.1.0"
+        date: "2026-04-10"
+        change_type: added
+        description: "Initial user status enum."
+
+  reg.usr.Address:
+    kind: entity
+    fields:
+      line_1:
+        type:        string
+        nullable:    false
+        description: "Street address, first line."
+      line_2:
+        type:        string
+        nullable:    true
+        description: "Apartment, suite, etc."
+      city:
+        type:        string
+        nullable:    false
+      postal_code:
+        type:        string
+        nullable:    false
+      country_code:
+        type:        string
+        nullable:    false
+        description: "ISO 3166-1 alpha-2 code."
+    changelog:
+      - version: "0.1.0"
+        date: "2026-04-10"
+        change_type: added
+        description: "Initial address type."
+
+  reg.usr.Customer:
+    kind: entity
+    fields:
+      id:
+        type:     uuid
+        nullable: false
+      email:
+        type:        string
+        nullable:    false
+        description: "Primary contact email. Uniqueness enforced at DB level."
+      status:
+        type:     reg.usr.Status
+        nullable: false
+        default:  PENDING
+      billing_address:
+        type:     reg.usr.Address
+        nullable: true
+      created_at:
+        type:     timestamp
+        nullable: false
+    changelog:
+      - version: "0.1.0"
+        date: "2026-04-10"
+        change_type: added
+        description: "Initial customer type."
+
+  reg.pay.Charge:
+    kind: entity
+    fields:
+      id:
+        type:     uuid
+        nullable: false
+      customer_id:
+        type:        uuid
+        nullable:    false
+        description: "References reg.usr.Customer.id."
+      amount_cents:
+        type:        bigint
+        nullable:    false
+        description: "Charge amount in USD cents. Always positive."
+      idempotency_key:
+        type:        string
+        nullable:    false
+        description: "Client-supplied key preventing duplicate charges."
+      processor_id:
+        type:        string
+        nullable:    true
+        description: "Reference id returned by payment processor on success."
+      created_at:
+        type:     timestamp
+        nullable: false
+    invariants:
+      - "amount_cents > 0"
+    changelog:
+      - version: "0.1.0"
+        date: "2026-04-10"
+        change_type: added
+        description: "Initial charge type."
+
+  reg.pay.Refund:
+    kind: entity
+    fields:
+      id:
+        type:     uuid
+        nullable: false
+      charge_id:
+        type:        uuid
+        nullable:    false
+        description: "References reg.pay.Charge.id."
+      amount_cents:
+        type:     bigint
+        nullable: false
+      reason:
+        type:     string
+        nullable: true
+      created_at:
+        type:     timestamp
+        nullable: false
+    changelog:
+      - version: "0.1.0"
+        date: "2026-04-10"
+        change_type: added
+        description: "Initial refund type."
+
+  reg.pay.ChargeRequest:
+    kind: entity
+    fields:
+      customer_id:
+        type:     uuid
+        nullable: false
+      amount_cents:
+        type:     bigint
+        nullable: false
+      idempotency_key:
+        type:     uuid
+        nullable: false
+    changelog:
+      - version: "0.1.0"
+        date: "2026-04-10"
+        change_type: added
+        description: "Initial charge request envelope."
+
+  reg.pay.ChargeResponse:
+    kind: entity
+    fields:
+      charge_id:
+        type:     uuid
+        nullable: false
+      amount_charged:
+        type:     bigint
+        nullable: false
+    changelog:
+      - version: "0.1.0"
+        date: "2026-04-10"
+        change_type: added
+        description: "Initial charge response envelope."
+
+  reg.pay.RefundRequest:
+    kind: entity
+    fields:
+      charge_id:
+        type:     uuid
+        nullable: false
+      amount_cents:
+        type:     bigint
+        nullable: false
+      reason:
+        type:     string
+        nullable: true
+    changelog:
+      - version: "0.1.0"
+        date: "2026-04-10"
+        change_type: added
+        description: "Initial refund request envelope."
+
+  reg.pay.RefundResponse:
+    kind: entity
+    fields:
+      refund_id:
+        type:     uuid
+        nullable: false
+      amount_refunded:
+        type:     bigint
+        nullable: false
+    changelog:
+      - version: "0.1.0"
+        date: "2026-04-10"
+        change_type: added
+        description: "Initial refund response envelope."
+
+  reg.usr.SignupSource:
+    kind: enum
+    values: [ORGANIC, REFERRAL, CAMPAIGN, IMPORT]
+    changelog:
+      - version: "0.1.0"
+        date: "2026-04-10"
+        change_type: added
+        description: "Signup source taxonomy."
+
+  reg.ord.OrderPlacedEvent:
+    kind: entity
+    fields:
+      order_id:
+        type:     uuid
+        nullable: false
+      customer_id:
+        type:     uuid
+        nullable: false
+      total_cents:
+        type:     bigint
+        nullable: false
+      idempotency_key:
+        type:     uuid
+        nullable: false
+      items:
+        type:     string
+        nullable: false
+        description: "JSON-encoded item list for the placed order."
+    changelog:
+      - version: "0.1.0"
+        date: "2026-04-10"
+        change_type: added
+        description: "Order placed event payload shape."
+
+  reg.inv.Item:
+    kind: entity
+    fields:
+      id:
+        type:     uuid
+        nullable: false
+      sku:
+        type:     string
+        nullable: false
+      quantity_available:
+        type:     integer
+        nullable: false
+      reserved_count:
+        type:     integer
+        nullable: false
+    changelog:
+      - version: "0.1.0"
+        date: "2026-04-10"
+        change_type: added
+        description: "Initial inventory item type."
+
+  reg.data.LabeledEmailRecord:
+    kind: entity
+    fields:
+      email:
+        type:     string
+        nullable: false
+      is_valid:
+        type:     boolean
+        nullable: false
+      source:
+        type:     reg.usr.SignupSource
+        nullable: false
+      labeled_on:
+        type:     timestamp
+        nullable: false
+    changelog:
+      - version: "0.1.0"
+        date: "2026-04-10"
+        change_type: added
+        description: "Labeled training record shape."
+
+constants:
+  MAX_LOGIN_ATTEMPTS:
+    value:       5
+    type:        integer
+    description: "Number of failed login attempts before account lockout. Balances security against legitimate-user friction; industry norm is 3-5."
+    changelog:
+      - version: "0.1.0"
+        date: "2026-04-10"
+        change_type: added
+        description: "Initial value."
+
+  SESSION_TIMEOUT_SEC:
+    value:       3600
+    type:        integer
+    description: "Idle session timeout in seconds. One hour matches our audit policy."
+    changelog:
+      - version: "0.1.0"
+        date: "2026-04-10"
+        change_type: added
+        description: "Initial value."
+
+  MAX_CHARGE_CENTS:
+    value:       10000000
+    type:        bigint
+    description: "Maximum single-charge amount ($100,000). Above this, manual review required per compliance policy."
+    changelog:
+      - version: "0.1.0"
+        date: "2026-04-10"
+        change_type: added
+        description: "Set to align with compliance tier 2 threshold."
+
+side_effect_markers:
+  PURE:            "No observable side effects."
+  IDEMPOTENT:      "Repeated invocation with same input produces same result with no additional effects."
+  READS_DB:        "Reads from a database."
+  WRITES_DB:       "Writes to a database."
+  READS_CACHE:     "Reads from a cache layer."
+  WRITES_CACHE:    "Writes to a cache layer."
+  READS_FS:        "Reads from the filesystem."
+  WRITES_FS:       "Writes to the filesystem."
+  READS_ARTIFACT:  "Reads an L3 artifact (dataset, weights, config bundle, prompt template, localization file)."
+  EMITS_EVENT:     "Publishes an event to a bus or stream."
+  CALLS_EXTERNAL:  "Makes a call to an external service."
+  READS_CLOCK:     "Depends on the current time."
+
+external_schemas:
+  stripe:
+    provider:    "Stripe"
+    base_url:    "https://api.stripe.com"
+    auth_method: bearer
+    changelog:
+      - version: "0.1.0"
+        date: "2026-04-10"
+        change_type: added
+        description: "Initial Stripe integration reference."
+
+  sendgrid:
+    provider:    "SendGrid"
+    base_url:    "https://api.sendgrid.com"
+    auth_method: api_key
+    changelog:
+      - version: "0.1.0"
+        date: "2026-04-10"
+        change_type: added
+        description: "Initial transactional email integration."

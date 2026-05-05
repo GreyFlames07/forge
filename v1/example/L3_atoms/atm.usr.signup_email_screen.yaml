@@ -1,0 +1,66 @@
+atom:
+  id:           atm.usr.signup_email_screen
+  kind:         COMPONENT
+  owner_module: USR
+  description: >
+    Signup flow email entry screen. Validates email on blur,
+    emits submit event to advance the journey.
+
+  spec:
+    props:
+      on_submit:
+        type:        "(string) -> void"
+        nullable:    false
+        description: "Callback invoked with validated email."
+
+    local_state:
+      email_value:
+        type:     string
+        nullable: false
+        default:  ""
+      touched:
+        type:     boolean
+        nullable: false
+        default:  false
+      error_message:
+        type:     string
+        nullable: true
+        default:  null
+
+    composes:
+      - atm.ui.text_input
+      - atm.ui.error_label
+      - atm.ui.primary_button
+
+    events_emitted:
+      - name:         submit
+        payload_type: null
+
+    render_contract:
+      - 'ALWAYS RENDER atm.ui.text_input WITH { value: local_state.email_value, placeholder: "Email address" }'
+      - 'WHEN local_state.touched AND local_state.error_message != null THEN RENDER atm.ui.error_label WITH { text: local_state.error_message }'
+      - 'ALWAYS RENDER atm.ui.primary_button WITH { label: "Continue", disabled: local_state.email_value == "" }'
+      - 'ON user_types(value) DO SET local_state.email_value = value'
+      - 'ON user_blurs DO SET local_state.touched = true; LET validation = CALL atm.usr.validate_email WITH { email: local_state.email_value }; WHEN validation IS error THEN SET local_state.error_message = validation.message ELSE SET local_state.error_message = null'
+      - 'ON user_clicks_submit DO WHEN local_state.error_message == null THEN CALL props.on_submit WITH local_state.email_value; EMIT submit'
+
+    invariants:
+      - "error_message only displayed when touched == true"
+      - "submit only emitted when error_message == null"
+
+  verification:
+    property_assertions:
+      - "submit is never emitted when error_message is not null"
+    example_cases: []
+    edge_cases:
+      - "email field empty, user clicks submit"
+      - "user types invalid email, blurs, then corrects"
+
+  convention_overrides: []
+  policy_overrides:     []
+
+  changelog:
+    - version:     "0.1.0"
+      date:        "2026-04-10"
+      change_type: added
+      description: "Initial signup email screen."

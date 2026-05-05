@@ -1,0 +1,141 @@
+journey:
+  id:          jrn.signup_flow
+  description: >
+    New user signs up with email, sets password, verifies email
+    via link, completes onboarding, and lands on dashboard.
+
+  surface: web_ui
+
+  entry_point:
+    from:          "/signup"
+    initial_state: EMAIL_ENTRY
+    preconditions:
+      - "user is not already authenticated"
+
+  states:
+    - EMAIL_ENTRY
+    - PASSWORD_ENTRY
+    - VERIFICATION_SENT
+    - EMAIL_VERIFIED
+    - ONBOARDING
+    - DASHBOARD
+
+  exit_states:
+    - DASHBOARD
+
+  handlers:
+    EMAIL_ENTRY:
+      atom:     atm.usr.signup_email_screen
+      on_enter: null
+      on_exit:  null
+
+    PASSWORD_ENTRY:
+      atom:     atm.usr.signup_password_screen
+      on_enter: null
+      on_exit:  null
+
+    VERIFICATION_SENT:
+      atom:     atm.usr.verify_sent_screen
+      on_enter: null
+      on_exit:  null
+
+    EMAIL_VERIFIED:
+      atom:     atm.usr.verify_confirmed_screen
+      on_enter: null
+      on_exit:  null
+
+    ONBOARDING:
+      atom:     atm.usr.onboarding_screen
+      on_enter: null
+      on_exit:  null
+
+    DASHBOARD:
+      atom:     atm.dsh.dashboard_screen
+      on_enter: null
+      on_exit:  null
+
+  transitions:
+    - from:   EMAIL_ENTRY
+      on:     submit_email
+      invoke: atm.usr.validate_email
+      with:   { email: handler.email_value }
+      to:     PASSWORD_ENTRY
+      on_error:
+        "USR.VAL.*": STAY
+      guards: []
+
+    - from:   PASSWORD_ENTRY
+      on:     submit_password
+      invoke: flow.create_account
+      with:
+        email:    previous_state.email
+        password: handler.password_value
+      to:     VERIFICATION_SENT
+      on_error:
+        "USR.VAL.*": STAY
+        "USR.SYS.*": GOTO state=EMAIL_ENTRY
+      guards: []
+
+    - from:   VERIFICATION_SENT
+      on:     verify_link_clicked
+      invoke: atm.usr.verify_email
+      with:   { token: event.token }
+      to:     EMAIL_VERIFIED
+      on_error:
+        "USR.SEC.*": STAY
+      guards: []
+
+    - from:    EMAIL_VERIFIED
+      on:      "auto"
+      invoke:  null
+      with:    {}
+      to:      ONBOARDING
+      on_error: {}
+      guards:  []
+
+    - from:   ONBOARDING
+      on:     complete_onboarding
+      invoke: atm.usr.save_onboarding_preferences
+      with:   { preferences: handler.preferences }
+      to:     DASHBOARD
+      on_error:
+        "USR.VAL.*": STAY
+      guards: []
+
+  verification_criteria:
+    - scenario: "Successful full signup"
+      path: [EMAIL_ENTRY, PASSWORD_ENTRY, VERIFICATION_SENT, EMAIL_VERIFIED, ONBOARDING, DASHBOARD]
+      asserts:
+        - "users table has row with status ACTIVE"
+        - "email verified flag is true"
+        - "onboarding preferences saved"
+        - "user session established"
+
+    - scenario: "User abandons at password entry"
+      path: [EMAIL_ENTRY, PASSWORD_ENTRY]
+      asserts:
+        - "no row in users table"
+        - "no verification email sent"
+
+    - scenario: "Verification link expired"
+      path: [EMAIL_ENTRY, PASSWORD_ENTRY, VERIFICATION_SENT]
+      asserts:
+        - "users table has row with status PENDING"
+        - "user can restart verification from VERIFICATION_SENT"
+
+    - scenario: "Invalid email at entry"
+      path: [EMAIL_ENTRY]
+      asserts:
+        - "journey stays in EMAIL_ENTRY"
+        - "error message displayed to user"
+        - "no row created anywhere"
+
+  changelog:
+    - version:     "0.1.0"
+      date:        "2026-04-10"
+      change_type: added
+      description: "Initial signup journey."
+    - version:     "0.4.0"
+      date:        "2026-04-14"
+      change_type: modified
+      description: "Added onboarding step between verification and dashboard."

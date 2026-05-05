@@ -1,0 +1,44 @@
+# Canonical atom stub written by forge-decompose.
+# Filled in by forge-atom — the `spec` block and `verification` lists
+# are intentionally empty here.
+#
+# Placeholder strings (quoted) get replaced by the agent when writing a real
+# stub file. The `kind` is locked during decompose classification; do not
+# change it later.
+
+atom:
+  id:           "atm.<mod>.<snake_case_name>"
+  kind:         "PROCEDURAL"   # one of: PROCEDURAL | DECLARATIVE | COMPONENT | MODEL
+  owner_module: "<MOD>"
+  description: |
+    <One or two sentences describing what this atom does — not how.
+    Capture the atom's purpose, not its implementation. Elicit-atom will
+    fill in the spec that describes how.>
+
+  # Populated by forge-atom. Kind-specific shape:
+  #   PROCEDURAL  → input, output, side_effects, invariants, logic, failure_modes
+  #   DECLARATIVE → target, desired_state, reconciliation, failure_modes
+  #   COMPONENT   → props, local_state, composes, events_emitted, render_contract, invariants
+  #   MODEL       → input_distribution, output_distribution, acceptable_bounds,
+  #                 training_contract, fallback
+  spec: {}
+
+  # Populated by forge-atom. Must meet L1 verification.floors at completion.
+  verification:
+    property_assertions: []
+    example_cases:       []
+    edge_cases:          []
+
+  # Optional — populated by forge-atom only if the atom needs to deviate
+  # from L1 convention defaults.
+  convention_overrides: []
+
+  # Optional — populated by forge-atom only if the atom opts out of a
+  # policy applied to its owning module.
+  policy_overrides:     []
+
+  changelog:
+    - version:     "0.1.0"
+      date:        "YYYY-MM-DD"
+      change_type: added
+      description: "Stub created by forge-decompose."

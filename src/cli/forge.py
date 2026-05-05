@@ -29,15 +29,19 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="forge",
         description=(
-            "Context walker for the Forge L0-L5 spec system. "
-            "Assembles everything an agent needs to implement an atom, "
-            "module, journey, flow, or artifact into a single bundle."
+            "CLI for the Forge v2 node-based spec system. "
+            "Assembles everything an agent needs to implement an element "
+            "into a single context bundle, and provides tools for "
+            "navigating, validating, and visualising specs."
         ),
         epilog=(
             "Examples:\n"
-            "  forge context atm.pay.charge_card --spec-dir src/example\n"
-            "  forge list --kind atom\n"
-            "  forge inspect PAY\n\n"
+            "  forge init\n"
+            "  forge context myapp.billing.payments.charge_processor.charge\n"
+            "  forge list --kind element\n"
+            "  forge inspect myapp.shortener.types.ShortCode\n"
+            "  forge validate\n"
+            "  forge graph\n\n"
             "Spec dir resolution: --spec-dir > $FORGE_SPEC_DIR > auto-discover."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,

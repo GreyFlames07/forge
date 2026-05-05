@@ -1,0 +1,15 @@
+id: linkhub.shortener.policies.redirect_sla
+type: policy
+name: RedirectSLA
+description: Redirect operations must complete within 50ms at p99.
+status: active
+owner: platform-team
+kind: business
+rule_kind: sla
+rule: "redirect latency p99 <= 50ms"
+enforcement: hard
+error: linkhub.shortener.errors.LinkNotFound
+sla:
+  max_response_ms: 50
+  availability_percent: 99.9
+  rate_limit: 10000

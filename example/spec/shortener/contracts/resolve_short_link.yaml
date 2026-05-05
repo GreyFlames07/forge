@@ -1,0 +1,22 @@
+id: linkhub.shortener.contracts.resolve_short_link
+type: contract
+name: ResolveShortLink
+description: Contract for resolving a short code to its destination URL.
+status: active
+owner: platform-team
+version: 1.0.0
+protocol: rest
+inputs:
+  - linkhub.shortener.types.ShortCode
+outputs:
+  - linkhub.shortener.types.URL
+errors:
+  - linkhub.shortener.errors.LinkNotFound
+producer: linkhub.shortener.links.link_manager
+consumers:
+  - linkhub.shortener.traffic.redirector
+versioning:
+  current: 1.0.0
+  deprecated: []
+  strategy: uri
+policies: []

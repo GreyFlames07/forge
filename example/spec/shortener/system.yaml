@@ -1,0 +1,14 @@
+id: linkhub.shortener
+type: system
+name: Shortener
+description: URL shortening, redirect resolution, and click analytics system.
+status: active
+owner: platform-team
+domains:
+  - linkhub.shortener.links
+  - linkhub.shortener.traffic
+platform: AWS
+language: Python
+deployment: cloud
+policies:
+  - linkhub.shortener.policies.standard_encryption

@@ -1,0 +1,56 @@
+id: linkhub.shortener.traffic.redirector.redirect
+type: element
+name: Redirect
+description: Handles the inbound HTTP GET, resolves the code, and returns a 301.
+status: active
+owner: platform-team
+kind: service
+properties:
+  - id: linkhub.shortener.traffic.redirector.redirect.request_id
+    type: property
+    name: request_id
+    description: Unique identifier for correlating logs and traces.
+    status: active
+    data_type: system.types.UUID
+    is_array: false
+    is_nullable: false
+    embedding: inline
+    visibility: internal
+
+operations:
+  - id: linkhub.shortener.traffic.redirector.redirect.resolve
+    type: operation
+    name: resolve
+    description: Calls the link manager to resolve a short code to a destination URL.
+    status: active
+    kind: query
+    inputs:
+      - linkhub.shortener.types.ShortCode
+    outputs:
+      - linkhub.shortener.types.URL
+    raises:
+      - linkhub.shortener.errors.LinkNotFound
+    visibility: internal
+    contract: linkhub.shortener.contracts.resolve_short_link
+    policies: []
+
+  - id: linkhub.shortener.traffic.redirector.redirect.emit_click
+    type: operation
+    name: emit_click
+    description: Emits a click event asynchronously after the redirect has been issued.
+    status: active
+    kind: async_command
+    inputs:
+      - linkhub.shortener.types.ClickRecord
+    outputs: []
+    raises: []
+    visibility: internal
+    policies: []
+
+relationships:
+  - target: linkhub.shortener.links.link_manager.short_link
+    type: depends_on
+    multiplicity: many_to_one
+
+policies:
+  - linkhub.shortener.policies.redirect_sla

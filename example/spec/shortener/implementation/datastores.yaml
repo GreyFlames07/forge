@@ -1,0 +1,51 @@
+id: linkhub.shortener.datastores.links_db
+type: datastore
+name: LinksDB
+description: Primary relational store for short link records.
+status: active
+owner: platform-team
+version: 1.0.0
+kind: relational
+engine: postgres
+purpose: primary
+consumers:
+  - linkhub.shortener.links.link_manager
+schemas:
+  - type: linkhub.shortener.links.link_manager.short_link
+    source:
+      kind: element_state
+      ref: linkhub.shortener.links.link_manager.short_link
+    storage_name: short_links
+    role: both
+schema_version: 1.0.0
+consistency: strong
+durability: replicated
+policies:
+  - linkhub.shortener.policies.standard_encryption
+
+---
+
+id: linkhub.shortener.datastores.clicks_store
+type: datastore
+name: ClicksStore
+description: Append-only timeseries store for click events.
+status: active
+owner: platform-team
+version: 1.0.0
+kind: timeseries
+engine: clickhouse
+purpose: archive
+consumers:
+  - linkhub.shortener.traffic.click_recorder
+schemas:
+  - type: linkhub.shortener.traffic.click_recorder.click
+    source:
+      kind: element_state
+      ref: linkhub.shortener.traffic.click_recorder.click
+    storage_name: clicks
+    role: write
+schema_version: 1.0.0
+consistency: eventual
+durability: replicated
+policies:
+  - linkhub.shortener.policies.standard_encryption

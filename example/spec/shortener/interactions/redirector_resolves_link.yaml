@@ -1,0 +1,9 @@
+id: linkhub.shortener.interactions.redirector_resolves_link
+type: interaction
+name: RedirectorResolvesLink
+description: The redirector calls the link manager to resolve a short code before issuing a 301.
+status: active
+caller: linkhub.shortener.traffic.redirector.redirect.resolve
+callee: linkhub.shortener.links.link_manager.short_link.resolve
+trigger: Visitor requests /<code> via HTTP GET
+policies: []

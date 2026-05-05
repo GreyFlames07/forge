@@ -1,0 +1,51 @@
+id: linkhub.shortener.traffic.click_recorder.click
+type: element
+name: Click
+description: An individual click event persisted for analytics consumption.
+status: active
+owner: platform-team
+kind: entity
+properties:
+  - id: linkhub.shortener.traffic.click_recorder.click.id
+    type: property
+    name: id
+    description: Unique identifier for this click event.
+    status: active
+    data_type: system.types.UUID
+    is_array: false
+    is_nullable: false
+    embedding: inline
+    visibility: internal
+
+  - id: linkhub.shortener.traffic.click_recorder.click.record
+    type: property
+    name: record
+    description: The full click payload received from the redirector.
+    status: active
+    data_type: linkhub.shortener.types.ClickRecord
+    is_array: false
+    is_nullable: false
+    embedding: inline
+    visibility: internal
+
+operations:
+  - id: linkhub.shortener.traffic.click_recorder.click.record
+    type: operation
+    name: record
+    description: Validates and persists an inbound click event.
+    status: active
+    kind: async_command
+    inputs:
+      - linkhub.shortener.types.ClickRecord
+    outputs: []
+    raises:
+      - system.errors.ValidationFailed
+    visibility: internal
+    policies: []
+
+relationships:
+  - target: linkhub.shortener.links.link_manager.short_link
+    type: references
+    multiplicity: many_to_one
+
+policies: []

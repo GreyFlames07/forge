@@ -185,7 +185,26 @@ def _index_file(idx: Index, yaml_file: Path, parts: tuple[str, ...]) -> None:
         node_id = _derive_id(idx.conception_name, (*parts[:-1], fn[:-5]))
         data = _load_yaml(yaml_file) or {}
         idx.entries[node_id] = Entry(id=node_id, kind="element", data=data, file=yaml_file)
+        # Index inline properties and operations so interactions can resolve caller/callee.
+        _index_inline_subnodes(idx, data, yaml_file)
         return
+
+
+def _index_inline_subnodes(idx: Index, element_data: Any, yaml_file: Path) -> None:
+    """Index inline properties and operations from an element file.
+
+    These are not independently bundleable but need index entries so that
+    interaction caller/callee references can be validated.
+    """
+    if not isinstance(element_data, dict):
+        return
+    for section, kind in (("properties", "property"), ("operations", "operation")):
+        for subnode in element_data.get(section) or []:
+            if not isinstance(subnode, dict):
+                continue
+            sid = subnode.get("id")
+            if sid:
+                idx.entries[sid] = Entry(id=sid, kind=kind, data=subnode, file=yaml_file)
 
 
 def _index_multidoc(idx: Index, yaml_file: Path, kind: str) -> None:

@@ -1,8 +1,8 @@
 """`forge init` — scaffold a new Forge project in the current directory.
 
 Creates spec/ with framework.yaml (bundled vocabulary) and a blank
-conception.yaml stub. The directory layout under spec/ is created by the
-user as they build out the spec; init only provides the anchors.
+conception.yaml stub. Also symlinks the six Forge skills into the agent
+skill directories used by Claude Code, Codex CLI, and agentskills.io clients.
 """
 
 from __future__ import annotations
@@ -18,14 +18,31 @@ import cli
 NAME = "init"
 HELP = "Scaffold a new Forge project in the current directory."
 DESCRIPTION = (
-    "Creates the spec/ directory and copies framework.yaml (the bundled "
-    "framework vocabulary: enums, built-in scalars, built-in errors) into it. "
-    "Also writes a blank conception.yaml stub. Run in a new or empty project "
-    "directory to bootstrap."
+    "Creates the spec/ directory, copies framework.yaml (the bundled "
+    "framework vocabulary: enums, built-in scalars, built-in errors), "
+    "writes a blank conception.yaml stub, and symlinks the six Forge skills "
+    "into ~/.claude/skills/, ~/.codex/skills/, and ~/.agents/skills/."
 )
 
 # Markers that indicate an existing Forge project.
 _EXISTING_MARKERS = ("conception.yaml", "framework.yaml")
+
+# Skill names bundled with the package.
+SKILL_NAMES = (
+    "forge-design",
+    "forge-spec",
+    "forge-review",
+    "forge-build",
+    "forge-validate",
+    "forge-cast",
+)
+
+# Global skill scan directories (one per supported agent client).
+_SKILL_SCAN_DIRS = (
+    Path.home() / ".claude" / "skills",
+    Path.home() / ".codex" / "skills",
+    Path.home() / ".agents" / "skills",
+)
 
 # --- Banner -------------------------------------------------------------------
 
@@ -132,6 +149,10 @@ def register(sub: argparse._SubParsersAction) -> None:
         "--no-banner", action="store_true",
         help="Skip the init banner animation.",
     )
+    p.add_argument(
+        "--skip-skills", action="store_true",
+        help="Skip skill symlink installation.",
+    )
     p.set_defaults(handler=run)
 
 
@@ -169,6 +190,11 @@ def run(args: argparse.Namespace) -> int:
 
     # Write blank conception.yaml stub.
     _install_conception(spec_dir, force=args.force, ok=ok)
+
+    # Symlink skills into agent client scan directories.
+    if not args.skip_skills:
+        print()
+        _install_skills(force=args.force, ok=ok)
 
     print()
     print(_divider("Next steps"))
@@ -217,3 +243,60 @@ def _install_conception(spec_dir: Path, *, force: bool, ok: str) -> None:
         return
     dest.write_text(_CONCEPTION_STUB, encoding="utf-8")
     print(f"  {ok} spec/conception.yaml {_dim('(fill in your conception details)')}")
+
+
+def _skills_src() -> Path | None:
+    """Return the bundled skills directory, or None if not found."""
+    cli_dir = Path(cli.__file__).resolve().parent
+    skills_dir = cli_dir / "skills"
+    return skills_dir if skills_dir.is_dir() else None
+
+
+def _install_skills(*, force: bool, ok: str) -> None:
+    """Symlink each bundled skill into all agent client scan directories."""
+    skills_dir = _skills_src()
+    if skills_dir is None:
+        print(_dim("  - skills directory not found in package; skipping"))
+        return
+
+    linked = 0
+    skipped = 0
+    errors = 0
+
+    for scan_dir in _SKILL_SCAN_DIRS:
+        try:
+            scan_dir.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            continue
+
+        for name in SKILL_NAMES:
+            src = skills_dir / name
+            if not src.is_dir():
+                continue
+            dest = scan_dir / name
+
+            if dest.is_symlink():
+                if force:
+                    dest.unlink()
+                else:
+                    skipped += 1
+                    continue
+            elif dest.exists():
+                errors += 1
+                print(f"  {_color(160, '✗')} {dest} exists and is not a symlink — skipping")
+                continue
+
+            try:
+                dest.symlink_to(src)
+                linked += 1
+            except OSError as e:
+                errors += 1
+                print(f"  {_color(160, '✗')} could not link {dest}: {e}")
+
+    if linked:
+        short_dirs = ", ".join(f"~/{d.relative_to(Path.home())}" for d in _SKILL_SCAN_DIRS)
+        print(f"  {ok} {linked} skill link{'s' if linked != 1 else ''} → {short_dirs}")
+    if skipped:
+        print(_dim(f"  - {skipped} skill link{'s' if skipped != 1 else ''} already present; use --force to refresh"))
+    if not linked and not skipped and not errors:
+        print(_dim("  - no skills to install"))

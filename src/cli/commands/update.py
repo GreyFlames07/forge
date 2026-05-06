@@ -65,6 +65,9 @@ def run(args: argparse.Namespace) -> int:
     init_cmd._install_framework(spec_dir, force=args.force, ok=ok)
 
     print()
+    init_cmd._install_skills(force=args.force, ok=ok)
+
+    print()
     print(init_cmd._divider("Done"))
     print()
     print(init_cmd._dim("  Validate to confirm spec is still clean:"))

@@ -1,5 +1,5 @@
 """
-Element context bundle walker for Forge v2.
+Element context bundle walker for the Forge spec system.
 
 walk(idx, element_id) returns an ordered dict of section → content plus a
 list of unresolved references. The bundle formatter renders these sections

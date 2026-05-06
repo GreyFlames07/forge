@@ -5,7 +5,7 @@ import pytest
 from cli import index as index_mod
 
 
-EXAMPLE_DIR = Path(__file__).resolve().parent.parent / "src" / "example"
+EXAMPLE_DIR = Path(__file__).resolve().parent.parent / "example" / "spec"
 
 
 @pytest.fixture(scope="session")

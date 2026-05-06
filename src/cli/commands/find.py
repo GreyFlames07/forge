@@ -1,9 +1,8 @@
 """`forge find <query>` — substring search across entity IDs and descriptions.
 
 Used as the scanning primitive for reuse-before-create probes in the
-forge-discover and forge-decompose skills. Agents call this before writing
-a new module / atom / type / error to surface potential matches, then
-present them advisorily to the human.
+forge-spec skill. Agents call this before writing a new type or error
+to surface potential matches, then present them advisorily to the human.
 """
 
 from __future__ import annotations

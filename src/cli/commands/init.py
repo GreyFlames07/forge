@@ -1,4 +1,4 @@
-"""`forge init` — scaffold a new Forge v2 project in the current directory.
+"""`forge init` — scaffold a new Forge project in the current directory.
 
 Creates spec/ with framework.yaml (bundled vocabulary) and a blank
 conception.yaml stub. The directory layout under spec/ is created by the
@@ -24,7 +24,7 @@ DESCRIPTION = (
     "directory to bootstrap."
 )
 
-# Markers that indicate an existing v2 Forge project.
+# Markers that indicate an existing Forge project.
 _EXISTING_MARKERS = ("conception.yaml", "framework.yaml")
 
 # --- Banner -------------------------------------------------------------------

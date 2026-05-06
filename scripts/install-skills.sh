@@ -21,8 +21,8 @@ FORGE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SKILLS_SRC="${FORGE_ROOT}/.agents/skills"
 CLI_SRC="${FORGE_ROOT}/.venv/bin/forge"
 
-# The skills that ship with forge. Add new ones here as they're built.
-SKILLS=(forge-discover forge-decompose forge-atom forge-compose forge-cast forge-audit forge-armour forge-implement forge-test-writer forge-implementer forge-validate)
+# The six skills that ship with forge.
+SKILLS=(forge-design forge-spec forge-review forge-build forge-validate forge-cast)
 
 # Global skill locations — link to all three to cover every compatible client:
 #   Claude Code          → ~/.claude/skills
@@ -171,25 +171,17 @@ verify_install() {
     say "Next steps:"
     say "  1. Restart your agent session (skills are scanned at session start)"
     say "     - Claude Code: exit + re-run 'claude'"
-    say "     - Codex:       exit + re-run 'codex'"
-    say "  2. Trigger a forge skill with a natural-language prompt — works in any client:"
-    say "       \"I want to build a tool that does X\"       → forge-discover"
-    say "       \"Decompose the PAY module into atoms\"       → forge-decompose"
-    say "       \"Elicit the spec for atm.pay.charge_card\"   → forge-atom"
-    say "       \"Compose flows and journeys\"                → forge-compose"
-    say "       \"Cast this existing repo into Forge\"        → forge-cast"
-    say "       \"Audit the specs before we implement\"       → forge-audit"
-    say "       \"Harden the specs for security\"             → forge-armour"
-    say "       \"Implement the project\"                      → forge-implement"
-    say "       \"Validate the implementation against specs\"  → forge-validate"
+    say "  2. Trigger a forge skill with a natural-language prompt:"
+    say "       \"I want to build a new system\"                 → forge-design"
+    say "       \"Spec out the payments module\"                 → forge-spec"
+    say "       \"Review the specs before implementation\"       → forge-review"
+    say "       \"Implement the project\"                        → forge-build"
+    say "       \"Validate the implementation against specs\"    → forge-validate"
+    say "       \"Cast this existing repo into Forge\"           → forge-cast"
     say
     say "  Claude Code also supports slash-command shortcuts:"
-    say "       /forge-discover  /forge-decompose  /forge-atom"
-    say "       /forge-compose   /forge-cast       /forge-audit"
-    say "       /forge-armour    /forge-implement  /forge-validate"
-    say
-    say "  forge-test-writer and forge-implementer are subagent skills —"
-    say "  dispatched by forge-implement, not typically invoked by a human."
+    say "       /forge-design  /forge-spec   /forge-review"
+    say "       /forge-build   /forge-validate  /forge-cast"
     say
 }
 

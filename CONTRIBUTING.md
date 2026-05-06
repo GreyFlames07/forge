@@ -64,7 +64,7 @@ gh pr create --fill
 | `perf` | Performance improvement |
 | `style` | Formatting only (no semantic change) |
 
-**Scope** is the affected area: `cli`, `skills/forge-discover`, `schemas/l2`, `tests`, `docs`, etc. Omit if change is repo-wide.
+**Scope** is the affected area: `cli`, `skills/forge-design`, `tests`, `docs`, etc. Omit if change is repo-wide.
 
 **Breaking changes** get a `!` and a `BREAKING CHANGE:` footer:
 
@@ -99,8 +99,8 @@ External contributors' PRs always require code-owner approval — no bypass.
 
 - Run `.venv/bin/pytest` locally before pushing.
 - New features add tests under `tests/`.
-- Skill changes (SKILL.md, framework.md) don't have direct tests but should be smoke-tested by running the affected skill in a Claude Code / Codex session against the `src/example/` fixture.
-- Schema changes (L0–L5 templates) require updating both the schema doc and the matching validation rules in `src/cli/walker.py` or wherever the schema is consumed.
+- Skill changes (SKILL.md, references/) don't have direct tests but should be smoke-tested by running the affected skill in a Claude Code session against the `example/spec/` fixture.
+- Framework changes require updating `docs/framework-reference.md` and the matching validation rules in `src/cli/validate.py` or wherever the schema is consumed.
 
 ## Release process
 

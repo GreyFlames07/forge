@@ -21,11 +21,11 @@ The agent drives the interview. The specs drive the code.
 
 ## What it is
 
-A six-layer YAML spec system, a Python CLI for context assembly, and **eleven agent skills** that take a human from a vague product idea to working, audited, hardened, validated code — with the agent asking questions and the human answering, not the reverse.
+A hierarchical YAML spec system, a Python CLI for context assembly, and **six agent skills** that take a human from a vague product idea to working, reviewed, and validated code — with the agent asking questions and the human answering, not the reverse.
 
-Built on the premise that **people explain systems well under questioning but poorly when cold-prompted**. forge inverts the default "human prompts agent → agent implements" loop into "agent interviews human → structured spec emerges → agent implements from spec".
+Built on the premise that **people explain systems well under questioning but poorly when cold-prompted**. Forge inverts the default "human prompts agent → agent implements" loop into "agent interviews human → structured spec emerges → agent implements from spec".
 
-Runs in **Claude Code**, **OpenAI Codex CLI**, and any **agentskills.io-compatible client** (VS Code Copilot, Cursor).
+Runs in **Claude Code** and any **agentskills.io-compatible client** (VS Code Copilot, Cursor).
 
 ---
 
@@ -34,28 +34,22 @@ Runs in **Claude Code**, **OpenAI Codex CLI**, and any **agentskills.io-compatib
 ```
   idea
     ↓
-  forge-discover    →  foundation       (modules, L0 vocab, L1 conventions, L5 posture)
+  forge-design    →  system design      (conception, systems, domains, modules, environments)
     ↓
-  forge-decompose   →  atom inventory   (stub files, module populated, entry-point hints)
+  forge-spec      →  element specs      (elements, properties, operations, types, contracts, flows)
     ↓
-  forge-atom        →  complete specs   (one atom at a time — three interview shapes)
+  forge-cast      →  repo hydration     (existing codebase → draft Forge spec + uncertainty report)
     ↓
-  forge-compose     →  L4 composition   (flows + journeys from completed atoms)
+  forge-review    →  quality + security (completeness, consistency, contract correctness, attack vectors)
     ↓
-  forge-cast        →  repo hydration   (existing codebase → draft Forge corpus + uncertainty report)
+  forge-build     →  code + tests       (parallel subagents, each element gets forge context)
     ↓
-  forge-audit       →  quality gate     (nine audit passes, including inter-atom contract verification)
-    ↓
-  forge-armour      →  security hardening (trust model, policies, abuse-case review)
-    ↓
-  forge-implement   →  code + tests     (parallel subagents, test-before-impl isolation)
-    ↓
-  forge-validate    →  validation report (static analysis, test mapping, live interaction probes)
+  forge-validate  →  validation report  (static analysis, test coverage, behavioral probes)
     ↓
   working system
 ```
 
-Each skill is a markdown directive file (agent-facing) plus a longer framework doc (human reference). Each uses the `forge` CLI to sense project state and load context — agents don't inline spec content in prompts.
+Each skill is a SKILL.md directive (agent-facing) plus a shared `docs/framework-reference.md` (human reference). Agents use the `forge` CLI to load element context — no spec content is inlined in prompts.
 
 ---
 
@@ -70,14 +64,14 @@ uv venv --python 3.13 .venv && uv pip install -e . pytest
 ./scripts/install-skills.sh install
 ```
 
-This wires the `forge` binary into `~/.local/bin/` and symlinks the eleven skills into `~/.claude/skills/`, `~/.codex/skills/`, and `~/.agents/skills/` — discoverable by every supported client.
+This wires the `forge` binary into `~/.local/bin/` and symlinks the six skills into `~/.claude/skills/` and `~/.agents/skills/` — discoverable by every supported client.
 
 ### Verify
 
 ```
 forge --version           # shows installed forge version
-forge --help              # shows: init, update, context, list, inspect, find
-.venv/bin/pytest          # 54 passed
+forge --help              # shows: init, update, context, list, inspect, find, validate, graph
+.venv/bin/pytest          # 74 passed
 ```
 
 ### Requirements
@@ -86,7 +80,7 @@ forge --help              # shows: init, update, context, list, inspect, find
 |---|---|
 | Python | ≥ 3.13 |
 | Package manager | [`uv`](https://docs.astral.sh/uv/) recommended; pip works |
-| One agent client | Claude Code, Codex CLI, or an agentskills.io-compatible client |
+| Agent client | Claude Code or an agentskills.io-compatible client |
 
 If `forge: command not found`: add `~/.local/bin` to PATH.
 
@@ -106,30 +100,30 @@ forge init
 ```
 
 ```
-    ✦  INITIALISING FORGE
     ▸ Forge init in /Users/you/my-idea
 
-      ✓ .forge/
-      ✓ 6 spec subdirectories
-      ✓ 12 schema templates → .forge/templates/
-      ✓ 33/33 skill symlinks → .claude/skills/, .codex/skills/, .agents/skills/
+      ✓ spec/
+      ✓ spec/framework.yaml  (framework vocabulary)
+      ✓ spec/conception.yaml  (fill in your conception details)
 
     ───── Next steps ─────
 
-      Set the spec dir (add to your shell rc to persist):
-        export FORGE_SPEC_DIR="/Users/you/my-idea/.forge"
+      Edit spec/conception.yaml and replace placeholders:
+        id:  <conception>
+        name: <ConceptionName>
 
-      Start a session in this directory:
-        claude │ codex │ any agentskills.io client
+      Create your first system directory:
+        mkdir -p spec/<system>
+        touch spec/<system>/system.yaml
 
-      Trigger a forge skill with a natural-language prompt:
-        "I want to build a tool that does X"
-        "Decompose the PAY module into atoms"
-        "Audit the specs before implementation"
-        "Harden the specs for security before implementation"
+      Set the spec dir (add to shell rc to persist):
+        export FORGE_SPEC_DIR="/Users/you/my-idea/spec"
+
+      Validate at any time:
+        forge validate
 ```
 
-Open an agent session in that directory and describe your idea in natural language. The relevant skill activates; the interview begins.
+Open an agent session in that directory and describe your idea. The relevant skill activates; the interview begins.
 
 ---
 
@@ -137,57 +131,52 @@ Open an agent session in that directory and describe your idea in natural langua
 
 | Command | Purpose |
 |---|---|
-| `forge init` | Scaffold a new project (`.forge/` + skill symlinks + schema templates) |
-| `forge update` | Refresh init-managed project assets to the current Forge version |
+| `forge init` | Scaffold a new project (`spec/` + `framework.yaml` + `conception.yaml`) |
+| `forge update` | Refresh `framework.yaml` to the current Forge version |
 | `forge --version` | Print the installed Forge CLI version |
-| `forge list [--kind K]` | Enumerate entities in the spec dir |
+| `forge list [--kind K]` | Enumerate nodes in the spec dir |
 | `forge inspect <id>` | Lightweight metadata probe |
-| `forge context <id>` | Full implementation-ready bundle for an entity |
-| `forge find <query>` | Substring search across names + descriptions |
+| `forge context <element-id>` | Full implementation-ready bundle for an element |
+| `forge find <query>` | Substring search across IDs and descriptions |
+| `forge validate` | Lint the spec for structural and referential errors |
+| `forge graph` | Visualise the dependency graph |
 
-Spec-dir resolution order: `--spec-dir` flag > `$FORGE_SPEC_DIR` env var > auto-discover (walks upward looking for `.forge/`).
-
-Full CLI guide: [`docs/cli-guide.md`](docs/cli-guide.md).
+Spec-dir resolution order: `--spec-dir` flag > `$FORGE_SPEC_DIR` env var > auto-discover (walks upward looking for `spec/conception.yaml`).
 
 ---
 
-## The eleven skills
+## The six skills
 
 | Skill | Role | Input | Output |
 |---|---|---|---|
-| **forge-discover** | Interviewer (product framing) | Vague idea | Project foundation: modules, L0 skeleton, L1 conventions, L5 posture |
-| **forge-decompose** | Structural extractor | One bounded module | Exhaustive atom stubs (four-pass extraction) |
-| **forge-atom** | Contract specifier | One atom stub | Complete L3 spec + L0 cascades + module completions |
-| **forge-compose** | Composition specifier | Completed atoms + project decisions | L4 flow/journey specs with explicit boundary/retry/compensation/idempotency decisions |
-| **forge-cast** | Hydration specifier | Existing non-Forge codebase | Draft Forge corpus plus evidence-backed uncertainty report and clarification questions |
-| **forge-audit** | Challenger / reviewer | Completed specs | Severity-ranked findings with inline edits; nine audit passes plus canonical contract materialization |
-| **forge-armour** | Security challenger | Audited specs | Security hardening pass, trust-model capture, approved project/module/atom security edits |
-| **forge-implement** | Orchestrator | Audited spec corpus | Code + tests, dep-graph parallel, test-before-impl isolation |
-| **forge-validate** | Post-implementation validator | Implemented system + spec corpus | Validation report: static analysis, test-to-spec mapping, live interaction probes |
-| **forge-test-writer** | Subagent | One entity + level | Unit/integration/system tests with audit doc |
-| **forge-implementer** | Subagent | One entity | Implementation code, blind to tests |
+| **forge-design** | System designer / interviewer | Vague product idea | conception.yaml, system.yaml, domain.yaml files, module.yaml skeletons, workbench/discovery.md |
+| **forge-spec** | Element elicitation | One module | Elements, properties, operations, types, errors, contracts, interactions, flows, datastores |
+| **forge-cast** | Codebase hydration | Existing non-Forge codebase | Draft Forge spec corpus anchored to repository evidence, workbench/cast-report.md |
+| **forge-review** | Quality + security review | Completed module specs | Completeness, consistency, contract correctness, attack vector analysis, workbench/review.md |
+| **forge-build** | Implementation orchestrator | Reviewed spec corpus | Code + tests dispatched via parallel subagents, each using `forge context <id>` |
+| **forge-validate** | Post-implementation validator | Implemented system + spec | Static analysis, test coverage, behavioral probes, workbench/validation.md |
 
 Skills activate via natural-language prompts (universal) or slash-commands (Claude Code only).
-
-Each skill has a framework doc (mental model) under `docs/skills/<skill>/framework.md` and a directive SKILL.md under `.agents/skills/<skill>/`.
 
 ---
 
 ## The spec system
 
-Six layers, each a source-of-truth YAML file set.
+Hierarchical YAML — one file per node, IDs derived from file paths.
 
-| Layer | Purpose |
-|---|---|
-| **L0 Registry** | Vocabulary — types, errors, constants, external schemas, side-effect markers |
-| **L1 Conventions** | Project-wide defaults — retry policy, logging, security posture, verification floors |
-| **L2 Architecture** | Modules — ownership, tech stacks, persistence, permissions, policies |
-| **L3 Behavior** | Atoms (smallest spec unit) + artifacts (non-executing deps) |
-| **L4 Composition** | Flows (saga orchestrations) + journeys (user-facing paths) |
-| **L5 Operations** | Runtime — platform, deployment, rate limiting, event semantics, observability (SLA targets, metrics, alerts) |
+| Level | Node type | File location |
+|---|---|---|
+| Conception | conception | `spec/conception.yaml` |
+| System | system | `spec/<system>/system.yaml` |
+| Domain | domain | `spec/<system>/<domain>/domain.yaml` |
+| Module | module | `spec/<system>/<domain>/<module>/module.yaml` |
+| Element | element | `spec/<system>/<domain>/<module>/<element>.yaml` |
+| Registry | type, error, policy, contract, integration, interaction, flow | `spec/<system>/<registry>/` |
+| Implementation | datastore, environment, test, deployment | `spec/<system>/implementation/` |
 
-Schema reference: [`docs/framework-overview.md`](docs/framework-overview.md).
-Full schema templates: [`src/templates/`](src/templates/).
+Process artifacts (discovery notes, review reports, build plans) live in `spec/<system>/workbench/`.
+
+Full schema reference: [`docs/framework-reference.md`](docs/framework-reference.md).
 
 ---
 
@@ -196,28 +185,21 @@ Full schema templates: [`src/templates/`](src/templates/).
 ```
 forge/
 ├── src/
-│   ├── cli/              Python CLI package (the forge command)
-│   ├── templates/        L0-L5 schema templates (symlinked into projects by forge init)
-│   └── example/          Working example spec corpus (used by tests)
-├── .agents/skills/       The 11 forge skills (installed into agent clients)
-│   ├── forge-discover/
-│   ├── forge-decompose/
-│   ├── forge-atom/
-│   ├── forge-compose/
+│   └── cli/              Python CLI package (the forge command)
+├── .agents/skills/       The 6 forge skills
+│   ├── forge-design/
+│   ├── forge-spec/
 │   ├── forge-cast/
-│   ├── forge-audit/
-│   ├── forge-armour/
-│   ├── forge-implement/
-│   ├── forge-validate/
-│   ├── forge-test-writer/
-│   └── forge-implementer/
+│   ├── forge-review/
+│   ├── forge-build/
+│   └── forge-validate/
 ├── docs/
-│   ├── skills/           Framework docs for each skill (mental models)
-│   ├── cli-guide.md      Full CLI reference
-│   └── framework-overview.md
+│   └── framework-reference.md  Combined schema + enum + rule reference
+├── example/
+│   └── spec/             Working example spec (LinkHub URL shortener)
 ├── scripts/
 │   └── install-skills.sh Global skill install + CLI symlink
-├── tests/                pytest suite — 54 tests
+├── tests/                pytest suite — 74 tests
 ├── pyproject.toml
 └── README.md
 ```
@@ -232,23 +214,22 @@ forge/
 .venv/bin/pytest -v
 ```
 
-The `src/example/` directory is a complete working spec corpus (a fictional payments app) that doubles as the test fixture and a reference for what a finished project looks like.
+The `example/spec/` directory is a complete working spec (LinkHub, a URL shortener) that doubles as the test fixture and a reference for what a finished project looks like.
 
 ```bash
-export FORGE_SPEC_DIR="$(pwd)/src/example"
-forge list                              # see what's there
-forge context atm.pay.charge_card       # inspect a full atom bundle
-forge find charge                       # search across entities
+export FORGE_SPEC_DIR="$(pwd)/example/spec"
+forge list                                                    # see all nodes
+forge context linkhub.shortener.links.link_manager.short_link # full element bundle
+forge find redirect                                            # search across nodes
+forge validate                                                 # lint the spec
 ```
 
 ### Adding a new skill
 
-1. Create `.agents/skills/<name>/SKILL.md` with [agentskills.io](https://agentskills.io) frontmatter (`name`, `description`).
-2. Add the skill to `SKILLS=()` in `scripts/install-skills.sh`.
-3. Add the skill to `SKILL_NAMES` in `src/cli/commands/init.py`.
-4. Add a framework doc under `docs/skills/<name>/framework.md` if the skill has a substantial mental model.
-5. `./scripts/install-skills.sh install` to wire up globally.
-6. In any existing projects: `forge update` to refresh their managed scaffolding and local skill links.
+1. Create `.agents/skills/<name>/SKILL.md` with agentskills.io frontmatter (`name`, `description`).
+2. Symlink `references/framework.md` → `../../../../docs/framework-reference.md` for framework access.
+3. Add the skill to `SKILLS=()` in `scripts/install-skills.sh`.
+4. `./scripts/install-skills.sh install` to wire up globally.
 
 ### Uninstall
 
@@ -256,7 +237,7 @@ forge find charge                       # search across entities
 ./scripts/install-skills.sh uninstall
 ```
 
-Removes all global skill symlinks and the `forge` CLI binary. Does not touch project-local `.forge/` directories (those are owned by each project).
+Removes all global skill symlinks and the `forge` CLI binary. Does not touch project `spec/` directories.
 
 ---
 
@@ -268,8 +249,6 @@ Pull requests welcome. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for:
 - Local dev setup
 - PR requirements and CI expectations
 - Release process
-
-The repo uses standard open-source governance: no direct pushes to `main`, PRs require code-owner approval, CI must be green, history stays linear.
 
 Changes are tracked in [`CHANGELOG.md`](CHANGELOG.md) following [Keep a Changelog](https://keepachangelog.com).
 

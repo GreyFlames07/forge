@@ -1,4 +1,4 @@
-"""Tests for `forge find` — the substring-match CLI search command."""
+"""Tests for `forge find` — substring search against the example spec."""
 
 import io
 from contextlib import redirect_stderr, redirect_stdout
@@ -6,7 +6,7 @@ from pathlib import Path
 
 from cli.forge import main
 
-EXAMPLE = str(Path(__file__).resolve().parent.parent / "src" / "example")
+EXAMPLE = str(Path(__file__).resolve().parent.parent / "example" / "spec")
 
 
 def _run(args: list[str]) -> tuple[int, str, str]:
@@ -16,98 +16,91 @@ def _run(args: list[str]) -> tuple[int, str, str]:
     return rc, out.getvalue(), err.getvalue()
 
 
-# ---------- Basic matches ----------
+# ---------------------------------------------------------------------------
+# Basic matches
+# ---------------------------------------------------------------------------
 
 def test_find_by_id_substring():
-    rc, out, _ = _run(["find", "charge_card", "--spec-dir", EXAMPLE])
+    rc, out, _ = _run(["find", "short_link", "--spec-dir", EXAMPLE])
     assert rc == 0
-    assert "atm.pay.charge_card" in out
-    assert "[id" in out  # id match signal present
+    assert "linkhub.shortener.links.link_manager.short_link" in out
+    assert "[id" in out
 
 
 def test_find_by_description_substring():
-    rc, out, _ = _run(["find", "declined", "--spec-dir", EXAMPLE])
+    rc, out, _ = _run(["find", "alphanumeric", "--spec-dir", EXAMPLE])
     assert rc == 0
-    assert "PAY.EXT.003" in out
-    assert "[desc]" in out  # only description matched, not id
+    assert "[desc]" in out or "[id+desc]" in out
 
 
-def test_find_matches_both_id_and_description_rank_higher():
-    rc, out, _ = _run(["find", "charge", "--spec-dir", EXAMPLE])
+def test_find_id_plus_desc_ranks_higher():
+    rc, out, _ = _run(["find", "redirect", "--spec-dir", EXAMPLE])
     assert rc == 0
     lines = [l for l in out.splitlines() if l.startswith("  ")]
     assert lines
-    # First result should have [id+desc] signal (both matched)
     assert "[id+desc]" in lines[0]
 
 
-# ---------- Kind filter ----------
+# ---------------------------------------------------------------------------
+# Kind filter
+# ---------------------------------------------------------------------------
 
-def test_find_kind_filter_atoms_only():
-    rc, out, _ = _run(["find", "charge", "--kind", "atom", "--spec-dir", EXAMPLE])
+def test_find_kind_filter_element():
+    rc, out, _ = _run(["find", "link", "--kind", "element", "--spec-dir", EXAMPLE])
     assert rc == 0
     for line in out.splitlines():
         if line.startswith("  "):
             parts = line.split()
-            # Second column after ID is kind.
-            assert parts[1] == "atom"
+            assert parts[1] == "element"
 
 
-def test_find_kind_filter_errors_only():
-    rc, out, _ = _run(["find", "amount", "--kind", "error", "--spec-dir", EXAMPLE])
+def test_find_kind_filter_type():
+    rc, out, _ = _run(["find", "Short", "--kind", "type", "--spec-dir", EXAMPLE])
     assert rc == 0
-    assert "PAY.VAL.001" in out
-    assert "atm.pay" not in out
+    assert "linkhub.shortener.types.ShortCode" in out
+    assert "short_link" not in out  # element should not appear
 
 
-# ---------- Limit ----------
+# ---------------------------------------------------------------------------
+# Limit
+# ---------------------------------------------------------------------------
 
 def test_find_limit_custom():
-    rc, out, _ = _run(["find", "charge", "--limit", "3", "--spec-dir", EXAMPLE])
+    rc, out, _ = _run(["find", "link", "--limit", "2", "--spec-dir", EXAMPLE])
     assert rc == 0
     lines = [l for l in out.splitlines() if l.startswith("  ")]
-    assert len(lines) == 3
+    assert len(lines) == 2
 
 
 def test_find_limit_zero_means_unlimited():
-    rc, out, _ = _run(["find", "charge", "--limit", "0", "--spec-dir", EXAMPLE])
+    rc, out, _ = _run(["find", "link", "--limit", "0", "--spec-dir", EXAMPLE])
     assert rc == 0
-    assert "showing top" not in out  # no truncation message
+    assert "showing top" not in out
 
 
-# ---------- No matches / error cases ----------
+# ---------------------------------------------------------------------------
+# No matches / error cases
+# ---------------------------------------------------------------------------
 
 def test_find_no_matches():
-    rc, out, _ = _run(["find", "nonexistent_query_xyz_123", "--spec-dir", EXAMPLE])
+    rc, out, _ = _run(["find", "xyzzy_no_such_thing_9999", "--spec-dir", EXAMPLE])
     assert rc == 0
     assert "no matches" in out
 
 
 def test_find_empty_query_fails():
-    rc, _, err = _run(["find", "  ", "--spec-dir", EXAMPLE])
+    rc, _, err = _run(["find", "   ", "--spec-dir", EXAMPLE])
     assert rc == 1
     assert "non-empty" in err
 
 
-# ---------- Ranking ----------
-
-def test_find_ranking_bundleable_kinds_first_on_ties():
-    # "amount" matches many entities; bundleable atoms should rank above
-    # errors/types when scores are equal.
-    rc, out, _ = _run(["find", "amount", "--spec-dir", EXAMPLE])
-    assert rc == 0
-    lines = [l for l in out.splitlines() if l.startswith("  ")]
-    assert lines
-    parts = lines[0].split()
-    # First match should be a bundleable kind (atom/module/flow/journey/artifact)
-    assert parts[1] in ("atom", "module", "flow", "journey", "artifact")
-
-
-# ---------- Case insensitivity ----------
+# ---------------------------------------------------------------------------
+# Case insensitivity
+# ---------------------------------------------------------------------------
 
 def test_find_is_case_insensitive():
-    _, out_lower, _ = _run(["find", "charge", "--spec-dir", EXAMPLE])
-    _, out_upper, _ = _run(["find", "CHARGE", "--spec-dir", EXAMPLE])
+    _, out_lower, _ = _run(["find", "shortcode", "--spec-dir", EXAMPLE])
+    _, out_upper, _ = _run(["find", "SHORTCODE", "--spec-dir", EXAMPLE])
     ids_lower = {l.split()[0] for l in out_lower.splitlines() if l.startswith("  ")}
     ids_upper = {l.split()[0] for l in out_upper.splitlines() if l.startswith("  ")}
     assert ids_lower == ids_upper

@@ -1,161 +1,136 @@
 ---
 name: forge-cast
 description: >
-  Use this skill when the user wants to translate an existing non-Forge
-  codebase into a draft Forge spec corpus. Activates on phrases like "hydrate
-  this repo into Forge", "document the existing project in Forge", "reverse
-  engineer specs from code", "cast this codebase", or "turn this repo into
-  Forge docs". Creates or updates the Forge schema files from repository
-  evidence only: project foundation docs, L0 vocabulary candidates, L2 module
-  files, L3 atoms/artifacts, and any L4 flows/journeys that are explicit in
-  the code or config. Produces a separate uncertainty report with evidence,
-  confidence levels, and optional clarification questions. Does NOT invent
-  business intent, hidden requirements, or unstated behaviors.
+  Forge casting skill for existing codebases. Use when a user has an existing project (code,
+  config, docs) and wants to bring it into the Forge spec system. Reads the repository using
+  an evidence hierarchy (code > config > tests > contracts > docs > naming heuristics) and produces
+  a draft Forge spec corpus anchored to what the repository actually does — no speculative
+  requirements, no invented structure.
+  Triggers on: "cast this repo", "reverse engineer this codebase into forge", "forge-cast",
+  or any request to derive a Forge spec from an existing project.
 ---
 
 # forge-cast
 
-Translate an existing software project into a draft Forge corpus using only evidence visible in the repository. `forge-cast` is a hydration skill, not a speculation skill. It extracts the best supportable Forge shape from code, config, tests, docs, migrations, API contracts, and deployment files, then makes uncertainty explicit instead of filling gaps with plausible fiction.
+Read `references/framework.md` before starting — you need the full schema for all output files.
 
-The full mental model is in `references/framework.md`. Load it on demand:
-- `§2` when deciding what counts as admissible evidence
-- `§3` when mapping repo structure into L0-L5 outputs
-- `§4` when deciding whether a flow/journey is explicit enough to write
-- `§5` when assembling the uncertainty report and clarification questions
+## Purpose
 
-This file is self-sufficient for routine operation.
+Translate an existing codebase into a draft Forge spec corpus. Every spec claim must be anchored to repository evidence. The output is a starting point — not a complete spec. Ambiguous or uncertain areas go into `workbench/cast-report.md` as candidates for human review.
 
-## Non-negotiables
+## Evidence Hierarchy
 
-1. **Evidence only.** Every spec statement must be traceable to code, config, tests, docs, migrations, or repository metadata.
-2. **No hidden-intent invention.** If the repo does not reveal business meaning, leave it unresolved and record the gap.
-3. **Draft the corpus anyway.** Missing certainty is not a reason to stop; write the parts that are supportable and mark the rest.
-4. **Foundation before behavior.** Recover project structure and vocabulary first, then atoms, then orchestration.
-5. **Prefer explicit interfaces over internal heuristics.** Endpoints, jobs, events, schemas, migrations, public methods, and tests outrank inferred call-graph guesses.
-6. **Confidence is mandatory.** Every major output area must be reflected in the uncertainty report with confidence and evidence.
-7. **Questions are optional and targeted.** Ask only for ambiguities that materially improve the corpus; do not run a broad discovery interview.
-8. **Do not overwrite authored Forge intent blindly.** If a Forge corpus already exists, update it as a hydration pass and preserve human-authored decisions unless contradicted by current code and explicitly called out.
+When signals disagree, use this precedence:
 
-## Workflow
+1. **Executable code paths and type/schema definitions** — highest confidence
+2. **Config and deployment artifacts** (docker-compose, k8s manifests, terraform, CI)
+3. **Tests with explicit assertions**
+4. **Machine-readable contracts** (OpenAPI, GraphQL schema, protobuf, AsyncAPI)
+5. **Repository docs with concrete behavior statements**
+6. **Naming heuristics and structural patterns** — lowest confidence; goes to cast-report, not spec files
 
-### Step 1 - Detect repo + Forge state
+The lower the evidence class, the more likely the output belongs in `workbench/cast-report.md` rather than a committed spec file.
 
-Run the minimum discovery commands needed to establish state:
+## Output Artifacts
 
-```bash
-forge list --spec-dir <spec-dir>
-rg --files <repo-root>
-```
+| File | Contents |
+|------|----------|
+| `spec/conception.yaml` | Conception, actors (from auth/middleware code), glossary |
+| `spec/<system>/system.yaml` | System node inferred from repo structure |
+| `spec/<system>/<domain>/domain.yaml` | Domains inferred from package/module boundaries |
+| `spec/<system>/<domain>/<module>/module.yaml` | One per service/package with packaging + runtime |
+| `spec/<system>/<domain>/<module>/<element>.yaml` | Elements with inline properties + operations |
+| `spec/<system>/types/<TypeName>.yaml` | Types extracted from schema definitions |
+| `spec/<system>/errors/<ErrorName>.yaml` | Errors extracted from error enums, HTTP status handling |
+| `spec/<system>/policies/<policy>.yaml` | Policies inferred from auth middleware, rate limiters, validators |
+| `spec/<system>/contracts/<contract>.yaml` | Contracts from OpenAPI / protobuf / explicit interface boundaries |
+| `spec/<system>/interactions/<interaction>.yaml` | Interactions from service-to-service call sites |
+| `spec/<system>/flows/<flow>.yaml` | Flows from orchestration code or explicit workflow definitions |
+| `spec/<system>/implementation/datastores.yaml` | Datastores from ORM schemas, migrations, connection config |
+| `spec/<system>/implementation/environments.yaml` | Environments from CI/CD config, .env files, deployment manifests |
+| `spec/<system>/workbench/discovery.md` | System overview, decisions inferred, open questions |
+| `spec/<system>/workbench/cast-report.md` | Uncertain candidates, low-confidence inferences, gaps |
 
-If no Forge spec dir exists yet, create the standard structure first:
+## Hydration Strategy by Node Type
 
-```bash
-forge init --skip-skills
-```
+### Conception and Actors
 
-Use the repo root as truth and the Forge spec dir as output. If a Forge corpus already exists, treat it as prior authored context and reconcile carefully.
+- Scan auth middleware and JWT/OAuth config for actor types.
+- Scan route guards, RBAC definitions, and permission checks for roles.
+- Infer `auth_mechanism` from auth library usage (e.g. `passport-jwt` → `jwt`).
+- Glossary: extract domain terms from README, API docs, or prominent naming patterns.
 
-### Step 2 - Gather admissible evidence
+### System and Domains
 
-Read only the files needed to map the codebase:
+- Infer system name from repo name, package name, or root README.
+- Identify domains from top-level package structure, monorepo workspace names, or service directories.
+- `platform`: infer from `Dockerfile`, CI provider, cloud SDK imports.
+- `language`: infer from file extensions and package managers.
+- `deployment`: infer from infra config (lambda → `cloud`, k8s → `cloud`, docker-compose alone → `on_prem`).
 
-1. top-level manifests: package files, lockfiles, build configs
-2. runtime/deploy configs: Docker, CI, infra, env examples
-3. entrypoint surfaces: routes, controllers, CLI commands, workers, event consumers
-4. schemas and storage evidence: migrations, ORM models, protobuf/OpenAPI/GraphQL specs
-5. tests that reveal intended behavior
-6. existing docs that describe concrete system behavior
+### Modules
 
-Prefer direct evidence over summaries. If docs and code disagree, record the contradiction and bias toward executable reality unless the user says otherwise.
+- One module per deployable service, microservice, or bounded package.
+- `packaging.kind`: infer from entry point type (HTTP server → `service`, cron → `job`, Lambda handler → `function`).
+- `packaging.runtime`: read from `Dockerfile`, `.nvmrc`, `pyproject.toml`, `go.mod`.
+- `packaging.scaling`: infer from HPA config, auto-scaling groups, Lambda concurrency settings.
+- `external_dependencies`: scan import statements and HTTP client call sites.
 
-### Step 3 - Hydrate the Forge corpus
+### Elements
 
-Write or update:
+- Map classes/structs to elements. Use `kind` heuristics:
+  - Has identity field + lifecycle methods → `aggregate` or `entity`
+  - No identity, immutable → `value_object`
+  - No state, only behavior → `service`
+  - Read-only derived state → `projection`
+- Properties: extract from class fields, ORM column definitions, schema types.
+- Operations: extract from public methods, route handlers, exported functions.
 
-- `supporting-docs/discovery-notes.md`
-- `L0_registry.yaml`
-- `L1_conventions.yaml` only where defaults are explicit from code/config/tooling
-- `L2_modules/*.yaml`
-- `L3_atoms/*.yaml`
-- `L3_artifacts/*.yaml` where non-executing dependencies are explicit
-- `L4_flows/*.yaml` and `L4_journeys/*.yaml` only when the orchestration is explicit enough to support them
-- `L5_operations.yaml` only from visible deployment/runtime evidence
+### Types and Errors
 
-Hydration order:
+- Extract composite types from DTOs, request/response bodies, ORM models, protobuf messages.
+- Extract scalar types from validated fields with explicit constraints (regex, min/max).
+- Extract errors from error enums, HTTP status mappings, custom exception classes.
+- Do not extract types that are purely internal implementation detail with no cross-module exposure.
 
-1. project shape and boundaries
-2. shared vocabulary
-3. modules and ownership seams
-4. atoms/artifacts
-5. orchestration
-6. operational posture
+### Contracts
 
-### Step 4 - Write the uncertainty report
+- Create contracts from OpenAPI paths, protobuf service definitions, GraphQL schema types, or explicit interface files.
+- Where no machine-readable contract exists but clear service-to-service HTTP calls do, infer a contract from the call site — note as evidence class 1, but flag in cast-report for human confirmation.
 
-Always produce:
+### Datastores
 
-- `<spec-dir>/supporting-docs/cast-report.md`
+- Extract from ORM entity definitions, migration files, connection strings in config.
+- `engine`: read from driver package name (e.g. `pg` → `postgres`, `mongoose` → `mongodb`).
+- `kind`: map engine to StorageType enum.
+- `schemas`: map ORM entities/collections to `storage_name` (table/collection name).
 
-For each major area, include:
+### Environments
 
-1. what was written
-2. source evidence
-3. confidence (`high`, `medium`, `low`)
-4. unresolved ambiguities
-5. optional clarification questions only where answers would materially improve the corpus
+- Extract from `.env.example`, CI/CD pipeline variables, deployment manifests.
+- `region`: from cloud config (e.g. `AWS_REGION`, GCP `--region` flags).
+- `instance_class`: from RDS/CloudSQL instance type config, if present.
 
-Question style:
+## Uncertainty Handling
 
-- targeted
-- evidence-backed
-- specific file/entity references
-- no generic brainstorming prompts
+When confidence is below evidence class 3 (tests):
+- Write the candidate to `workbench/cast-report.md` under `## Uncertain Candidates`.
+- Do not write it to a spec file.
+- Format: `- [<evidence class>] <node-type> <proposed-id>: <inferred value> — <reason for uncertainty>`
 
-### Step 5 - Handover
+When a section has no evidence at all, note it as a gap in `cast-report.md` under `## Spec Gaps`.
 
-At handover, state one of:
+## Completion
 
-- hydration draft complete; next step `/forge-audit`
-- hydration draft complete but human clarification recommended for listed areas
-- hydration blocked because the repo lacks enough executable/config evidence for a safe draft
+After writing all files:
+1. Run `forge validate` — resolve structural errors (broken ID references, missing required fields).
+2. Summarise what was produced, what evidence class each major decision used, and what's in the cast-report.
+3. Recommend the human reviews `workbench/cast-report.md` and then runs `forge-spec` to fill gaps, followed by `forge-review`.
 
-## Writing rules by layer
+## Key Constraints
 
-### L0
-
-- Create domain types/errors/constants only when they are explicit in schemas, models, enums, validators, contracts, or repeated business vocabulary.
-- Do not elevate one-off local DTO names into shared project vocabulary unless reuse is evident.
-
-### L1
-
-- Capture only explicit defaults: retry policies, logging patterns, auth posture, validation floors, idempotency standards, error envelopes.
-- If conventions are inconsistent across modules, record that inconsistency rather than forcing a fake global default.
-
-### L2
-
-- Prefer repo/package/service boundaries already present in the codebase.
-- If the codebase is monolithic, create modules only where the ownership seam is visible from directory structure, interface boundaries, or dependency direction.
-
-### L3
-
-- Atoms should map to smallest meaningful executable responsibilities visible in the code.
-- Use handlers, commands, jobs, consumers, route actions, service methods, or workflow steps as seeds.
-
-### L4
-
-- Only write flows/journeys when sequencing is explicit in code, workflow engines, route-state machines, saga orchestrators, or well-supported integration tests.
-- If orchestration is only implicit across scattered calls, leave it in `supporting-docs/cast-report.md` as a candidate rather than writing fiction.
-
-### L5
-
-- Pull from deployment manifests, queue config, cron schedules, infra code, metrics, alerts, CI/CD, and env configuration.
-- Do not manufacture SLOs, rate limits, or release strategies without evidence.
-
-## What forge-cast does NOT do
-
-| Not done | Why |
-|---|---|
-| Invent missing product intent | Hydration must remain evidence-bound |
-| Replace human-authored architecture decisions silently | Existing Forge docs may intentionally differ from code |
-| Guarantee correctness of inferred semantics | The uncertainty report is part of the deliverable |
-| Implement code changes | This is a documentation/specification pass only |
+- No speculative requirements — only what the repo evidences.
+- No implementation changes — spec only.
+- Do not force-complete sections unsupported by evidence; leave them as gaps.
+- `status: draft` on all generated nodes.
+- All `id` fields must match path-derived IDs — run `forge validate` to confirm.

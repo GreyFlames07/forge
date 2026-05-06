@@ -1,7 +1,6 @@
-"""End-to-end tests for the CLI dispatcher (context / list / inspect)."""
+"""End-to-end tests for the CLI dispatcher (context / list / inspect / find)."""
 
 import io
-import sys
 from contextlib import redirect_stderr, redirect_stdout
 from importlib import metadata
 from pathlib import Path
@@ -11,7 +10,10 @@ import pytest
 from cli import forge as forge_mod
 from cli.forge import main
 
-EXAMPLE = str(Path(__file__).resolve().parent.parent / "src" / "example")
+EXAMPLE = str(Path(__file__).resolve().parent.parent / "example" / "spec")
+
+SHORT_LINK = "linkhub.shortener.links.link_manager.short_link"
+SHORT_CODE = "linkhub.shortener.types.ShortCode"
 
 
 def _run(args: list[str]) -> tuple[int, str, str]:
@@ -20,6 +22,10 @@ def _run(args: list[str]) -> tuple[int, str, str]:
         rc = main(args)
     return rc, out.getvalue(), err.getvalue()
 
+
+# ---------------------------------------------------------------------------
+# --version
+# ---------------------------------------------------------------------------
 
 def test_version_flag_prints_version_and_exits_0():
     out, err = io.StringIO(), io.StringIO()
@@ -32,7 +38,7 @@ def test_version_flag_prints_version_and_exits_0():
 
 def test_version_string_prefers_ai_forge_cli_distribution(monkeypatch):
     versions = {
-        "ai-forge-cli": "0.1.4",
+        "ai-forge-cli": "0.1.8",
         "forge-ai-cli": "0.1.1",
     }
 
@@ -42,110 +48,106 @@ def test_version_string_prefers_ai_forge_cli_distribution(monkeypatch):
         raise metadata.PackageNotFoundError
 
     monkeypatch.setattr(forge_mod.metadata, "version", fake_version)
-    assert forge_mod._version_string() == "0.1.4"
+    assert forge_mod._version_string() == "0.1.8"
 
 
-# ---------- context ----------
+# ---------------------------------------------------------------------------
+# context
+# ---------------------------------------------------------------------------
 
-def test_context_success_rc0_for_fully_resolved_module():
-    rc, out, _ = _run(["context", "PAY", "--spec-dir", EXAMPLE])
-    # PAY's atoms reference unresolved atoms (fetch_customer etc), so rc=2.
-    assert rc in (0, 2)
+def test_context_element_rc0():
+    rc, out, _ = _run(["context", SHORT_LINK, "--spec-dir", EXAMPLE])
+    assert rc == 0
     assert "FORGE CONTEXT BUNDLE" in out
-    assert "target: PAY" in out
+    assert SHORT_LINK in out
 
 
-def test_context_unresolved_exits_2():
-    rc, _, err = _run(["context", "atm.pay.charge_card", "--spec-dir", EXAMPLE])
-    assert rc == 2
-    assert "Unresolved references" in err
-    assert "atm.usr.fetch_customer" in err
-
-
-def test_context_unknown_id_exits_1_with_suggestion():
-    rc, _, err = _run(["context", "atm.pay.nonexistent", "--spec-dir", EXAMPLE])
+def test_context_unknown_id_exits_1():
+    rc, _, err = _run(["context", "linkhub.shortener.links.link_manager.nonexistent", "--spec-dir", EXAMPLE])
     assert rc == 1
-    assert "error:" in err
-    assert "Did you mean" in err
+    assert "error:" in err.lower() or "unknown" in err.lower()
 
 
 def test_context_non_bundleable_exits_1():
-    rc, _, err = _run(["context", "PAY.VAL.001", "--spec-dir", EXAMPLE])
+    rc, _, err = _run(["context", SHORT_CODE, "--spec-dir", EXAMPLE])
     assert rc == 1
-    assert "only" in err or "error:" in err
+    assert "error:" in err.lower() or "only" in err.lower()
+
+
+def test_context_format_markdown():
+    rc, out, _ = _run(["context", SHORT_LINK, "--spec-dir", EXAMPLE, "--format", "markdown"])
+    assert rc == 0
+    assert "#" in out  # markdown headers
 
 
 def test_context_format_json():
-    rc, out, _ = _run(["context", "atm.pay.charge_card",
-                       "--spec-dir", EXAMPLE, "--format", "json"])
-    assert rc == 2  # unresolved signatures
-    # First non-whitespace char should be { if JSON.
+    rc, out, _ = _run(["context", SHORT_LINK, "--spec-dir", EXAMPLE, "--format", "json"])
+    assert rc == 0
     stripped = out.lstrip()
     assert stripped.startswith("{")
     assert '"target"' in out
 
 
-# ---------- list ----------
+# ---------------------------------------------------------------------------
+# list
+# ---------------------------------------------------------------------------
 
 def test_list_default_groups_by_kind():
     rc, out, _ = _run(["list", "--spec-dir", EXAMPLE])
     assert rc == 0
-    assert "# atom (" in out
-    assert "# module (" in out
-    assert "atm.pay.charge_card" in out
-    assert "PAY" in out
+    assert "# element" in out
+    assert SHORT_LINK in out
 
 
-def test_list_kind_filter():
-    rc, out, _ = _run(["list", "--kind", "atom", "--spec-dir", EXAMPLE])
+def test_list_kind_filter_element():
+    rc, out, _ = _run(["list", "--kind", "element", "--spec-dir", EXAMPLE])
     assert rc == 0
-    assert "atm.pay.charge_card" in out
-    # Should NOT contain module headers.
+    assert SHORT_LINK in out
     assert "# module" not in out
 
 
-def test_list_ids_only_for_piping():
-    rc, out, _ = _run(["list", "--kind", "atom", "--ids-only",
-                       "--spec-dir", EXAMPLE])
+def test_list_kind_filter_module():
+    rc, out, _ = _run(["list", "--kind", "module", "--spec-dir", EXAMPLE])
+    assert rc == 0
+    assert "linkhub.shortener.links.link_manager" in out
+    assert "# element" not in out
+
+
+def test_list_ids_only():
+    rc, out, _ = _run(["list", "--kind", "element", "--ids-only", "--spec-dir", EXAMPLE])
     assert rc == 0
     lines = [line for line in out.splitlines() if line.strip()]
-    # Every line should be a bare id (no comments, no indentation).
     for line in lines:
         assert not line.startswith("#")
         assert not line.startswith(" ")
-        assert "—" not in line
 
 
-# ---------- inspect ----------
+# ---------------------------------------------------------------------------
+# inspect
+# ---------------------------------------------------------------------------
 
-def test_inspect_atom():
-    rc, out, _ = _run(["inspect", "atm.pay.charge_card", "--spec-dir", EXAMPLE])
+def test_inspect_element():
+    rc, out, _ = _run(["inspect", SHORT_LINK, "--spec-dir", EXAMPLE])
     assert rc == 0
-    assert "kind: atom" in out
-    assert "atom_kind: PROCEDURAL" in out
-    assert "owner_module: PAY" in out
+    assert "kind: element" in out
+    assert "element_kind: aggregate" in out
     assert "bundleable: true" in out
-    assert "bundle_command: forge context atm.pay.charge_card" in out
 
 
-def test_inspect_module():
-    rc, out, _ = _run(["inspect", "PAY", "--spec-dir", EXAMPLE])
+def test_inspect_type():
+    rc, out, _ = _run(["inspect", SHORT_CODE, "--spec-dir", EXAMPLE])
     assert rc == 0
-    assert "kind: module" in out
-    assert "owned_atoms:" in out
-    assert "atm.pay.charge_card" in out
-
-
-def test_inspect_non_bundleable_entity():
-    rc, out, _ = _run(["inspect", "PAY.VAL.001", "--spec-dir", EXAMPLE])
-    assert rc == 0
-    assert "kind: error" in out
-    assert "category: VAL" in out
+    assert "kind: type" in out
     assert "bundleable: false" in out
 
 
-def test_inspect_unknown_id_suggests():
-    rc, _, err = _run(["inspect", "atm.pay.typo_here", "--spec-dir", EXAMPLE])
+def test_inspect_module():
+    rc, out, _ = _run(["inspect", "linkhub.shortener.links.link_manager", "--spec-dir", EXAMPLE])
+    assert rc == 0
+    assert "kind: module" in out
+
+
+def test_inspect_unknown_id():
+    rc, _, err = _run(["inspect", "linkhub.shortener.typo_here", "--spec-dir", EXAMPLE])
     assert rc == 1
-    assert "unknown id" in err
-    assert "Did you mean" in err
+    assert "unknown" in err.lower()

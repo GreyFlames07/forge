@@ -15,7 +15,7 @@ from cli import common
 NAME = "validate"
 HELP = "Lint the spec directory for structural and referential errors."
 DESCRIPTION = (
-    "Validates the spec directory against the Forge v2 structural rules: "
+    "Validates the spec directory against the Forge structural rules: "
     "presence of required files, ID consistency, referential integrity, "
     "directory layout constraints, required fields, and enum value correctness. "
     "Exits 0 if clean, 1 if any errors are found."

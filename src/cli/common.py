@@ -15,7 +15,7 @@ from typing import Any
 from cli import index as index_mod
 
 
-# All known node kinds in the v2 framework.
+# All known node kinds in the Forge framework.
 ALL_KINDS: tuple[str, ...] = (
     "conception", "system", "domain", "module", "element",
     "property", "operation",

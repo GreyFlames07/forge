@@ -1,12 +1,10 @@
 """Smoke tests for `forge init`."""
 
 import io
-import os
 import tempfile
 from contextlib import chdir, redirect_stderr, redirect_stdout
 from pathlib import Path
 
-from cli.commands import init as init_cmd
 from cli.forge import main
 
 
@@ -17,140 +15,91 @@ def _run(args: list[str]) -> tuple[int, str, str]:
     return rc, out.getvalue(), err.getvalue()
 
 
-def test_init_creates_spec_structure_and_symlinks():
+def test_init_creates_spec_with_framework_and_conception():
     with tempfile.TemporaryDirectory() as td:
         td_path = Path(td)
         with chdir(td_path):
-            rc, out, err = _run(["init"])
+            rc, out, err = _run(["init", "--no-banner"])
         assert rc == 0, f"init exited {rc}: {err}"
 
-        spec = td_path / ".forge"
+        spec = td_path / "spec"
         assert spec.is_dir()
-        for sub in ("L2_modules", "L2_policies", "L3_atoms",
-                    "L3_artifacts", "L4_flows", "L4_journeys"):
-            assert (spec / sub).is_dir(), f"missing {sub}"
-            assert (spec / sub / ".gitkeep").is_file()
+        assert (spec / "framework.yaml").is_file()
+        assert (spec / "conception.yaml").is_file()
 
-        # Schema template symlinks at .forge/templates/
-        tmpl = spec / "templates"
-        assert tmpl.is_dir()
-        expected_templates = {
-            "L0_registry.schema.md", "L0_registry.guide.md",
-            "L1_conventions.schema.md", "L1_conventions.guide.md",
-            "L2_architecture.schema.md", "L2_architecture.guide.md",
-            "L3_behavior.schema.md", "L3_behavior.guide.md",
-            "L4_flows.schema.md", "L4_flows.guide.md",
-            "L5_operations.schema.md", "L5_operations.guide.md",
-        }
-        present = {p.name for p in tmpl.iterdir()}
-        assert expected_templates == present, \
-            f"template mismatch. Missing: {expected_templates - present}. Extra: {present - expected_templates}"
-        # Each template is a symlink pointing at a real .md file
-        for name in expected_templates:
-            link = tmpl / name
-            assert link.is_symlink(), f"{name} is not a symlink"
-            assert link.is_file(), f"{name} symlink target is broken"
+        # No L-layer subdirectories — those are v1 artifacts
+        for unwanted in ("L2_modules", "L3_atoms", "L4_flows", "L5_operations"):
+            assert not (spec / unwanted).exists(), f"unexpected dir: {unwanted}"
 
-        # Symlinks created for all three discovery paths (Claude Code, Codex, agentskills.io).
-        claude = td_path / ".claude" / "skills"
-        codex  = td_path / ".codex"  / "skills"
-        agents = td_path / ".agents" / "skills"
-        assert claude.is_dir()
-        assert codex.is_dir()
-        assert agents.is_dir()
 
-        for skill in init_cmd.SKILL_NAMES:
-            assert (claude / skill).is_symlink(), f"missing claude link for {skill}"
-            assert (codex  / skill).is_symlink(), f"missing codex link for {skill}"
-            assert (agents / skill).is_symlink(), f"missing agents link for {skill}"
-            # Symlink targets resolve to a directory with a SKILL.md
-            assert ((claude / skill) / "SKILL.md").is_file()
-            assert ((codex  / skill) / "SKILL.md").is_file()
-            assert ((agents / skill) / "SKILL.md").is_file()
+def test_init_conception_stub_has_required_fields():
+    with tempfile.TemporaryDirectory() as td:
+        td_path = Path(td)
+        with chdir(td_path):
+            _run(["init", "--no-banner"])
+        import yaml
+        data = yaml.safe_load((td_path / "spec" / "conception.yaml").read_text())
+        assert "id" in data
+        assert "type" in data
+        assert data["type"] == "conception"
+
+
+def test_init_framework_yaml_has_enums():
+    with tempfile.TemporaryDirectory() as td:
+        td_path = Path(td)
+        with chdir(td_path):
+            _run(["init", "--no-banner"])
+        import yaml
+        fw = yaml.safe_load((td_path / "spec" / "framework.yaml").read_text())
+        assert "enums" in fw or "scalars" in fw  # at least one framework section
 
 
 def test_init_refuses_over_existing_project():
     with tempfile.TemporaryDirectory() as td:
         td_path = Path(td)
-        spec = td_path / ".forge"
+        spec = td_path / "spec"
         spec.mkdir(parents=True)
-        (spec / "L0_registry.yaml").write_text("existing: true\n")
+        (spec / "conception.yaml").write_text("id: existing\n")
 
         with chdir(td_path):
-            rc, out, err = _run(["init"])
+            rc, out, err = _run(["init", "--no-banner"])
         assert rc == 1
         assert "existing forge project" in err
 
 
-def test_init_force_overwrites():
+def test_init_force_overwrites_framework():
     with tempfile.TemporaryDirectory() as td:
         td_path = Path(td)
-        spec = td_path / ".forge"
+        spec = td_path / "spec"
         spec.mkdir(parents=True)
-        (spec / "L0_registry.yaml").write_text("existing: true\n")
+        (spec / "framework.yaml").write_text("stale: true\n")
+        (spec / "conception.yaml").write_text("id: my-conception\ntype: conception\n")
 
         with chdir(td_path):
-            rc, out, err = _run(["init", "--force"])
+            rc, out, err = _run(["init", "--force", "--no-banner"])
         assert rc == 0
-        # Existing spec file preserved (init does not overwrite spec content)
-        assert (spec / "L0_registry.yaml").read_text() == "existing: true\n"
-
-
-def test_init_skip_skills():
-    with tempfile.TemporaryDirectory() as td:
-        td_path = Path(td)
-        with chdir(td_path):
-            rc, out, err = _run(["init", "--skip-skills"])
-        assert rc == 0
-        assert (td_path / ".forge").is_dir()
-        # Templates still symlinked even when --skip-skills
-        assert (td_path / ".forge" / "templates").is_dir()
-        assert not (td_path / ".claude" / "skills").exists()
-        assert not (td_path / ".codex"  / "skills").exists()
-        assert not (td_path / ".agents" / "skills").exists()
+        # framework.yaml should now contain real content (not the stale stub)
+        fw_text = (spec / "framework.yaml").read_text()
+        assert "stale: true" not in fw_text
 
 
 def test_init_custom_spec_subdir():
     with tempfile.TemporaryDirectory() as td:
         td_path = Path(td)
         with chdir(td_path):
-            rc, out, err = _run(["init", "--spec-subdir", "specs"])
+            rc, out, err = _run(["init", "--spec-subdir", "myspec", "--no-banner"])
         assert rc == 0
-        assert (td_path / "specs").is_dir()
-        assert (td_path / "specs" / "L2_modules").is_dir()
-        assert (td_path / "specs" / "templates").is_dir()
-        # Default location NOT created.
-        assert not (td_path / ".forge").exists()
+        assert (td_path / "myspec").is_dir()
+        assert (td_path / "myspec" / "framework.yaml").is_file()
+        # Default location NOT created
+        assert not (td_path / "spec").exists()
 
 
-def test_resolve_forge_sources_uses_cached_repo_when_local_skills_missing(monkeypatch, tmp_path):
-    fake_cli = tmp_path / "venv" / "lib" / "python3.13" / "site-packages" / "cli" / "__init__.py"
-    fake_cli.parent.mkdir(parents=True)
-    fake_cli.write_text("# fake cli package\n")
-
-    cached_repo = tmp_path / "cache" / "repo"
-    cached_skills = cached_repo / ".agents" / "skills"
-    cached_skills.mkdir(parents=True)
-    (cached_repo / "src" / "templates").mkdir(parents=True)
-
-    monkeypatch.setattr(init_cmd.cli, "__file__", str(fake_cli))
-    monkeypatch.setattr(init_cmd, "_cached_forge_repo", lambda: cached_repo)
-
-    repo, skills = init_cmd._resolve_forge_sources()
-    assert repo == cached_repo
-    assert skills == cached_skills
-
-
-def test_installed_cli_version_prefers_ai_forge_cli_distribution(monkeypatch):
-    versions = {
-        "ai-forge-cli": "0.1.4",
-        "forge-ai-cli": "0.1.1",
-    }
-
-    def fake_version(name: str) -> str:
-        if name in versions:
-            return versions[name]
-        raise init_cmd.metadata.PackageNotFoundError
-
-    monkeypatch.setattr(init_cmd.metadata, "version", fake_version)
-    assert init_cmd._installed_cli_version() == "0.1.4"
+def test_init_no_banner_skips_animation():
+    with tempfile.TemporaryDirectory() as td:
+        td_path = Path(td)
+        with chdir(td_path):
+            rc, out, err = _run(["init", "--no-banner"])
+        assert rc == 0
+        # Should still print progress info even without banner
+        assert "framework.yaml" in out or "conception.yaml" in out

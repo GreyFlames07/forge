@@ -1,5 +1,5 @@
 """
-Spec directory loader and flat id index for Forge v2.
+Spec directory loader and flat id index for the Forge spec system.
 
 Walks the spec/ directory, derives a full dot-path ID for every node from
 its file path, and builds a flat dict for O(1) lookup.

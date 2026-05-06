@@ -29,7 +29,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="forge",
         description=(
-            "CLI for the Forge v2 node-based spec system. "
+            "CLI for the Forge spec system. "
             "Assembles everything an agent needs to implement an element "
             "into a single context bundle, and provides tools for "
             "navigating, validating, and visualising specs."

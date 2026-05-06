@@ -1,4 +1,4 @@
-# Forge v2 Framework Vocabulary
+# Forge Framework Vocabulary
 # Shipped with the CLI. Copied to spec/framework.yaml on `forge init`.
 # Do not add project-specific values here; use scalar types with enum_values.
 

@@ -1,266 +1,113 @@
-"""Walker tests against src/example/ fixtures."""
-
-from pathlib import Path
+"""Walker tests against the example spec (LinkHub)."""
 
 from cli import walker
-from cli.index import Entry, Index
 
 
-# ---------- Atom ----------
-
-def test_atom_bundle_shape(idx):
-    bundle, _ = walker.walk(idx, "atm.pay.charge_card")
-    assert bundle["target"] == {"id": "atm.pay.charge_card", "kind": "atom", "atom_kind": "PROCEDURAL"}
-    assert bundle["l1_conventions"]["observability"]
-    assert bundle["l2_module"]["id"] == "PAY"
-    assert bundle["l3_atom"]["id"] == "atm.pay.charge_card"
-    assert bundle["l5_operations"]["deployment"]
+SHORT_LINK = "linkhub.shortener.links.link_manager.short_link"
+REDIRECT = "linkhub.shortener.traffic.redirector.redirect"
 
 
-def test_atom_l0_slice_is_targeted(idx):
-    bundle, _ = walker.walk(idx, "atm.pay.charge_card")
-    slice_ = bundle["l0_registry_slice"]
-    # Errors referenced by the atom are present.
-    for code in ["PAY.VAL.001", "PAY.VAL.002", "PAY.NET.001", "PAY.EXT.003"]:
-        assert code in slice_["errors"], f"{code} missing from slice"
-    # Wrap_unexpected code is pulled in via L1.
-    assert "SYS.SYS.999" in slice_["errors"]
-    # Unrelated error is NOT included.
-    assert "USR.VAL.001" not in slice_["errors"]
-    # Constant referenced via const.MAX_CHARGE_CENTS is present.
-    assert "MAX_CHARGE_CENTS" in slice_["constants"]
-    # Markers declared in side_effects are present.
-    for marker in ["WRITES_DB", "EMITS_EVENT", "CALLS_EXTERNAL"]:
-        assert marker in slice_["side_effect_markers"]
-    # Unrelated marker excluded.
-    assert "READS_FS" not in slice_["side_effect_markers"]
-    # External schema referenced in logic is present.
-    assert "stripe" in slice_["external_schemas"]
-    assert "sendgrid" not in slice_["external_schemas"]
+# ---------------------------------------------------------------------------
+# Bundle shape — short_link element
+# ---------------------------------------------------------------------------
+
+def test_short_link_target(idx):
+    bundle, _ = walker.walk(idx, SHORT_LINK)
+    assert bundle["target"]["id"] == SHORT_LINK
+    assert bundle["target"]["kind"] == "element"
+    assert bundle["target"]["element_kind"] == "aggregate"
 
 
-def test_atom_l4_caller_detected(idx):
-    bundle, _ = walker.walk(idx, "atm.pay.charge_card")
-    callers = bundle["l4_callers"]
-    assert "orchestrations" in callers
-    flow_ctx = callers["orchestrations"][0]
-    assert flow_ctx["flow_id"] == "flow.process_order_payment"
-    assert flow_ctx["transaction_boundary"] == "saga"
-    match = flow_ctx["matches"][0]
-    assert match["step"] == "charge"
-    assert match["compensation"] == "atm.pay.refund_charge"
-    # Implications derived from on_error.
-    implications = " ".join(flow_ctx["implications"])
-    assert "retry-safe" in implications or "RETRY" in implications
+def test_short_link_ancestors(idx):
+    bundle, _ = walker.walk(idx, SHORT_LINK)
+    assert bundle["module"]["id"] == "linkhub.shortener.links.link_manager"
+    assert bundle["domain"]["id"] == "linkhub.shortener.links"
+    assert bundle["system"]["id"] == "linkhub.shortener"
 
 
-def test_atom_policies_filtered(idx):
-    # charge_card does NOT match the refund policy predicate.
-    bundle, _ = walker.walk(idx, "atm.pay.charge_card")
-    assert bundle["policies_applied"] == {}
+def test_short_link_contracts(idx):
+    bundle, _ = walker.walk(idx, SHORT_LINK)
+    assert "linkhub.shortener.contracts.create_short_link" in bundle["contracts"]
+    assert "linkhub.shortener.contracts.resolve_short_link" in bundle["contracts"]
 
 
-def test_atom_unresolved_signatures(idx):
-    bundle, unresolved = walker.walk(idx, "atm.pay.charge_card")
-    sigs = bundle["called_atom_signatures"]
-    # These atoms are referenced but have no spec file in the example set.
-    for aid in ["atm.usr.fetch_customer", "atm.pay.find_by_idempotency_key", "atm.pay.persist_charge"]:
-        assert sigs[aid]["status"] == "UNRESOLVED"
-        assert aid in unresolved
+def test_short_link_types(idx):
+    bundle, _ = walker.walk(idx, SHORT_LINK)
+    types = bundle["types"]
+    assert "linkhub.shortener.types.ShortCode" in types
+    assert "linkhub.shortener.types.URL" in types
+    assert "linkhub.shortener.types.CreateLinkInput" in types
 
 
-def test_atom_context_preserves_shape_metadata_for_target_and_called_signatures():
-    target_input_shape = {
-        "kind": "tagged_union",
-        "discriminator": "form",
-        "variants": [
-            {"form": "broadcast", "value": "all"},
-            {"form": "session", "pattern": "session:<int>"},
-        ],
-    }
-    target_output_shape = {
-        "kind": "enum",
-        "values": ["queued", "sent"],
-    }
-    called_output_shape = {
-        "kind": "json_schema",
-        "schema": {
-            "type": "array",
-            "items": {"type": "integer"},
-        },
-    }
-
-    idx = Index(spec_dir=Path("."))
-    idx.l1 = {"failure": {"propagation": {}}}
-    idx.l5 = {}
-    idx.entries = {
-        "MSG": Entry(
-            id="MSG",
-            kind="module",
-            data={
-                "id": "MSG",
-                "owned_atoms": ["atm.msg.send_message", "atm.msg.resolve_targets"],
-                "policies": [],
-                "interface": {"entry_points": []},
-            },
-        ),
-        "atm.msg.send_message": Entry(
-            id="atm.msg.send_message",
-            kind="atom",
-            data={
-                "id": "atm.msg.send_message",
-                "kind": "PROCEDURAL",
-                "owner_module": "MSG",
-                "description": "Send a message to a resolved target set.",
-                "spec": {
-                    "input": {
-                        "target": {
-                            "type": "string",
-                            "nullable": False,
-                            "shape": target_input_shape,
-                        },
-                        "body": {
-                            "type": "string",
-                            "nullable": False,
-                        },
-                    },
-                    "output": {
-                        "success": {
-                            "delivery_status": {
-                                "type": "string",
-                                "nullable": False,
-                                "shape": target_output_shape,
-                            }
-                        },
-                        "errors": [],
-                    },
-                    "logic": ["CALL atm.msg.resolve_targets"],
-                },
-            },
-        ),
-        "atm.msg.resolve_targets": Entry(
-            id="atm.msg.resolve_targets",
-            kind="atom",
-            data={
-                "id": "atm.msg.resolve_targets",
-                "kind": "PROCEDURAL",
-                "owner_module": "MSG",
-                "description": "Resolve a target selector into session ids.",
-                "spec": {
-                    "input": {
-                        "target": {
-                            "type": "string",
-                            "nullable": False,
-                            "shape": target_input_shape,
-                        },
-                    },
-                    "output": {
-                        "success": {
-                            "resolved_targets": {
-                                "type": "string",
-                                "nullable": False,
-                                "shape": called_output_shape,
-                            }
-                        },
-                        "errors": [],
-                    },
-                    "logic": [],
-                },
-            },
-        ),
-    }
-
-    bundle, unresolved = walker.walk(idx, "atm.msg.send_message")
-
-    assert unresolved == []
-    assert bundle["l3_atom"]["spec"]["input"]["target"]["shape"] == target_input_shape
-    assert bundle["l3_atom"]["spec"]["output"]["success"]["delivery_status"]["shape"] == target_output_shape
-    called_sig = bundle["called_atom_signatures"]["atm.msg.resolve_targets"]
-    assert called_sig["input"]["target"]["shape"] == target_input_shape
-    assert called_sig["output"]["success"]["resolved_targets"]["shape"] == called_output_shape
-    assert bundle["shaped_fields"]["atm.msg.send_message"] == {
-        "input.target": {
-            "type": "string",
-            "nullable": False,
-            "shape": target_input_shape,
-        },
-        "output.success.delivery_status": {
-            "type": "string",
-            "nullable": False,
-            "shape": target_output_shape,
-        },
-    }
-    assert bundle["shaped_fields"]["atm.msg.resolve_targets"] == {
-        "input.target": {
-            "type": "string",
-            "nullable": False,
-            "shape": target_input_shape,
-        },
-        "output.success.resolved_targets": {
-            "type": "string",
-            "nullable": False,
-            "shape": called_output_shape,
-        },
-    }
+def test_short_link_errors(idx):
+    bundle, _ = walker.walk(idx, SHORT_LINK)
+    errors = bundle["errors"]
+    assert "linkhub.shortener.errors.InvalidUrl" in errors
+    assert "linkhub.shortener.errors.LinkNotFound" in errors
 
 
-# ---------- Module ----------
-
-def test_module_bundle_shape(idx):
-    bundle, _ = walker.walk(idx, "PAY")
-    assert bundle["target"]["kind"] == "module"
-    assert bundle["l2_module"]["id"] == "PAY"
-    assert "atm.pay.charge_card" in bundle["owned_atoms"]
-    # Aggregated L0 slice should cover the union of owned atoms.
-    slice_ = bundle["l0_registry_slice"]
-    assert "PAY.VAL.001" in slice_["errors"]
-    # Tables' entity types are pulled in.
-    assert "reg.pay.Charge" in slice_["types"]
-    assert "reg.pay.Refund" in slice_["types"]
+def test_short_link_interactions(idx):
+    bundle, _ = walker.walk(idx, SHORT_LINK)
+    # redirector_resolves_link has callee = short_link.resolve
+    assert "linkhub.shortener.interactions.redirector_resolves_link" in bundle["interactions"]
 
 
-def test_module_shared_deps(idx):
-    bundle, _ = walker.walk(idx, "PAY")
-    shared = bundle["shared_module_interfaces"]
-    assert "USR" in shared
-    assert "NTF" in shared
+def test_short_link_datastores(idx):
+    bundle, _ = walker.walk(idx, SHORT_LINK)
+    assert "linkhub.shortener.datastores.links_db" in bundle["datastores"]
 
 
-# ---------- Flow ----------
-
-def test_flow_bundle_shape(idx):
-    bundle, _ = walker.walk(idx, "flow.process_order_payment")
-    assert bundle["target"]["kind"] == "flow"
-    assert bundle["l4_orchestration"]["id"] == "flow.process_order_payment"
-    sigs = bundle["step_atom_signatures"]
-    # Both invoke atoms and compensations are listed.
-    assert "atm.pay.charge_card" in sigs
-    assert "atm.pay.refund_charge" in sigs
-    assert "atm.inv.release_items" in sigs
-    # Trigger payload type pulled into L0 slice.
-    assert "reg.ord.OrderPlacedEvent" in bundle["l0_registry_slice"]["types"]
+def test_short_link_policies_cascade_from_system(idx):
+    bundle, _ = walker.walk(idx, SHORT_LINK)
+    # standard_encryption is set at the system level and cascades down
+    assert "linkhub.shortener.policies.standard_encryption" in bundle["policies_applied"]
 
 
-def test_flow_entry_point_detected(idx):
-    bundle, _ = walker.walk(idx, "flow.process_order_payment")
-    # PAY module has an event_consumer entry point invoking this flow.
-    eps = bundle["l2_entry_points"]
-    assert any(ep.get("invokes") == "flow.process_order_payment" for ep in eps)
+def test_short_link_fully_resolved(idx):
+    _, unresolved = walker.walk(idx, SHORT_LINK)
+    assert unresolved == [], f"Unexpected unresolved refs: {unresolved}"
 
 
-# ---------- Journey ----------
+# ---------------------------------------------------------------------------
+# Bundle shape — redirect element
+# ---------------------------------------------------------------------------
 
-def test_journey_bundle_shape(idx):
-    bundle, _ = walker.walk(idx, "jrn.signup_flow")
-    assert bundle["target"]["kind"] == "journey"
-    assert bundle["l4_journey"]["id"] == "jrn.signup_flow"
-    # Handler atoms should have been resolved into the handler_atoms dict.
-    assert isinstance(bundle["handler_atoms"], dict)
+def test_redirect_target(idx):
+    bundle, _ = walker.walk(idx, REDIRECT)
+    assert bundle["target"]["id"] == REDIRECT
+    assert bundle["target"]["element_kind"] == "service"
 
 
-# ---------- Artifact ----------
+def test_redirect_policies_include_sla(idx):
+    bundle, _ = walker.walk(idx, REDIRECT)
+    # redirect_sla is set at the element level
+    assert "linkhub.shortener.policies.redirect_sla" in bundle["policies_applied"]
+    # standard_encryption cascades from system
+    assert "linkhub.shortener.policies.standard_encryption" in bundle["policies_applied"]
 
-def test_artifact_bundle_shape(idx):
-    bundle, _ = walker.walk(idx, "art.usr.labeled_emails_v3")
-    assert bundle["target"]["kind"] == "artifact"
-    assert bundle["l3_artifact"]["id"] == "art.usr.labeled_emails_v3"
+
+def test_redirect_contracts(idx):
+    bundle, _ = walker.walk(idx, REDIRECT)
+    assert "linkhub.shortener.contracts.resolve_short_link" in bundle["contracts"]
+
+
+def test_redirect_interactions(idx):
+    bundle, _ = walker.walk(idx, REDIRECT)
+    # redirector_resolves_link has caller = redirect.resolve
+    assert "linkhub.shortener.interactions.redirector_resolves_link" in bundle["interactions"]
+
+
+# ---------------------------------------------------------------------------
+# Error cases
+# ---------------------------------------------------------------------------
+
+def test_walk_unknown_id_raises_key_error(idx):
+    import pytest
+    with pytest.raises(KeyError):
+        walker.walk(idx, "linkhub.shortener.nonexistent.element")
+
+
+def test_walk_non_element_raises_value_error(idx):
+    import pytest
+    with pytest.raises(ValueError):
+        walker.walk(idx, "linkhub.shortener.types.ShortCode")

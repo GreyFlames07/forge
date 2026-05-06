@@ -17,7 +17,7 @@ where = ["src"]
 include = ["cli*"]
 
 [tool.setuptools.package-data]
-cli = ["framework.yaml", "skills/*/SKILL.md", "skills/*/references/framework.md", "skills/*/assets/**/*"]
+cli = ["framework.yaml", "skills/*/SKILL.md", "skills/*/references/*", "skills/*/assets/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

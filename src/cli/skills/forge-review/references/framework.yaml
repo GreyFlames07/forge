@@ -1,0 +1,228 @@
+# Forge Framework Vocabulary
+# Shipped with the CLI. Copied to spec/framework.yaml on `forge init`.
+# Do not add project-specific values here; use scalar types with enum_values.
+
+enums:
+  Status:
+    values: [draft, active, deprecated, retired]
+
+  AuthMechanism:
+    values: [none, jwt, api_key, oauth2, mtls, hmac, session]
+
+  Permission:
+    values: [read, write, delete, execute]
+
+  Deployment:
+    values: [cloud, on_prem, hybrid, edge]
+
+  Packaging:
+    values: [service, gateway, job, function, worker, library]
+
+  Scaling:
+    values: [none, vertical, horizontal, auto]
+
+  ElementKind:
+    values: [aggregate, entity, value_object, service, projection]
+
+  OperationKind:
+    values: [command, query, async_command, async_query, event_handler, subscription]
+
+  RelationshipType:
+    values: [depends_on, extends, contains, references, triggers]
+
+  Multiplicity:
+    values: [one_to_one, one_to_many, many_to_one, many_to_many]
+
+  Embedding:
+    values: [inline, reference, derived, external]
+
+  Visibility:
+    values: [public, internal, private]
+
+  Protocol:
+    values: [rest, grpc, queue, websocket, graphql, event_bus, cli]
+
+  VersioningStrategy:
+    values: [uri, header, query_param]
+
+  StorageType:
+    values: [relational, document, key_value, timeseries, cache, graph, search, column_family, object_store]
+
+  DatastorePurpose:
+    values: [primary, cache, projection, archive]
+
+  SourceKind:
+    values: [element_state, projection, derived, external]
+
+  DatastoreRole:
+    values: [read, write, both]
+
+  EnvironmentKind:
+    values: [development, staging, production, test]
+
+  Consistency:
+    values: [strong, eventual, bounded_staleness, session]
+
+  Durability:
+    values: [ephemeral, persistent, replicated]
+
+  Classification:
+    values: [public, internal, confidential, restricted]
+
+  Persistence:
+    values: [permanent, transient, ephemeral]
+
+  RetentionPolicy:
+    values: [delete, archive, anonymise]
+
+  RuleKind:
+    values: [sla, rate_limit, validation, invariant, workflow]
+
+  Enforcement:
+    values: [hard, soft, advisory]
+
+  FailureAction:
+    values: [abort, retry, skip, compensate, fallback]
+
+  DeploymentStatus:
+    values: [pending, active, rolled_back, failed]
+
+  TestKind:
+    values: [unit, integration, contract, e2e, performance]
+
+  LogLevel:
+    values: [debug, info, warn, error, fatal]
+
+  RetryBackoff:
+    values: [fixed, linear, exponential]
+
+  AuditTrigger:
+    values: [on_write, on_read, on_delete, on_error, always]
+
+  IdempotencyStrategy:
+    values: [key_dedup, natural_key, conditional_insert]
+
+  RateLimitScope:
+    values: [per_actor, per_ip, per_api_key, global]
+
+# Built-in scalar types. Referenced as system.types.<Name>.
+# Projects do not need to redefine these.
+scalars:
+  - id: system.types.String
+    type: type
+    name: String
+    description: UTF-8 text string.
+    status: active
+    kind: scalar
+    base: string
+
+  - id: system.types.Integer
+    type: type
+    name: Integer
+    description: 64-bit signed integer.
+    status: active
+    kind: scalar
+    base: integer
+
+  - id: system.types.Float
+    type: type
+    name: Float
+    description: 64-bit IEEE 754 floating-point number.
+    status: active
+    kind: scalar
+    base: float
+
+  - id: system.types.Boolean
+    type: type
+    name: Boolean
+    description: True or false.
+    status: active
+    kind: scalar
+    base: boolean
+
+  - id: system.types.Timestamp
+    type: type
+    name: Timestamp
+    description: ISO 8601 UTC datetime.
+    status: active
+    kind: scalar
+    base: string
+    constraints:
+      format: date-time
+
+  - id: system.types.UUID
+    type: type
+    name: UUID
+    description: RFC 4122 UUID v4.
+    status: active
+    kind: scalar
+    base: string
+    constraints:
+      pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+
+  - id: system.types.Blob
+    type: type
+    name: Blob
+    description: Opaque binary payload.
+    status: active
+    kind: scalar
+    base: bytes
+
+# Built-in errors. Referenced as system.errors.<Name>.
+# Projects do not need to redefine these.
+errors:
+  - id: system.errors.NotFound
+    type: error
+    name: NotFound
+    description: The requested resource does not exist.
+    status: active
+    code: NOT_FOUND
+    http_status: 404
+
+  - id: system.errors.Unauthorized
+    type: error
+    name: Unauthorized
+    description: The caller is not authenticated.
+    status: active
+    code: UNAUTHORIZED
+    http_status: 401
+
+  - id: system.errors.Forbidden
+    type: error
+    name: Forbidden
+    description: The caller lacks permission to perform the operation.
+    status: active
+    code: FORBIDDEN
+    http_status: 403
+
+  - id: system.errors.Conflict
+    type: error
+    name: Conflict
+    description: The operation conflicts with existing state.
+    status: active
+    code: CONFLICT
+    http_status: 409
+
+  - id: system.errors.ValidationFailed
+    type: error
+    name: ValidationFailed
+    description: Input did not satisfy validation constraints.
+    status: active
+    code: VALIDATION_FAILED
+    http_status: 422
+
+  - id: system.errors.Unavailable
+    type: error
+    name: Unavailable
+    description: The service or a dependency is temporarily unavailable.
+    status: active
+    code: UNAVAILABLE
+    http_status: 503
+
+  - id: system.errors.Timeout
+    type: error
+    name: Timeout
+    description: The operation did not complete within the allowed time.
+    status: active
+    code: TIMEOUT
+    http_status: 504

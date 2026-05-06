@@ -25,7 +25,7 @@ A hierarchical YAML spec system, a Python CLI for context assembly, and **six ag
 
 Built on the premise that **people explain systems well under questioning but poorly when cold-prompted**. Forge inverts the default "human prompts agent → agent implements" loop into "agent interviews human → structured spec emerges → agent implements from spec".
 
-Runs in **Claude Code** and any **agentskills.io-compatible client** (VS Code Copilot, Cursor).
+Runs in any agent client that supports skills: **Claude Code**, **OpenAI Codex CLI**, **VS Code Copilot**, **Cursor**, and any other agentskills.io-compatible client.
 
 ---
 
@@ -64,7 +64,7 @@ uv venv --python 3.13 .venv && uv pip install -e . pytest
 ./scripts/install-skills.sh install
 ```
 
-This wires the `forge` binary into `~/.local/bin/` and symlinks the six skills into `~/.claude/skills/` and `~/.agents/skills/` — discoverable by every supported client.
+This wires the `forge` binary into `~/.local/bin/` and symlinks the six skills into `~/.claude/skills/`, `~/.codex/skills/`, and `~/.agents/skills/` — discoverable by every supported client.
 
 ### Verify
 
@@ -80,7 +80,7 @@ forge --help              # shows: init, update, context, list, inspect, find, v
 |---|---|
 | Python | ≥ 3.13 |
 | Package manager | [`uv`](https://docs.astral.sh/uv/) recommended; pip works |
-| Agent client | Claude Code or an agentskills.io-compatible client |
+| Agent client | Claude Code, Codex CLI, or any agentskills.io-compatible client |
 
 If `forge: command not found`: add `~/.local/bin` to PATH.
 
@@ -156,7 +156,7 @@ Spec-dir resolution order: `--spec-dir` flag > `$FORGE_SPEC_DIR` env var > auto-
 | **forge-build** | Implementation orchestrator | Reviewed spec corpus | Code + tests dispatched via parallel subagents, each using `forge context <id>` |
 | **forge-validate** | Post-implementation validator | Implemented system + spec | Static analysis, test coverage, behavioral probes, workbench/validation.md |
 
-Skills activate via natural-language prompts (universal) or slash-commands (Claude Code only).
+Skills activate via natural-language prompts in any supported client, or slash-commands where the client supports them.
 
 ---
 

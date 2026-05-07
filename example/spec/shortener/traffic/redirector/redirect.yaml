@@ -46,6 +46,12 @@ operations:
     raises: []
     visibility: internal
     policies: []
+    steps:
+      - order: 1
+        description: Enrich the ClickRecord with server-side timestamp and request_id.
+      - order: 2
+        description: Write the ClickRecord to the clicks timeseries store.
+        calls: linkhub.shortener.datastores.clicks_store
 
 relationships:
   - target: linkhub.shortener.links.link_manager.short_link

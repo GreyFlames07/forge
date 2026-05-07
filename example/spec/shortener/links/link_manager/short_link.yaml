@@ -79,6 +79,22 @@ operations:
     contract: linkhub.shortener.contracts.create_short_link
     policies:
       - linkhub.shortener.policies.creator_auth
+    steps:
+      - order: 1
+        description: Validate the destination URL is well-formed and uses an allowed scheme (http/https).
+        raises:
+          - linkhub.shortener.errors.InvalidUrl
+      - order: 2
+        description: Verify the caller is authenticated and holds write permission.
+        raises:
+          - system.errors.Unauthorized
+      - order: 3
+        description: Generate a cryptographically random 8-character alphanumeric ShortCode, retrying on collision.
+      - order: 4
+        description: Persist the ShortLink record (code, destination_url, created_at, is_active=true) to the primary datastore.
+        calls: linkhub.shortener.datastores.links_db
+      - order: 5
+        description: Return the generated ShortCode to the caller.
 
   - id: linkhub.shortener.links.link_manager.short_link.resolve
     type: operation

@@ -229,6 +229,12 @@ operations:
     visibility: <Visibility>
     contract: <contract.id>
     policies: []
+    steps:                            # required for command/async_command/event_handler with non-trivial logic
+      - order: <integer>
+        description: <what happens in this step>
+        calls: <operation.id or datastore.id>  # omit if no cross-boundary call
+        raises: [<error.id>]                   # errors surfaced at this step
+        condition: <expression>                # omit if unconditional
 relationships:
   - target: <element.id>
     type: <RelationshipType>
@@ -562,3 +568,4 @@ forge graph                             # visualise the dependency graph
 - `implementation/` exists only directly under a system directory and contains only `datastores.yaml`, `tests.yaml`, `environments.yaml`, `deployments.yaml`.
 - Element files contain only inline properties and operations.
 - `workbench/` exists only directly under a system directory and contains only forge process artifacts.
+- Operation `steps` are required for `command`, `async_command`, and `event_handler` operations with non-trivial logic (any operation that calls another operation, writes to a datastore, or branches). Simple `query` and `subscription` operations may omit steps.

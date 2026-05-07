@@ -110,7 +110,14 @@ operations:
     outputs: []
     raises: []
     visibility: <public | internal | private>
+    contract: <contract.id or omit>
     policies: []
+    steps:                            # required for command/async_command/event_handler with non-trivial logic
+      - order: 1
+        description: <what happens in this step>
+        calls: <operation.id or datastore.id>  # omit if no cross-boundary call
+        raises: []
+        condition: <expression>                # omit if unconditional
 relationships: []
 policies: []
 

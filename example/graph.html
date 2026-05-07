@@ -50,41 +50,38 @@
             background: #1a1f2e;
             border: 1px solid #2d3548;
             border-radius: 10px;
-            padding: 1.25rem 1.75rem 1.5rem;
+            padding: 2rem 2.5rem 2.25rem;
             display: grid;
             grid-template-columns: auto 1fr;
-            gap: 1.25rem 2.5rem;
+            gap: 1.75rem 3.5rem;
             align-items: start;
         }
         .key h3 {
             grid-column: 1 / -1;
-            font-size: 0.7rem;
+            font-size: 0.75rem;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.1em;
             color: #64748b;
-            margin-bottom: -0.25rem;
+            margin-bottom: -0.5rem;
         }
-        .key-diagram {
-            /* let Mermaid render naturally; constrain width so it doesn't expand */
-            max-width: 480px;
-        }
+        .key-diagram { min-width: 640px; }
         .key-descriptions {
             display: flex;
             flex-direction: column;
-            gap: 0.65rem;
-            padding-top: 0.25rem;
+            gap: 1rem;
+            padding-top: 0.5rem;
         }
         .key-row {
             display: flex;
-            gap: 0.5rem;
-            font-size: 0.78rem;
-            line-height: 1.4;
+            gap: 0.65rem;
+            font-size: 0.85rem;
+            line-height: 1.5;
         }
         .key-row .bullet {
             color: #475569;
             flex-shrink: 0;
-            margin-top: 0.05rem;
+            margin-top: 0.1rem;
         }
         .key-row strong { color: #cbd5e1; font-weight: 600; }
         .key-row span { color: #64748b; }
@@ -102,27 +99,40 @@
         <div class="mermaid">
             graph LR
                 subgraph linkhub_shortener_links["Links"]
-                    linkhub_shortener_links_link_manager(["LinkManager<br/><small>module</small>"])
-                    linkhub_shortener_links_link_manager_short_link["ShortLink<br/><small>element</small>"]
+                    subgraph linkhub_shortener_links_link_manager["LinkManager"]
+                        linkhub_shortener_links_link_manager_short_link["ShortLink<br/><small>element</small>"]
+                    end
                 end
                 subgraph linkhub_shortener_traffic["Traffic"]
-                    linkhub_shortener_traffic_click_recorder(["ClickRecorder<br/><small>module</small>"])
-                    linkhub_shortener_traffic_click_recorder_click["Click<br/><small>element</small>"]
-                    linkhub_shortener_traffic_redirector(["Redirector<br/><small>module</small>"])
-                    linkhub_shortener_traffic_redirector_redirect["Redirect<br/><small>element</small>"]
+                    subgraph linkhub_shortener_traffic_click_recorder["ClickRecorder"]
+                        linkhub_shortener_traffic_click_recorder_click["Click<br/><small>element</small>"]
+                    end
+                    subgraph linkhub_shortener_traffic_redirector["Redirector"]
+                        linkhub_shortener_traffic_redirector_redirect["Redirect<br/><small>element</small>"]
+                    end
                 end
                 linkhub_shortener_datastores_clicks_store[("ClicksStore<br/><small>datastore</small>")]
                 linkhub_shortener_datastores_links_db[("LinksDB<br/><small>datastore</small>")]
 
-                linkhub_shortener_links_link_manager_short_link -->|"references"| linkhub_shortener_traffic_click_recorder_click
-                linkhub_shortener_traffic_redirector_redirect -. "RedirectorRecordsClick" .-> linkhub_shortener_traffic_click_recorder_click
-                linkhub_shortener_links_link_manager -->|"CreateShortLink"| linkhub_shortener_traffic_redirector
-                linkhub_shortener_traffic_redirector_redirect -->|"depends_on"| linkhub_shortener_links_link_manager_short_link
-                linkhub_shortener_traffic_click_recorder -->|"ClicksStore"| linkhub_shortener_datastores_clicks_store
                 linkhub_shortener_traffic_redirector_redirect -. "RedirectorResolvesLink" .-> linkhub_shortener_links_link_manager_short_link
-                linkhub_shortener_traffic_click_recorder_click -->|"references"| linkhub_shortener_links_link_manager_short_link
                 linkhub_shortener_links_link_manager -->|"ResolveShortLink"| linkhub_shortener_traffic_redirector
                 linkhub_shortener_links_link_manager -->|"LinksDB"| linkhub_shortener_datastores_links_db
+                linkhub_shortener_links_link_manager -->|"CreateShortLink"| linkhub_shortener_traffic_redirector
+                linkhub_shortener_links_link_manager_short_link -->|"references"| linkhub_shortener_traffic_click_recorder_click
+                linkhub_shortener_traffic_redirector_redirect -->|"depends_on"| linkhub_shortener_links_link_manager_short_link
+                linkhub_shortener_traffic_click_recorder -->|"ClicksStore"| linkhub_shortener_datastores_clicks_store
+                linkhub_shortener_traffic_click_recorder_click -->|"references"| linkhub_shortener_links_link_manager_short_link
+                linkhub_shortener_traffic_redirector_redirect -. "RedirectorRecordsClick" .-> linkhub_shortener_traffic_click_recorder_click
+
+                classDef elementNode fill:#0f2235,stroke:#4a9ef8,color:#bfdbfe
+                classDef datastoreNode fill:#0a1f14,stroke:#059669,color:#6ee7b7
+                class linkhub_shortener_links_link_manager_short_link,linkhub_shortener_traffic_click_recorder_click,linkhub_shortener_traffic_redirector_redirect elementNode
+                class linkhub_shortener_datastores_clicks_store,linkhub_shortener_datastores_links_db datastoreNode
+                style linkhub_shortener_links fill:#0d1829,stroke:#1e3a5e,color:#64748b
+                style linkhub_shortener_traffic fill:#0d1829,stroke:#1e3a5e,color:#64748b
+                style linkhub_shortener_links_link_manager fill:#1a2d4a,stroke:#2563eb,color:#93c5fd
+                style linkhub_shortener_traffic_click_recorder fill:#1a2d4a,stroke:#2563eb,color:#93c5fd
+                style linkhub_shortener_traffic_redirector fill:#1a2d4a,stroke:#2563eb,color:#93c5fd
 
         </div>
     </div>
@@ -130,43 +140,52 @@
     <div class="key">
         <h3>Key</h3>
 
-        <!-- left: a real Mermaid diagram so shapes match exactly -->
         <div class="key-diagram">
             <div class="mermaid">
                 graph LR
                     subgraph domain["Domain"]
-                        e["MyElement\nelement"]
-                        m(["MyModule\nmodule"])
+                        subgraph modA["ServiceA"]
+                            eA["ElemA\nelement"]
+                        end
+                        subgraph modB["ServiceB"]
+                            eB["ElemB\nelement"]
+                        end
                     end
-                    d[("MyStore\ndatastore")]
-                    e -->|"contract / relationship"| m
-                    m -->|"datastore name"| d
-                    e -. "interaction" .-> m
+                    ds[("DataStore\ndatastore")]
+                    modA -->|"contract"| modB
+                    eA -. "interaction" .-> eB
+                    modB -->|"store name"| ds
+                        classDef elementNode fill:#0f2235,stroke:#4a9ef8,color:#bfdbfe
+                        classDef datastoreNode fill:#0a1f14,stroke:#059669,color:#6ee7b7
+                        class eA,eB elementNode
+                        class ds datastoreNode
+                style domain fill:#0d1829,stroke:#1e3a5e,color:#64748b
+                style modA fill:#1a2d4a,stroke:#2563eb,color:#93c5fd
+                style modB fill:#1a2d4a,stroke:#2563eb,color:#93c5fd
 
             </div>
         </div>
 
-        <!-- right: plain-English descriptions aligned to the diagram nodes/edges -->
         <div class="key-descriptions">
+            <div class="key-row">
+                <span class="bullet">▸</span>
+                <div><strong>Domain (outer border)</strong> <span>— A bounded area of responsibility. Groups related modules and their elements within a system.</span></div>
+            </div>
+            <div class="key-row">
+                <span class="bullet">▸</span>
+                <div><strong>Module (inner border)</strong> <span>— A deployable artifact (service, worker, function…) that packages one or more elements. Maps to a repo and a deployment unit.</span></div>
+            </div>
             <div class="key-row">
                 <span class="bullet">▸</span>
                 <div><strong>Element</strong> <span>— The core implementation unit (aggregate, entity, value object, service, or projection). What developers actually build and own.</span></div>
             </div>
             <div class="key-row">
                 <span class="bullet">▸</span>
-                <div><strong>Module</strong> <span>— A deployable artifact (service, worker, function…) that packages one or more elements. Maps to a repo and a deployment unit.</span></div>
+                <div><strong>Datastore</strong> <span>— A database, cache, queue, or object store. The connecting arrow is labelled with the datastore name.</span></div>
             </div>
             <div class="key-row">
                 <span class="bullet">▸</span>
-                <div><strong>Datastore</strong> <span>— A database, cache, queue, or object store. Arrows show which modules consume it; the label is the datastore name.</span></div>
-            </div>
-            <div class="key-row">
-                <span class="bullet">▸</span>
-                <div><strong>Subgraph border</strong> <span>— A domain: a bounded area of responsibility that groups related modules and elements within a system.</span></div>
-            </div>
-            <div class="key-row">
-                <span class="bullet">▸</span>
-                <div><strong>Solid arrow</strong> <span>— A contract dependency (producer → consumer, labelled with the contract name), a datastore access, or a structural element relationship.</span></div>
+                <div><strong>Solid arrow</strong> <span>— A contract reference (producer → consumer, labelled with the contract name) or a structural element relationship.</span></div>
             </div>
             <div class="key-row">
                 <span class="bullet">▸</span>

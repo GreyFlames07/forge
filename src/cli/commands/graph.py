@@ -24,12 +24,15 @@ DESCRIPTION = (
 
 _MERMAID_CDN = "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"
 
-# Minimum dot-path depth for node kinds we render as graph nodes.
-# Elements: conception.system.domain.module.element = 5 parts
-# Modules:  conception.system.domain.module          = 4 parts
-# Types, errors, etc. are NOT rendered as nodes.
+# Dot-path depths for structural kinds.
+# conception.system.domain.module.element = 5 parts
+# conception.system.domain.module          = 4 parts
 _ELEMENT_DEPTH = 5
 _MODULE_DEPTH  = 4
+
+# Kinds rendered as standalone nodes (not subgraph containers).
+# Contracts are shown purely as labelled edges between modules, not as nodes.
+_PERIPHERAL_KINDS = frozenset({"datastore"})
 
 
 # ===========================================================================
@@ -50,6 +53,13 @@ def register(sub: argparse._SubParsersAction) -> None:
     p.add_argument(
         "--scope", default=None, metavar="NODE_ID",
         help="Limit graph to the subgraph reachable from this node id.",
+    )
+    p.add_argument(
+        "--show-deployments", action="store_true",
+        help=(
+            "Group modules inside their deployment environment instead of their "
+            "domain. Shows which environment each module is deployed to."
+        ),
     )
     p.add_argument(
         "--no-open", action="store_true",
@@ -76,14 +86,18 @@ def run(args: argparse.Namespace) -> int:
             return 1
         edges = _filter_to_scope(edges, args.scope)
 
-    mermaid_text = _render_mermaid(idx, edges)
+    mermaid_text = _render_mermaid(idx, edges, show_deployments=args.show_deployments)
 
     if args.format == "mermaid":
         print(mermaid_text)
         return 0
 
-    html = _render_html(mermaid_text, scope_label=args.scope,
-                        conception=idx.conception_name)
+    html = _render_html(
+        mermaid_text,
+        scope_label=args.scope,
+        conception=idx.conception_name,
+        show_deployments=args.show_deployments,
+    )
     out_path = Path(args.output).expanduser().resolve()
     try:
         out_path.write_text(html, encoding="utf-8")
@@ -132,7 +146,7 @@ def _collect_edges(idx: Any) -> list[Edge]:
             continue
         data = entry.data
 
-        # --- Contracts: producer module → consumer modules ---
+        # Contracts: producer module → consumer modules
         if entry.kind == "contract":
             producer = data.get("producer")
             consumers = data.get("consumers") or []
@@ -142,19 +156,18 @@ def _collect_edges(idx: Any) -> list[Edge]:
                     if isinstance(consumer, str) and consumer:
                         edges.add(Edge(producer, consumer, label, "contract"))
 
-        # --- Interactions: caller op → callee op (simplified to parent elements) ---
+        # Interactions: caller op → callee op (resolved to parent elements)
         elif entry.kind == "interaction":
             caller = data.get("caller")
             callee = data.get("callee")
             label = data.get("name") or entry_id.split(".")[-1]
             if caller and callee:
-                # Simplify operation IDs to their parent element IDs
                 src = _parent_element(str(caller), idx)
                 dst = _parent_element(str(callee), idx)
                 if src and dst and src != dst:
                     edges.add(Edge(src, dst, label, "interaction"))
 
-        # --- Element relationships ---
+        # Element relationships
         elif entry.kind == "element":
             for rel in (data.get("relationships") or []):
                 if not isinstance(rel, dict):
@@ -164,7 +177,7 @@ def _collect_edges(idx: Any) -> list[Edge]:
                 if isinstance(target, str) and target:
                     edges.add(Edge(entry_id, target, label, "relationship"))
 
-        # --- Datastores: consumer modules → datastore ---
+        # Datastores: consumer modules → datastore node
         elif entry.kind == "datastore":
             label = data.get("name") or entry_id.split(".")[-1]
             for consumer in (data.get("consumers") or []):
@@ -175,11 +188,7 @@ def _collect_edges(idx: Any) -> list[Edge]:
 
 
 def _parent_element(node_id: str, idx: Any) -> str | None:
-    """Given an operation/property ID, return the parent element ID.
-
-    Falls back gracefully: if the node itself is an element, return it.
-    If the node isn't in the index at all, try truncating to element depth.
-    """
+    """Given an operation/property ID, return the parent element ID."""
     entry = idx.get(node_id)
     if entry is None:
         parts = node_id.split(".")
@@ -191,7 +200,6 @@ def _parent_element(node_id: str, idx: Any) -> str | None:
     if entry.kind == "element":
         return node_id
     if entry.kind in ("operation", "property"):
-        # Strip last segment to get the parent element
         parts = node_id.split(".")
         if len(parts) > _ELEMENT_DEPTH:
             return ".".join(parts[:_ELEMENT_DEPTH])
@@ -224,7 +232,7 @@ def _filter_to_scope(edges: list[Edge], scope_id: str) -> list[Edge]:
 
 
 # ===========================================================================
-# Mermaid rendering
+# Mermaid rendering — helpers
 # ===========================================================================
 
 def _safe_id(node_id: str) -> str:
@@ -232,13 +240,11 @@ def _safe_id(node_id: str) -> str:
 
 
 def _node_shape(node_id: str, idx: Any) -> tuple[str, str]:
-    """Return (open_bracket, close_bracket) for Mermaid node shape."""
     entry = idx.get(node_id)
     if entry is None:
         return ("[", "]")
     shapes = {
         "element":   ("[", "]"),
-        "module":    ("([", "])"),
         "datastore": ("[(", ")]"),
         "contract":  ("{", "}"),
     }
@@ -252,13 +258,17 @@ def _node_label(node_id: str, idx: Any) -> str:
     data = entry.data if isinstance(entry.data, dict) else {}
     name = data.get("name") or node_id.split(".")[-1]
     kind = entry.kind or ""
-    return f"{name}<br/><small>{kind}</small>"
+    if kind == "datastore":
+        engine = data.get("engine") or data.get("kind") or ""
+        subtitle = f"{engine} · {kind}" if engine else kind
+    else:
+        subtitle = kind
+    return f"{name}<br/><small>{subtitle}</small>"
 
 
 def _domain_of(node_id: str, idx: Any) -> str | None:
-    """Return the domain ID for grouping, or None."""
+    """Return the domain ID (3-part dot-path) for a module/element, or None."""
     parts = node_id.split(".")
-    # conception.system.domain = 3 parts
     if len(parts) >= 3:
         candidate = ".".join(parts[:3])
         e = idx.get(candidate)
@@ -267,48 +277,173 @@ def _domain_of(node_id: str, idx: Any) -> str | None:
     return None
 
 
-def _render_mermaid(idx: Any, edges: list[Edge]) -> str:
-    # Collect all node IDs referenced by edges
-    all_nodes: set[str] = set()
-    for e in edges:
-        all_nodes.add(e.src)
-        all_nodes.add(e.dst)
+def _build_module_elements(idx: Any) -> dict[str, list[str]]:
+    """Map module_id → sorted list of element_ids that belong to it."""
+    result: dict[str, list[str]] = {}
+    for entry in idx.entries.values():
+        if entry.kind != "element":
+            continue
+        parts = entry.id.split(".")
+        if len(parts) == _ELEMENT_DEPTH:
+            module_id = ".".join(parts[:_MODULE_DEPTH])
+            result.setdefault(module_id, []).append(entry.id)
+    return {k: sorted(v) for k, v in result.items()}
 
-    # Group nodes by domain for subgraphs
-    domain_nodes: dict[str, list[str]] = {}
-    ungrouped: list[str] = []
-    for node in sorted(all_nodes):
-        domain = _domain_of(node, idx)
-        if domain:
-            domain_nodes.setdefault(domain, []).append(node)
+
+def _build_env_modules(idx: Any) -> dict[str, list[str]]:
+    """Map environment_id → sorted list of module_ids deployed there."""
+    result: dict[str, list[str]] = {}
+    for entry in idx.entries.values():
+        if entry.kind != "deployment" or not isinstance(entry.data, dict):
+            continue
+        module = entry.data.get("module")
+        env = entry.data.get("environment")
+        if module and env:
+            result.setdefault(str(env), []).append(str(module))
+    return {k: sorted(set(v)) for k, v in result.items()}
+
+
+def _emit_module_subgraph(
+    lines: list[str],
+    idx: Any,
+    module_id: str,
+    module_elements: dict[str, list[str]],
+    depth: int,
+) -> None:
+    """Emit a module as a Mermaid subgraph containing its element nodes."""
+    pad = "    " * depth
+    entry = idx.get(module_id)
+    name = (
+        (entry.data.get("name") if entry and isinstance(entry.data, dict) else None)
+        or module_id.split(".")[-1]
+    )
+    lines.append(f'{pad}subgraph {_safe_id(module_id)}["{name}"]')
+    for elem_id in module_elements.get(module_id, []):
+        o, c = _node_shape(elem_id, idx)
+        label = _node_label(elem_id, idx)
+        lines.append(f'{pad}    {_safe_id(elem_id)}{o}"{label}"{c}')
+    lines.append(f'{pad}end')
+
+
+def _emit_peripheral_nodes(lines: list[str], idx: Any) -> None:
+    """Emit datastore and contract nodes (standalone, not inside any subgraph)."""
+    for entry in sorted(idx.entries.values(), key=lambda e: e.id):
+        if entry.kind not in _PERIPHERAL_KINDS:
+            continue
+        o, c = _node_shape(entry.id, idx)
+        label = _node_label(entry.id, idx)
+        lines.append(f'    {_safe_id(entry.id)}{o}"{label}"{c}')
+
+
+def _emit_domain_groups(
+    lines: list[str], idx: Any, module_elements: dict[str, list[str]]
+) -> None:
+    """Emit domain subgraphs → module subgraphs → element nodes."""
+    all_modules = sorted(e.id for e in idx.entries.values() if e.kind == "module")
+
+    domain_modules: dict[str, list[str]] = {}
+    ungrouped_modules: list[str] = []
+    for m in all_modules:
+        d = _domain_of(m, idx)
+        if d:
+            domain_modules.setdefault(d, []).append(m)
         else:
-            ungrouped.append(node)
+            ungrouped_modules.append(m)
 
-    lines: list[str] = ["graph LR"]
-
-    # Emit domain subgraphs
-    for domain_id in sorted(domain_nodes):
+    for domain_id in sorted(domain_modules):
         entry = idx.get(domain_id)
-        domain_label = (
+        label = (
             (entry.data.get("name") if entry and isinstance(entry.data, dict) else None)
             or domain_id.split(".")[-1]
         )
-        lines.append(f'    subgraph {_safe_id(domain_id)}["{domain_label}"]')
-        for node in sorted(set(domain_nodes[domain_id])):
-            o, c = _node_shape(node, idx)
-            label = _node_label(node, idx)
-            lines.append(f'        {_safe_id(node)}{o}"{label}"{c}')
+        lines.append(f'    subgraph {_safe_id(domain_id)}["{label}"]')
+        for module_id in sorted(domain_modules[domain_id]):
+            _emit_module_subgraph(lines, idx, module_id, module_elements, depth=2)
         lines.append("    end")
 
-    # Ungrouped nodes (datastores, contracts, etc. outside any domain)
-    for node in sorted(set(ungrouped)):
-        o, c = _node_shape(node, idx)
-        label = _node_label(node, idx)
-        lines.append(f'    {_safe_id(node)}{o}"{label}"{c}')
+    for module_id in sorted(ungrouped_modules):
+        _emit_module_subgraph(lines, idx, module_id, module_elements, depth=1)
+
+    _emit_peripheral_nodes(lines, idx)
+
+
+def _emit_env_groups(
+    lines: list[str], idx: Any, module_elements: dict[str, list[str]]
+) -> None:
+    """Emit environment subgraphs → module subgraphs → element nodes."""
+    env_modules = _build_env_modules(idx)
+    deployed: set[str] = {m for ms in env_modules.values() for m in ms}
+    all_modules = sorted(e.id for e in idx.entries.values() if e.kind == "module")
+
+    for env_id in sorted(env_modules):
+        entry = idx.get(env_id)
+        data = entry.data if entry and isinstance(entry.data, dict) else {}
+        name = data.get("name") or env_id.split(".")[-1]
+        kind_label = data.get("kind") or "environment"
+        lines.append(f'    subgraph {_safe_id(env_id)}["{name} ({kind_label})"]')
+        for module_id in env_modules[env_id]:
+            _emit_module_subgraph(lines, idx, module_id, module_elements, depth=2)
+        lines.append("    end")
+
+    for module_id in sorted(m for m in all_modules if m not in deployed):
+        _emit_module_subgraph(lines, idx, module_id, module_elements, depth=1)
+
+    _emit_peripheral_nodes(lines, idx)
+
+
+# ===========================================================================
+# Mermaid rendering — styles
+# ===========================================================================
+
+# Colour palette (works over Mermaid dark theme).
+_C_OUTER   = "fill:#0d1829,stroke:#1e3a5e,color:#64748b"   # domain / environment
+_C_MODULE  = "fill:#1a2d4a,stroke:#2563eb,color:#93c5fd"   # module subgraph
+_C_ELEMENT = "fill:#0f2235,stroke:#4a9ef8,color:#bfdbfe"   # element node
+_C_STORE   = "fill:#0a1f14,stroke:#059669,color:#6ee7b7"   # datastore node
+
+
+def _emit_styles(lines: list[str], idx: Any, show_deployments: bool) -> None:
+    lines.append("")
+    lines.append(f"    classDef elementNode {_C_ELEMENT}")
+    lines.append(f"    classDef datastoreNode {_C_STORE}")
+
+    elem_ids = sorted(
+        _safe_id(e.id)
+        for e in idx.entries.values()
+        if e.kind == "element" and len(e.id.split(".")) == _ELEMENT_DEPTH
+    )
+    if elem_ids:
+        lines.append(f"    class {','.join(elem_ids)} elementNode")
+
+    ds_ids = sorted(_safe_id(e.id) for e in idx.entries.values() if e.kind == "datastore")
+    if ds_ids:
+        lines.append(f"    class {','.join(ds_ids)} datastoreNode")
+
+    outer_kind = "environment" if show_deployments else "domain"
+    for e in sorted(idx.entries.values(), key=lambda x: x.id):
+        if e.kind == outer_kind:
+            lines.append(f"    style {_safe_id(e.id)} {_C_OUTER}")
+    for e in sorted(idx.entries.values(), key=lambda x: x.id):
+        if e.kind == "module":
+            lines.append(f"    style {_safe_id(e.id)} {_C_MODULE}")
+
+
+# ===========================================================================
+# Mermaid rendering — main
+# ===========================================================================
+
+def _render_mermaid(idx: Any, edges: list[Edge], show_deployments: bool = False) -> str:
+    module_elements = _build_module_elements(idx)
+
+    lines: list[str] = ["graph LR"]
+
+    if show_deployments:
+        _emit_env_groups(lines, idx, module_elements)
+    else:
+        _emit_domain_groups(lines, idx, module_elements)
 
     lines.append("")
 
-    # Emit edges — dashed for interactions, solid for everything else
     seen: set[tuple[str, str, str]] = set()
     for e in edges:
         src = _safe_id(e.src)
@@ -328,6 +463,8 @@ def _render_mermaid(idx: Any, edges: list[Edge]) -> str:
 
         lines.append(f"    {src} {arrow} {dst}")
 
+    _emit_styles(lines, idx, show_deployments)
+
     return "\n".join(lines) + "\n"
 
 
@@ -335,25 +472,76 @@ def _render_mermaid(idx: Any, edges: list[Edge]) -> str:
 # HTML rendering
 # ===========================================================================
 
-def _render_html(mermaid_text: str, scope_label: str | None, conception: str) -> str:
+def _render_html(
+    mermaid_text: str,
+    scope_label: str | None,
+    conception: str,
+    show_deployments: bool = False,
+) -> str:
     title = f"Forge Graph — {conception}"
     if scope_label:
         title += f" ({scope_label})"
 
     indented = textwrap.indent(mermaid_text, "            ")
 
-    # Key diagram: rendered by Mermaid so shapes/colours exactly match the main graph.
-    key_diagram = textwrap.dedent("""\
-        graph LR
-            subgraph domain["Domain"]
-                e["MyElement\\nelement"]
-                m(["MyModule\\nmodule"])
-            end
-            d[("MyStore\\ndatastore")]
-            e -->|"contract / relationship"| m
-            m -->|"datastore name"| d
-            e -. "interaction" .-> m
+    _key_styles = textwrap.dedent(f"""\
+        classDef elementNode {_C_ELEMENT}
+        classDef datastoreNode {_C_STORE}
+        class eA,eB elementNode
+        class ds datastoreNode
     """)
+
+    if show_deployments:
+        key_diagram = textwrap.dedent("""\
+            graph LR
+                subgraph envA["Production (production)"]
+                    subgraph modA["ServiceA"]
+                        eA["ElemA\\nelement"]
+                    end
+                    subgraph modB["ServiceB"]
+                        eB["ElemB\\nelement"]
+                    end
+                end
+                ds[("DataStore\\ndatastore")]
+                modA -->|"contract"| modB
+                eA -. "interaction" .-> eB
+                modB -->|"store name"| ds
+        """) + textwrap.indent(_key_styles, "        ") + textwrap.dedent(f"""\
+                style envA {_C_OUTER}
+                style modA {_C_MODULE}
+                style modB {_C_MODULE}
+        """)
+        outer_label = "Environment (outer border)"
+        outer_desc = (
+            "A deployment target (production, staging, …). "
+            "The outer border groups the modules deployed there."
+        )
+    else:
+        key_diagram = textwrap.dedent("""\
+            graph LR
+                subgraph domain["Domain"]
+                    subgraph modA["ServiceA"]
+                        eA["ElemA\\nelement"]
+                    end
+                    subgraph modB["ServiceB"]
+                        eB["ElemB\\nelement"]
+                    end
+                end
+                ds[("DataStore\\ndatastore")]
+                modA -->|"contract"| modB
+                eA -. "interaction" .-> eB
+                modB -->|"store name"| ds
+        """) + textwrap.indent(_key_styles, "        ") + textwrap.dedent(f"""\
+                style domain {_C_OUTER}
+                style modA {_C_MODULE}
+                style modB {_C_MODULE}
+        """)
+        outer_label = "Domain (outer border)"
+        outer_desc = (
+            "A bounded area of responsibility. "
+            "Groups related modules and their elements within a system."
+        )
+
     key_indented = textwrap.indent(key_diagram, "                ")
 
     return f"""\
@@ -409,41 +597,38 @@ def _render_html(mermaid_text: str, scope_label: str | None, conception: str) ->
             background: #1a1f2e;
             border: 1px solid #2d3548;
             border-radius: 10px;
-            padding: 1.25rem 1.75rem 1.5rem;
+            padding: 2rem 2.5rem 2.25rem;
             display: grid;
             grid-template-columns: auto 1fr;
-            gap: 1.25rem 2.5rem;
+            gap: 1.75rem 3.5rem;
             align-items: start;
         }}
         .key h3 {{
             grid-column: 1 / -1;
-            font-size: 0.7rem;
+            font-size: 0.75rem;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.1em;
             color: #64748b;
-            margin-bottom: -0.25rem;
+            margin-bottom: -0.5rem;
         }}
-        .key-diagram {{
-            /* let Mermaid render naturally; constrain width so it doesn't expand */
-            max-width: 480px;
-        }}
+        .key-diagram {{ min-width: 640px; }}
         .key-descriptions {{
             display: flex;
             flex-direction: column;
-            gap: 0.65rem;
-            padding-top: 0.25rem;
+            gap: 1rem;
+            padding-top: 0.5rem;
         }}
         .key-row {{
             display: flex;
-            gap: 0.5rem;
-            font-size: 0.78rem;
-            line-height: 1.4;
+            gap: 0.65rem;
+            font-size: 0.85rem;
+            line-height: 1.5;
         }}
         .key-row .bullet {{
             color: #475569;
             flex-shrink: 0;
-            margin-top: 0.05rem;
+            margin-top: 0.1rem;
         }}
         .key-row strong {{ color: #cbd5e1; font-weight: 600; }}
         .key-row span {{ color: #64748b; }}
@@ -466,34 +651,32 @@ def _render_html(mermaid_text: str, scope_label: str | None, conception: str) ->
     <div class="key">
         <h3>Key</h3>
 
-        <!-- left: a real Mermaid diagram so shapes match exactly -->
         <div class="key-diagram">
             <div class="mermaid">
 {key_indented}
             </div>
         </div>
 
-        <!-- right: plain-English descriptions aligned to the diagram nodes/edges -->
         <div class="key-descriptions">
+            <div class="key-row">
+                <span class="bullet">▸</span>
+                <div><strong>{outer_label}</strong> <span>— {outer_desc}</span></div>
+            </div>
+            <div class="key-row">
+                <span class="bullet">▸</span>
+                <div><strong>Module (inner border)</strong> <span>— A deployable artifact (service, worker, function…) that packages one or more elements. Maps to a repo and a deployment unit.</span></div>
+            </div>
             <div class="key-row">
                 <span class="bullet">▸</span>
                 <div><strong>Element</strong> <span>— The core implementation unit (aggregate, entity, value object, service, or projection). What developers actually build and own.</span></div>
             </div>
             <div class="key-row">
                 <span class="bullet">▸</span>
-                <div><strong>Module</strong> <span>— A deployable artifact (service, worker, function…) that packages one or more elements. Maps to a repo and a deployment unit.</span></div>
+                <div><strong>Datastore</strong> <span>— A database, cache, queue, or object store. The connecting arrow is labelled with the datastore name.</span></div>
             </div>
             <div class="key-row">
                 <span class="bullet">▸</span>
-                <div><strong>Datastore</strong> <span>— A database, cache, queue, or object store. Arrows show which modules consume it; the label is the datastore name.</span></div>
-            </div>
-            <div class="key-row">
-                <span class="bullet">▸</span>
-                <div><strong>Subgraph border</strong> <span>— A domain: a bounded area of responsibility that groups related modules and elements within a system.</span></div>
-            </div>
-            <div class="key-row">
-                <span class="bullet">▸</span>
-                <div><strong>Solid arrow</strong> <span>— A contract dependency (producer → consumer, labelled with the contract name), a datastore access, or a structural element relationship.</span></div>
+                <div><strong>Solid arrow</strong> <span>— A contract reference (producer → consumer, labelled with the contract name) or a structural element relationship.</span></div>
             </div>
             <div class="key-row">
                 <span class="bullet">▸</span>

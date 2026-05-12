@@ -21,7 +21,6 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import re
           import tomllib
 
           tag = "${{ github.ref_name }}"
@@ -39,11 +38,11 @@ jobs:
               init_path = module_path.with_suffix(".py")
               if not init_path.exists():
                   init_path = module_path / "__init__.py"
-              text = init_path.read_text(encoding="utf-8")
-              match = re.search(rf'^{attr_name}\\s*=\\s*[\"\\\']([^\"\\\']+)[\"\\\']', text, re.MULTILINE)
-              if not match:
+              namespace = {}
+              exec(init_path.read_text(encoding="utf-8"), namespace)
+              version = namespace.get(attr_name)
+              if not version:
                   raise SystemExit(f"Could not resolve {attr} from {init_path}")
-              version = match.group(1)
           expected = f"v{version}"
           if tag != expected:
               raise SystemExit(f"Tag/version mismatch: tag={tag}, package={expected}")

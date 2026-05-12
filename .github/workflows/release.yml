@@ -17,18 +17,36 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v4
 
-      - name: Verify tag matches pyproject version
+      - name: Verify tag matches package version
         run: |
-          python - <<'PY'
+          python3 - <<'PY'
           from pathlib import Path
+          import re
           import tomllib
 
           tag = "${{ github.ref_name }}"
           pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
-          version = pyproject["project"]["version"]
+          project = pyproject["project"]
+          if "version" in project:
+              version = project["version"]
+          else:
+              dynamic = pyproject.get("tool", {}).get("setuptools", {}).get("dynamic", {})
+              attr = dynamic.get("version", {}).get("attr")
+              if not attr:
+                  raise SystemExit("Could not resolve package version from pyproject.toml")
+              module_name, attr_name = attr.rsplit(".", 1)
+              module_path = Path("src") / Path(*module_name.split("."))
+              init_path = module_path.with_suffix(".py")
+              if not init_path.exists():
+                  init_path = module_path / "__init__.py"
+              text = init_path.read_text(encoding="utf-8")
+              match = re.search(rf'^{attr_name}\\s*=\\s*[\"\\\']([^\"\\\']+)[\"\\\']', text, re.MULTILINE)
+              if not match:
+                  raise SystemExit(f"Could not resolve {attr} from {init_path}")
+              version = match.group(1)
           expected = f"v{version}"
           if tag != expected:
-              raise SystemExit(f"Tag/version mismatch: tag={tag}, pyproject={expected}")
+              raise SystemExit(f"Tag/version mismatch: tag={tag}, package={expected}")
           PY
 
       - name: Build sdist and wheel

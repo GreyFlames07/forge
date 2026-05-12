@@ -1,0 +1,5 @@
+id: cli_report_flow
+flow: cli_report_flow
+kind: operator
+intent: Confirm the CLI report command prints the expected JSON payload.
+check: Run python3 apps/cli/src/main.py report and verify the output contains report and status fields.

@@ -1,144 +1,217 @@
 ---
 name: forge-spec
 description: >
-  Forge element elicitation skill. Use when system design is complete (forge-design has run)
-  and the user wants to spec out one or more modules in detail. Drives a hybrid elicitation interview
-  that fully understands a module's shape before assembling any files, builds types/errors/policies
-  inline as they emerge, promotes them to registries when shared, then composes interactions into flows.
-  Also produces concrete datastores and environments entries.
-  Triggers on: "spec out this module", "let's define the elements", "forge-spec", or any request
-  to elicit element/operation/contract detail within an existing Forge design.
+  Forge V2 specification skill. Use when discovery is complete and the user wants to define the
+  canonical operations, contracts, stores, flows, and verification needed to make the next runnable
+  slices buildable without drift. Drives a targeted interview, gathers enough detail before writing,
+  then drafts V2 schema files in one pass per scope.
 ---
 
 # forge-spec
 
-Read `references/framework.md` before starting — you need the full schema. Also read `workbench/discovery.md` and the target `module.yaml` before asking any questions.
+Read before starting:
+
+- `docs/forge-v2-schema.md`
+- `docs/forge-v2-architecture.md`
+- `frameworks/spec/FRAMEWORK.md`
+- `forge/workbench/discovery.md`
+- relevant files under `forge/system.yaml`, `forge/verticals/`, `forge/units/`, and `forge/bootstrap.yaml`
 
 ## Purpose
 
-Fully elicit one module at a time. Ask all the questions needed to understand the module's complete shape **before** writing any files. Then assemble everything in one pass.
+Fully elicit canonical system truth for a defined scope before implementation begins.
 
-**Hybrid elicitation model**: ask meaningful targeted questions to extract the most detail, build from the answers, then follow up with implementation-specificity questions to fill in fine-grained detail. Don't ask questions you can infer from discovery notes or prior answers.
+This stage owns:
 
-## Output Artifacts (per module)
+- `types`
+- `operations`
+- `surfaces`
+- `stores`
+- `flows`
+- `verification`
+
+The unit of work is usually one vertical at a time, with bootstrap-relevant operations first.
+
+## Output Artifacts
 
 | File | Contents |
 |------|----------|
-| `spec/<system>/<domain>/<module>/<element>.yaml` | One per element, with inline properties + operations |
-| `spec/<system>/types/<TypeName>.yaml` | One per promoted type |
-| `spec/<system>/errors/<ErrorName>.yaml` | One per promoted error |
-| `spec/<system>/policies/<policy>.yaml` | One per policy |
-| `spec/<system>/contracts/<contract>.yaml` | One per contract |
-| `spec/<system>/integrations/<integration>.yaml` | One per external integration |
-| `spec/<system>/interactions/<interaction>.yaml` | One per operation-to-operation call |
-| `spec/<system>/flows/<flow>.yaml` | One per named business flow |
-| `spec/<system>/implementation/datastores.yaml` | Concrete datastore entries for this module |
-| `spec/<system>/implementation/environments.yaml` | Concrete environment entries (if not yet written) |
+| `forge/types/*.yaml` | Canonical data, payload, event, projection, artifact, and scalar types |
+| `forge/operations/*.yaml` | Canonical business actions |
+| `forge/surfaces/*.yaml` | Reachability bindings for operations |
+| `forge/stores/*.yaml` | Persistence backbones and environment mappings |
+| `forge/flows/*.yaml` | End-to-end business journeys |
+| `forge/verification/startup/*.yaml` | Startup checks |
+| `forge/verification/surfaces/*.yaml` | Surface checks |
+| `forge/verification/flows/*.yaml` | Flow checks |
+| `forge/verification/promotion_gates.yaml` | Promotion requirements |
 
-## Elicitation Process
+## Elicitation Standard
 
-### Pre-read
+### Non-negotiables
 
-Before asking anything:
-1. Read `workbench/discovery.md` — extract what's already known about this module.
-2. Read `module.yaml` — note packaging, runtime, external dependencies.
-3. Run `forge list --kind element` to see what's already been defined across the system (reuse check).
+1. Ask enough questions to understand the scope before writing files.
+2. Ask bootstrap-relevant questions first.
+3. Ask only what cannot be safely inferred from discovery notes and existing schema.
+4. Critical operations are always explicit. Never infer them from surfaces or flows.
+5. Public and cross-unit contracts must use named canonical types.
+6. Keep field contracts readable using `fields[].spec`, not bloated structural subkeys.
 
-### Phase 1 — Module Shape Interview
+## Scope Selection
 
-Ask all questions in this phase before writing anything. Batch questions that don't depend on each other.
+Before interviewing:
 
-**Entities and ownership**
-- What are the core things this module manages? (aggregates, entities, value objects, services)
-- For each: what state does it hold? What's its identity? What's its lifecycle?
+1. Identify the target vertical or bootstrap scope.
+2. Read the relevant `vertical` file.
+3. Read the related `unit` files.
+4. Read `forge/bootstrap.yaml`.
 
-**Operations**
-- What can each entity do? (commands that change state, queries that read state, async variants, event handlers)
-- For each operation: what goes in, what comes out, what can go wrong?
-- Which operations are called by other modules? Which are internal only?
+Announce the scope in one line before asking questions.
 
-**Contracts and protocols**
-- What does this module expose to other modules or external callers?
-- What protocol? (REST, gRPC, queue, event_bus, etc.)
-- Who are the consumers of each contract?
+## Interview Phases
 
-**Dependencies and integrations**
-- What does this module call in other modules?
-- What external services does it depend on? (already listed in module.yaml?)
+### Phase 1 — Operation Map
 
-**Data**
-- What does this module persist? Where? (relational, document, cache, etc.)
-- What engine? (postgres, redis, etc.)
-- What's the read/write pattern per entity?
+Ask all questions in this phase before writing.
 
-**Policies**
-- Which operations require authentication? What mechanism?
-- Are there rate limits, SLAs, or retry policies?
-- Any data classification, retention, or audit requirements?
+Establish:
 
-**Events**
-- What events does this module emit? What events does it consume?
+- the operations that make bootstrap work
+- the next operations that expand value
+- which unit owns each operation
+- which operations are public, cross-unit, or internal
 
-### Phase 2 — Implementation Detail
+Questions:
 
-After Phase 1 answers are in, drill into specifics that the implementation will need:
+- What are the concrete actions the system must support in this scope?
+- Which of these actions are part of the bootstrap path?
+- Which unit owns each action?
+- What inputs go in, what outputs come out, and what can fail?
+- Which operations emit or consume events?
+- Which additional canonical types does each operation materially reference without directly accepting or returning them?
 
-- For each operation's inputs: what are the exact fields? Types? Constraints?
-- For composite types: what are the fields? Optional vs required? Defaults?
-- For errors: what's the HTTP status? Are there extra fields (e.g. `field_name` on validation errors)?
-- For policies: what's the exact auth rule? Which roles?
-- For datastores: what's the table/collection/key structure? What's the consistency requirement?
+Every meaningful action should become an `operations/*.yaml` file.
 
-Ask only what you can't confidently infer. If the answer is obvious from context, default it and note it.
+### Phase 2 — Contracts and Canonical Data
+
+Establish:
+
+- the types operations rely on
+- lifecycle semantics
+- state transitions
+- error contracts
+- data classification
+
+Questions:
+
+- What canonical records or payloads do these operations touch?
+- For each type: what fields matter, and how would you describe each field contract in plain language?
+- Which types have lifecycle states? What transitions are valid, and which operation causes each transition?
+- Which errors are business-significant enough to name explicitly?
+- Which data is sensitive or restricted?
+
+### Phase 3 — Reachability
+
+Establish:
+
+- how operations are exposed
+- transport bindings
+- auth requirements
+- delivery semantics
+
+Questions:
+
+- How does each operation become reachable? HTTP, CLI, queue, cron, internal call, or UI route?
+- Which unit exposes it?
+- What auth context is required?
+- Which behaviors matter for delivery: idempotency, retries, scheduling, event topics?
+
+Each public or cross-unit operation should have a corresponding surface unless it is purely internal.
+
+### Phase 4 — Persistence
+
+Establish:
+
+- what stores exist
+- what each type needs from storage
+- environment-specific mappings
+
+Questions:
+
+- Which types are canonical versus derived?
+- Where do they persist?
+- Do any types split metadata and payload storage?
+- What read/write patterns matter?
+- What dev/test/prod backing is expected for each store?
+
+### Phase 5 — Flows and Verification
+
+Establish:
+
+- the first meaningful end-to-end flows
+- startup checks
+- bootstrap checks
+- operator checks when automation is weak
+
+Questions:
+
+- What business journey does the bootstrap slice actually perform end to end?
+- What adjacent flows matter next?
+- What checks prove startup works?
+- What checks prove bootstrap still works?
+- What requires an operator to confirm instead of a machine?
 
 ## Assembly Rules
 
-### Types and Errors — inline emergence
+### Draft in one pass per scope
 
-- Define types and errors inline within element files as you encounter them.
-- Run `forge find <name>` before creating any new type or error — surface potential reuse.
-- **Promote to registry** (`types/` or `errors/`) when a type or error is referenced by more than one element or is part of a contract.
-- Built-in scalars (`String`, `Integer`, `Float`, `Boolean`, `Timestamp`, `UUID`, `Blob`) and built-in errors (`NotFound`, `Unauthorized`, `Forbidden`, `Conflict`, `ValidationFailed`, `Unavailable`, `Timeout`) are referenced directly — never redefined.
+Once the scope is understood:
 
-### Registry Cleanup (end of module)
+1. Draft operations first.
+2. Draft types those operations require.
+3. Draft surfaces and stores.
+4. Draft flows from the operations and surfaces.
+5. Draft verification items tied to bootstrap and declared flows.
 
-After assembling all elements, do one pass:
-- Deduplicate any type or error that appears more than once inline — extract to registry.
-- Ensure all `contract` fields on operations point to a real contract file.
-- Ensure all policy IDs on elements and operations exist in `policies/`.
+### Type authoring rules
 
-### Interactions and Flows
+- `kind` stays explicit.
+- Use `fields[].spec` for readable field contracts.
+- Use `scalar.constraint` for scalar-only constraints.
+- Use `lifecycle.transitions` whenever states matter.
+- Use named event types for cross-unit events.
 
-- Define one `interaction` node for each directed call between two operations.
-- After all interactions are defined, compose them into `flow` nodes that represent named business processes.
-- Flows must trace all the way down to interactions — no abstract steps.
-- Assign `parallel_group` to interactions that can run concurrently within a flow.
-- Define `on_failure` and `compensation` for any interaction that mutates state.
+### Operation authoring rules
 
-### Datastores
+- each operation has one owner unit
+- each public or cross-unit operation has named input, output, and error contracts, and may declare additional `referenced_types`
+- reads and writes must be explicit
+- use `emits` and `consumes` for event behavior
 
-Write concrete entries to `implementation/datastores.yaml`:
-- Exact `engine` (e.g. `postgres`, not just `relational`)
-- Schema entries mapping element types to storage names (table, collection, key prefix)
-- `consumers` list referencing this module
+### Flow authoring rules
 
-### Environments
+- flows are composed from existing surfaces, operations, and units
+- `path` entries use typed refs
+- failure modes may be canonical error IDs, natural-language failures, or both
 
-Write concrete entries to `implementation/environments.yaml` if not already present:
-- One entry per environment type established in design
-- Exact `region`
-- Per-datastore `connection` (secrets reference format, e.g. `${{ secrets.DB_URL }}`) and `instance_class`
+### Verification rules
 
-## Module Completion
+- bootstrap always gets explicit checks
+- operator checks are first-class verification items
+- verification should be structured agent guidance, not a heavy DSL
 
-When all files are written:
-1. Run `forge validate` — resolve any structural errors before proceeding.
-2. Update the module's `elements` list in `module.yaml`.
-3. State which module was completed and ask whether to continue with the next module or stop.
+## Completion
+
+When files are written:
+
+1. Run `forge validate --schema-only` if available.
+2. Surface any structural gaps immediately.
+3. Summarize what was added in this scope.
+4. Ask whether to continue with the next vertical or move to `forge-plan`.
 
 ## Key Constraints
 
-- Never write an element file until Phase 1 and Phase 2 are complete for that module.
-- Never invent structure the human hasn't confirmed. Draft and ask if unsure.
-- `workbench/` files are never modified by this skill — read-only.
-- One module at a time. Full elicitation before moving to the next.
+- Never write before the scope is understood.
+- Never invent operations the user has not actually described.
+- Never duplicate contract truth across operations and surfaces unnecessarily.
+- `forge/workbench/` is read for context but not updated by this stage.

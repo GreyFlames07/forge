@@ -1,0 +1,15 @@
+id: run_demo_job_internal
+vertical: core
+name: Run Demo Job Internal
+description: Internal worker trigger for the demo job.
+unit: worker
+transport: internal
+operation: run_demo_job
+binding: {}
+error_mappings: []
+auth:
+  context: anonymous
+  required: false
+behavior:
+  idempotent: true
+  retryable: true

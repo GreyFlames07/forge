@@ -1,0 +1,18 @@
+bootstrap:
+  description: Load a minimal dashboard payload through the full-stack bootstrap path.
+  required_units:
+  - app
+  - api
+  required_stores:
+  - main
+  required_surfaces:
+  - dashboard_route
+  - load_dashboard_http
+  path:
+  - dashboard_route
+  - load_dashboard_http
+  success_criteria:
+  - The frontend shell exists and can be served locally.
+  - The dashboard route is reachable in the app.
+  - The API returns a dashboard payload from /api/dashboard.
+  preserve: true

@@ -1,0 +1,51 @@
+id: bootstrap-plan
+target: bootstrap
+summary: Establish the first runnable path and preserve it while expanding capability.
+slices:
+- id: slice-001
+  name: Bootstrap slice
+  goal: Load a minimal dashboard payload through the full-stack bootstrap path.
+  touches:
+    units:
+    - app
+    - api
+    verticals:
+    - core
+    operations:
+    - load_dashboard
+    - open_dashboard
+    surfaces:
+    - dashboard_route
+    - load_dashboard_http
+    flows:
+    - dashboard_bootstrap_flow
+  checks:
+  - verification.startup.api_health
+  - verification.surfaces.load_dashboard_surface
+  operator_checks:
+  - verification.flows.dashboard_bootstrap_flow
+  - verification.flows.profile_overview_flow
+  status: planned
+  bootstrap_effect: establish
+- id: slice-002
+  name: Profile Overview Flow
+  goal: Demonstrate a second development slice outside the bootstrap path.
+  touches:
+    units:
+    - api
+    - app
+    verticals:
+    - profile
+    operations:
+    - open_profile
+    - load_profile
+    surfaces:
+    - profile_route
+    - load_profile_http
+    flows:
+    - profile_overview_flow
+  checks:
+  - verification.flows.profile_overview_flow
+  operator_checks: []
+  status: planned
+  bootstrap_effect: preserve

@@ -1,0 +1,6 @@
+id: core
+name: Core Worker Capability
+description: The first background-processing capability.
+purpose: Deliver a minimal worker command path that stays runnable.
+owned_by: forge.examples
+invariants: []

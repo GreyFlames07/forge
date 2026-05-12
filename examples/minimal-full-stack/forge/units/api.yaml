@@ -1,0 +1,26 @@
+id: api
+name: Backend Service
+description: Tiny HTTP backend for the minimal dashboard example.
+kind: service
+purpose: Serve the bootstrap dashboard contract and health endpoint.
+owned_by: forge.examples
+entrypoint: apps/api/src/server.py
+serves_verticals:
+- core
+- profile
+run:
+  dev: python3 apps/api/src/server.py
+  test: python3 apps/api/src/server.py
+  prod: python3 apps/api/src/server.py
+env: []
+depends_on:
+  units: []
+  stores:
+  - main
+  externals: []
+healthcheck:
+  kind: http
+  target: /health
+promotion:
+  independently_promotable: true
+  notes: Minimal backend runtime for local smoke tests.

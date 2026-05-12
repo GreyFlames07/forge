@@ -1,0 +1,6 @@
+id: profile
+name: Profile Overview
+description: A second slice that expands the example beyond the bootstrap dashboard.
+purpose: Show how Forge renders another app and API path beside bootstrap.
+owned_by: forge.examples
+invariants: []

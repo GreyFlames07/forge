@@ -1,0 +1,5 @@
+id: profile_overview_flow
+flow: profile_overview_flow
+kind: operator
+intent: Confirm the profile slice can be exercised without disturbing bootstrap.
+check: Start the API, open the profile route, and confirm the profile payload can be fetched from /api/profile.

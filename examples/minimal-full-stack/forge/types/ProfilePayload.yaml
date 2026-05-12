@@ -1,0 +1,31 @@
+id: ProfilePayload
+vertical: profile
+name: ProfilePayload
+description: Payload returned by the profile API endpoint.
+kind: payload
+identity:
+  mode: none
+  fields: []
+fields:
+- name: full_name
+  description: Display name for the sample profile.
+  spec: String; required
+- name: tier
+  description: Example tier label.
+  spec: String; required
+data_classification: public
+lifecycle:
+  mutability: immutable
+  rebuildable: false
+  retention: ephemeral
+  state_field: ''
+  states: []
+  transitions: []
+persistence:
+  authority: derived
+  store: ''
+  metadata_store: ''
+  payload_store: ''
+  consistency: strong
+  access_patterns: []
+invariants: []

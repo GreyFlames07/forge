@@ -1,0 +1,31 @@
+id: CliStatusOutput
+vertical: core
+name: CliStatusOutput
+description: Payload printed by the CLI status command.
+kind: payload
+identity:
+  mode: none
+  fields: []
+fields:
+- name: status
+  description: Health or status indicator.
+  spec: String; required
+- name: source
+  description: Example source label.
+  spec: String; required
+data_classification: public
+lifecycle:
+  mutability: immutable
+  rebuildable: false
+  retention: ephemeral
+  state_field: ''
+  states: []
+  transitions: []
+persistence:
+  authority: derived
+  store: ''
+  metadata_store: ''
+  payload_store: ''
+  consistency: strong
+  access_patterns: []
+invariants: []

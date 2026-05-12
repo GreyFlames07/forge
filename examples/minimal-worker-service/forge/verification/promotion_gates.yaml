@@ -1,0 +1,6 @@
+dev:
+- worker bootstrap succeeds
+- schema validation passes
+test: []
+prod:
+- worker bootstrap remains callable

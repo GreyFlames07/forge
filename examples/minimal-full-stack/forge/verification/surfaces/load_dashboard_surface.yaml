@@ -1,0 +1,6 @@
+id: load_dashboard_surface
+surface: load_dashboard_http
+intent: Dashboard surface returns the declared payload.
+request: GET /api/dashboard
+expect:
+- 200

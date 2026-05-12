@@ -1,0 +1,27 @@
+schema_version: forge.v2
+system:
+  id: minimal_worker_service
+  name: Minimal Worker Service
+  project_profile: worker-service
+  description: A tiny worker-style project used to smoke-test Forge V2 behavior.
+  purpose: Demonstrate a background bootstrap path with explicit contracts.
+  goals:
+  - Run a single demo worker action through a canonical operation.
+  invariants:
+  - The worker healthcheck must remain runnable throughout the build.
+  auth_contexts:
+  - id: anonymous
+    description: Unauthenticated caller
+  security:
+    posture:
+    - This example does not perform privileged writes.
+    data_handling:
+    - Example outputs are non-sensitive.
+  environments:
+  - id: dev
+    description: Local development
+  - id: prod
+    description: Production deployment
+  promotion_stages:
+  - dev
+  - prod

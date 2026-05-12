@@ -1,0 +1,17 @@
+id: profile_route
+vertical: profile
+name: Profile Route
+description: App route for the second profile slice.
+unit: app
+transport: ui_route
+operation: open_profile
+binding:
+  ui_route:
+    route: /profile
+error_mappings: []
+auth:
+  context: anonymous
+  required: false
+behavior:
+  idempotent: true
+  retryable: true

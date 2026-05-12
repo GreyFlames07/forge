@@ -1,0 +1,4 @@
+id: cli_health
+unit: cli
+intent: CLI healthcheck succeeds.
+check: python3 apps/cli/src/main.py health exits 0

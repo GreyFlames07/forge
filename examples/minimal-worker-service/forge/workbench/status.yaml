@@ -1,0 +1,22 @@
+bootstrap_health: failing
+schema_coverage: example_ready
+implementation_progress: not_started
+validation_state: runtime_checked
+operator_checkpoints:
+- id: run_demo_job_flow
+  status: pending
+  detail: Run python3 apps/worker/src/main.py --run-once and verify the output contains
+    job and result fields.
+validation_summary:
+  failures: 0
+  warnings: 0
+check_results:
+- id: worker_health
+  kind: startup
+  status: pass
+  detail: '`python3 apps/worker/src/main.py --healthcheck` -> worker-ok'
+- id: run_demo_job_flow
+  kind: flow
+  status: operator_needed
+  detail: 'flow `run_demo_job_flow` requires workflow confirmation: Confirm the worker
+    run-once command prints the processed result payload.'

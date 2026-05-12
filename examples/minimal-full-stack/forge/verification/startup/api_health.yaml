@@ -1,0 +1,4 @@
+id: api_health
+unit: api
+intent: API backend can answer its health endpoint.
+check: GET /health returns 200

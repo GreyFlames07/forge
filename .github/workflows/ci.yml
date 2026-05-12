@@ -22,4 +22,7 @@ jobs:
           uv pip install -e . pytest
 
       - name: Run test suite
-        run: .venv/bin/pytest -v
+        run: .venv/bin/pytest -q
+
+      - name: Smoke build
+        run: uv build

@@ -1,0 +1,6 @@
+dev:
+- bootstrap succeeds
+- schema validation passes
+test: []
+prod:
+- bootstrap path remains callable

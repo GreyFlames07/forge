@@ -1,0 +1,28 @@
+id: open_dashboard
+vertical: core
+name: Open Dashboard
+description: App-side operation for the dashboard route.
+purpose: Represent the user-facing app route that consumes the dashboard payload.
+unit: app
+inputs:
+- DashboardRouteInput
+outputs:
+- DashboardView
+referenced_types:
+- DashboardPayload
+errors: []
+reads:
+  types: []
+  stores: []
+writes:
+  types: []
+  stores: []
+emits: []
+consumes: []
+auth:
+  context: anonymous
+  required: false
+behavior:
+  idempotent: true
+  retryable: true
+invariants: []

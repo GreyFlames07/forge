@@ -1,0 +1,28 @@
+id: load_dashboard
+vertical: core
+name: Load Dashboard
+description: Return the minimal dashboard payload.
+purpose: Provide a bootstrap contract the app can call immediately.
+unit: api
+inputs:
+- DashboardQueryInput
+outputs:
+- DashboardPayload
+referenced_types: []
+errors: []
+reads:
+  types: []
+  stores:
+  - main
+writes:
+  types: []
+  stores: []
+emits: []
+consumes: []
+auth:
+  context: anonymous
+  required: false
+behavior:
+  idempotent: true
+  retryable: true
+invariants: []

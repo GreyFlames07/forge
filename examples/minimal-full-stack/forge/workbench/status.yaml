@@ -1,0 +1,9 @@
+bootstrap_health: unknown
+schema_coverage: planned
+implementation_progress: 0/2 slices completed
+validation_state: not_run
+operator_checkpoints: []
+plan_summary:
+  total_slices: 2
+  planned: 2
+  completed: 0

@@ -1,302 +1,461 @@
-"""`forge init` — scaffold a new Forge project in the current directory.
-
-Creates spec/ with framework.yaml (bundled vocabulary) and a blank
-conception.yaml stub. Also symlinks the six Forge skills into the agent
-skill directories used by Claude Code, Codex CLI, and agentskills.io clients.
-"""
-
 from __future__ import annotations
 
-import argparse
-import shutil
-import sys
-import time
+from argparse import ArgumentParser, Namespace
 from pathlib import Path
+import shutil
 
-import cli
+import yaml
 
-NAME = "init"
-HELP = "Scaffold a new Forge project in the current directory."
-DESCRIPTION = (
-    "Creates the spec/ directory, copies framework.yaml (the bundled "
-    "framework vocabulary: enums, built-in scalars, built-in errors), "
-    "writes a blank conception.yaml stub, and symlinks the six Forge skills "
-    "into ~/.claude/skills/, ~/.codex/skills/, and ~/.agents/skills/."
-)
-
-# Markers that indicate an existing Forge project.
-_EXISTING_MARKERS = ("conception.yaml", "framework.yaml")
-
-# Skill names bundled with the package.
-SKILL_NAMES = (
-    "forge-design",
-    "forge-spec",
-    "forge-review",
-    "forge-build",
-    "forge-validate",
-    "forge-cast",
-)
-
-# Global skill scan directories (one per supported agent client).
-_SKILL_SCAN_DIRS = (
-    Path.home() / ".claude" / "skills",
-    Path.home() / ".codex" / "skills",
-    Path.home() / ".agents" / "skills",
-)
-
-# --- Banner -------------------------------------------------------------------
-
-_RESET = "\033[0m"
-_HIDE_CURSOR = "\033[?25l"
-_SHOW_CURSOR = "\033[?25h"
-_BANNER_TEXT = "INITIALISING FORGE"
-_SPARKS = [(238, "·"), (166, ":"), (172, "•"), (202, "*"), (208, "✦")]
-_FIRE = [160, 166, 172, 178, 184, 220, 214, 208, 202]
-_FIRE_PRIMARY = 208
-_FIRE_DEEP = 166
-_OK_GREEN = 34
-_META = 245
+from cli.common import ensure_dir, slugify
 
 
-def _styled() -> bool:
-    return sys.stdout.isatty() and not __import__("os").environ.get("NO_COLOR")
+PROFILES = {
+    "full-stack": ["apps/app", "apps/api", "packages/contracts", "packages/types", "infra"],
+    "api-service": ["apps/api", "packages/contracts", "packages/types", "infra"],
+    "cli-tool": ["apps/cli", "packages/types", "infra"],
+    "worker-service": ["apps/worker", "packages/types", "infra"],
+}
 
 
-def _color(code: int, text: str) -> str:
-    return f"\033[38;5;{code}m{text}{_RESET}" if _styled() else text
+PROFILE_BLUEPRINTS = {
+    "full-stack": {
+        "verticals": [
+            {
+                "id": "core",
+                "name": "Core Experience",
+                "description": "The first end-user capability path.",
+                "purpose": "Deliver the first user-visible working slice.",
+                "owned_by": "Replace with owning team or person.",
+                "invariants": [],
+            }
+        ],
+        "units": [
+            {
+                "id": "app",
+                "name": "Frontend App",
+                "description": "User-facing application shell.",
+                "kind": "ui",
+                "purpose": "Expose the bootstrap capability to end users.",
+                "owned_by": "Replace with owner.",
+                "entrypoint": "apps/app/src/main.txt",
+                "serves_verticals": ["core"],
+                "run": {"dev": "Replace with app dev command", "test": "Replace with app test/build command", "prod": "Replace with app production run/deploy command"},
+                "env": [],
+                "depends_on": {"units": ["api"], "stores": [], "externals": []},
+                "healthcheck": {"kind": "none", "target": ""},
+                "promotion": {"independently_promotable": True, "notes": "Static app or frontend deployment."},
+            },
+            {
+                "id": "api",
+                "name": "Backend Service",
+                "description": "Primary backend runtime for the bootstrap path.",
+                "kind": "service",
+                "purpose": "Serve the first backend capability and health checks.",
+                "owned_by": "Replace with owner.",
+                "entrypoint": "apps/api/src/main.txt",
+                "serves_verticals": ["core"],
+                "run": {"dev": "Replace with API dev command", "test": "Replace with API test command", "prod": "Replace with API production run command"},
+                "env": [],
+                "depends_on": {"units": [], "stores": ["main"], "externals": []},
+                "healthcheck": {"kind": "http", "target": "/health"},
+                "promotion": {"independently_promotable": True, "notes": "Primary service runtime."},
+            },
+        ],
+        "stores": [
+            {
+                "id": "main",
+                "name": "Main Transactional Store",
+                "description": "Primary canonical operational store.",
+                "class": "transactional",
+                "dev": "sqlite",
+                "test": "sqlite",
+                "prod": "postgres",
+                "guarantees": {"durability": "durable", "consistency": "strong"},
+                "notes": "",
+            }
+        ],
+        "starter_files": {
+            "apps/app/README.md": "# App\n\nReplace this with the frontend app runtime.\n",
+            "apps/app/src/main.txt": "Bootstrap app entrypoint placeholder.\n",
+            "apps/api/README.md": "# API\n\nReplace this with the backend service runtime.\n",
+            "apps/api/src/main.txt": "Bootstrap API entrypoint placeholder.\n",
+            "packages/contracts/README.md": "# Contracts\n\nShared transport contracts live here.\n",
+            "packages/types/README.md": "# Types\n\nShared domain and support types live here.\n",
+            "infra/README.md": "# Infra\n\nDeployment and infrastructure files live here.\n",
+        },
+    },
+    "api-service": {
+        "verticals": [
+            {
+                "id": "core",
+                "name": "Core API",
+                "description": "The first externally useful API capability.",
+                "purpose": "Deliver the first working service interaction.",
+                "owned_by": "Replace with owning team or person.",
+                "invariants": [],
+            }
+        ],
+        "units": [
+            {
+                "id": "api",
+                "name": "API Service",
+                "description": "Primary service runtime.",
+                "kind": "service",
+                "purpose": "Expose the bootstrap API surface.",
+                "owned_by": "Replace with owner.",
+                "entrypoint": "apps/api/src/main.txt",
+                "serves_verticals": ["core"],
+                "run": {"dev": "Replace with API dev command", "test": "Replace with API test command", "prod": "Replace with API production run command"},
+                "env": [],
+                "depends_on": {"units": [], "stores": ["main"], "externals": []},
+                "healthcheck": {"kind": "http", "target": "/health"},
+                "promotion": {"independently_promotable": True, "notes": "Primary runtime."},
+            }
+        ],
+        "stores": [
+            {
+                "id": "main",
+                "name": "Main Transactional Store",
+                "description": "Primary canonical operational store.",
+                "class": "transactional",
+                "dev": "sqlite",
+                "test": "sqlite",
+                "prod": "postgres",
+                "guarantees": {"durability": "durable", "consistency": "strong"},
+                "notes": "",
+            }
+        ],
+        "starter_files": {
+            "apps/api/README.md": "# API Service\n\nReplace this with the service runtime.\n",
+            "apps/api/src/main.txt": "Bootstrap API entrypoint placeholder.\n",
+            "packages/contracts/README.md": "# Contracts\n\nShared transport contracts live here.\n",
+            "packages/types/README.md": "# Types\n\nShared domain and support types live here.\n",
+            "infra/README.md": "# Infra\n\nDeployment and infrastructure files live here.\n",
+        },
+    },
+    "cli-tool": {
+        "verticals": [
+            {
+                "id": "core",
+                "name": "Core CLI",
+                "description": "The first useful command workflow.",
+                "purpose": "Deliver the first working operator or user command path.",
+                "owned_by": "Replace with owning team or person.",
+                "invariants": [],
+            }
+        ],
+        "units": [
+            {
+                "id": "cli",
+                "name": "CLI Runtime",
+                "description": "Primary command-line runtime.",
+                "kind": "cli",
+                "purpose": "Expose the bootstrap command path.",
+                "owned_by": "Replace with owner.",
+                "entrypoint": "apps/cli/src/main.txt",
+                "serves_verticals": ["core"],
+                "run": {"dev": "Replace with CLI dev command", "test": "Replace with CLI test command", "prod": "Replace with CLI package or run command"},
+                "env": [],
+                "depends_on": {"units": [], "stores": [], "externals": []},
+                "healthcheck": {"kind": "command", "target": "Replace with a bootstrap command health check"},
+                "promotion": {"independently_promotable": True, "notes": "CLI distribution runtime."},
+            }
+        ],
+        "stores": [],
+        "starter_files": {
+            "apps/cli/README.md": "# CLI\n\nReplace this with the command runtime.\n",
+            "apps/cli/src/main.txt": "Bootstrap CLI entrypoint placeholder.\n",
+            "packages/types/README.md": "# Types\n\nShared support types live here.\n",
+            "infra/README.md": "# Infra\n\nPackaging, release, and infra files live here.\n",
+        },
+    },
+    "worker-service": {
+        "verticals": [
+            {
+                "id": "core",
+                "name": "Core Worker Capability",
+                "description": "The first background-processing capability.",
+                "purpose": "Deliver the first useful background workflow.",
+                "owned_by": "Replace with owning team or person.",
+                "invariants": [],
+            }
+        ],
+        "units": [
+            {
+                "id": "worker",
+                "name": "Worker Runtime",
+                "description": "Primary background-processing runtime.",
+                "kind": "worker",
+                "purpose": "Process the bootstrap background workflow.",
+                "owned_by": "Replace with owner.",
+                "entrypoint": "apps/worker/src/main.txt",
+                "serves_verticals": ["core"],
+                "run": {"dev": "Replace with worker dev command", "test": "Replace with worker test command", "prod": "Replace with worker production run command"},
+                "env": [],
+                "depends_on": {"units": [], "stores": ["main"], "externals": []},
+                "healthcheck": {"kind": "process", "target": "Replace with a worker liveness indicator"},
+                "promotion": {"independently_promotable": True, "notes": "Background runtime."},
+            }
+        ],
+        "stores": [
+            {
+                "id": "main",
+                "name": "Main Operational Store",
+                "description": "Primary store for background processing state.",
+                "class": "transactional",
+                "dev": "sqlite",
+                "test": "sqlite",
+                "prod": "postgres",
+                "guarantees": {"durability": "durable", "consistency": "strong"},
+                "notes": "",
+            }
+        ],
+        "starter_files": {
+            "apps/worker/README.md": "# Worker\n\nReplace this with the worker runtime.\n",
+            "apps/worker/src/main.txt": "Bootstrap worker entrypoint placeholder.\n",
+            "packages/types/README.md": "# Types\n\nShared support types live here.\n",
+            "infra/README.md": "# Infra\n\nDeployment and scheduling files live here.\n",
+        },
+    },
+}
 
 
-def _bold(text: str) -> str:
-    return f"\033[1m{text}{_RESET}" if _styled() else text
-
-
-def _dim(text: str) -> str:
-    return f"\033[2m{text}{_RESET}" if _styled() else text
-
-
-def _divider(label: str) -> str:
-    bar = "─" * 5
-    return _color(_FIRE_DEEP, bar + " ") + _bold(_color(_FIRE_PRIMARY, label)) + _color(_FIRE_DEEP, " " + bar)
-
-
-def _fire_text(visible: int, shift: int) -> str:
-    size = len(_FIRE)
-    return "".join(
-        _color(_FIRE[(i + shift) % size], ch) if i < visible else " "
-        for i, ch in enumerate(_BANNER_TEXT)
+def register_init(subparsers) -> None:
+    parser = subparsers.add_parser("init", help="Scaffold a Forge V2 project")
+    parser.add_argument("--profile", choices=sorted(PROFILES), help="Project profile to scaffold")
+    parser.add_argument("--name", help="System name")
+    parser.add_argument("--id", help="System id")
+    parser.add_argument("--root", default=".", help="Project root to scaffold into")
+    parser.add_argument("--no-vendor-assets", action="store_true", help="Do not copy Forge docs/frameworks/skills into the project")
+    parser.add_argument(
+        "--no-link-skills",
+        action="store_true",
+        help="Do not link project skills into Claude/Codex/Copilot-compatible home skill scan locations",
     )
+    parser.set_defaults(func=run)
 
 
-def _play_banner() -> None:
-    text_len = len(_BANNER_TEXT)
-    columns, _ = shutil.get_terminal_size((80, 24))
-    clear = " " * max(columns - 1, 0)
-
-    def draw(frame: str, delay: float) -> None:
-        sys.stdout.write("\r" + clear + "\r" + frame)
-        sys.stdout.flush()
-        time.sleep(delay)
-
-    sys.stdout.write(_HIDE_CURSOR)
-    try:
-        for code, spark in _SPARKS:
-            draw(_color(code, spark) + " " + (" " * text_len), 0.07)
-        for count in range(1, text_len + 1):
-            draw(
-                _color(_FIRE[count % len(_FIRE)], "✦") + " " + _fire_text(count, count),
-                0.065 if count < text_len else 0.16,
-            )
-        for shift in range(len(_FIRE) * 2):
-            draw(
-                _color(_FIRE[shift % len(_FIRE)], "✦") + " " + _fire_text(text_len, shift),
-                0.08,
-            )
-    finally:
-        sys.stdout.write(_RESET + _SHOW_CURSOR + "\n")
-        sys.stdout.flush()
+def _prompt(text: str, default: str | None = None) -> str:
+    suffix = f" [{default}]" if default else ""
+    value = input(f"{text}{suffix}: ").strip()
+    if value:
+        return value
+    if default is not None:
+        return default
+    raise ValueError(f"{text} is required")
 
 
-# --- Scaffold -----------------------------------------------------------------
-
-_CONCEPTION_STUB = """\
-id: <conception>
-type: conception
-name: <ConceptionName>
-description: <one-sentence description>
-status: draft
-owner: <team or individual>
-intent: >
-  <multi-line statement of what this conception aims to achieve
-  and the constraints that define it>
-systems: []
-actors: []
-glossary: []
-policies: []
-"""
+def _write_yaml(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as handle:
+        yaml.safe_dump(payload, handle, sort_keys=False, allow_unicode=False)
 
 
-def register(sub: argparse._SubParsersAction) -> None:
-    p = sub.add_parser(NAME, help=HELP, description=DESCRIPTION)
-    p.add_argument(
-        "--spec-subdir", default="spec",
-        help="Relative path from project root for the spec directory. Default: spec",
-    )
-    p.add_argument(
-        "--force", action="store_true",
-        help="Overwrite existing files and proceed over existing projects.",
-    )
-    p.add_argument(
-        "--no-banner", action="store_true",
-        help="Skip the init banner animation.",
-    )
-    p.add_argument(
-        "--skip-skills", action="store_true",
-        help="Skip skill symlink installation.",
-    )
-    p.set_defaults(handler=run)
+def _write_text(path: Path, contents: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(contents, encoding="utf-8")
 
 
-def run(args: argparse.Namespace) -> int:
-    if sys.stdout.isatty() and not args.no_banner:
-        _play_banner()
-
-    project_root = Path.cwd()
-    spec_dir = project_root / args.spec_subdir
-
-    # Refuse to init over an existing project unless --force.
-    if not args.force:
-        for marker in _EXISTING_MARKERS:
-            if (spec_dir / marker).exists():
-                print(
-                    f"error: existing forge project detected at {spec_dir}/",
-                    file=sys.stderr,
-                )
-                print("Use --force to reinitialise.", file=sys.stderr)
-                return 1
-
-    print()
-    print(_color(_FIRE_PRIMARY, "▸ ") + _bold("Forge init ") + _dim(f"in {project_root}"))
-    print()
-
-    ok = _color(_OK_GREEN, "✓")
-
-    # Create spec/ directory.
-    spec_dir.mkdir(parents=True, exist_ok=True)
-    spec_rel = spec_dir.relative_to(project_root)
-    print(f"  {ok} {_bold(str(spec_rel) + '/')}")
-
-    # Copy framework.yaml from the bundled CLI package.
-    _install_framework(spec_dir, force=args.force, ok=ok)
-
-    # Write blank conception.yaml stub.
-    _install_conception(spec_dir, force=args.force, ok=ok)
-
-    # Symlink skills into agent client scan directories.
-    if not args.skip_skills:
-        print()
-        _install_skills(force=args.force, ok=ok)
-
-    print()
-    print(_divider("Next steps"))
-    print()
-    print(_dim("  Edit spec/conception.yaml and replace placeholders:"))
-    print(f"    {_bold('id:')}{_dim('  <conception>')}")
-    print(f"    {_bold('name:')}{_dim(' <ConceptionName>')}")
-    print()
-    print(_dim("  Create your first system directory:"))
-    print(f"    {_bold('mkdir -p spec/<system>')}")
-    print(f"    {_bold('touch spec/<system>/system.yaml')}")
-    print()
-    print(_dim("  Set the spec dir (add to shell rc to persist):"))
-    print(f"    {_bold('export FORGE_SPEC_DIR=\"' + str(spec_dir) + '\"')}")
-    print()
-    print(_dim("  Validate at any time:"))
-    print(f"    {_bold('forge validate')}")
-    print()
-
-    return 0
+def _asset_root() -> Path:
+    return Path(__file__).resolve().parents[1] / "assets"
 
 
-def _install_framework(spec_dir: Path, *, force: bool, ok: str) -> None:
-    """Copy the bundled framework.yaml into the spec directory."""
-    cli_dir = Path(cli.__file__).resolve().parent
-    src = cli_dir / "framework.yaml"
-    dest = spec_dir / "framework.yaml"
-
-    if not src.is_file():
-        print(f"  {_color(160, '✗')} framework.yaml not found at {src}; skipping")
-        return
-
-    if dest.exists() and not force:
-        print(_dim(f"  - framework.yaml already present; use --force to overwrite"))
-        return
-
-    shutil.copy2(src, dest)
-    print(f"  {ok} spec/framework.yaml {_dim('(framework vocabulary)')}")
+def _copy_tree_contents(source: Path, destination: Path) -> None:
+    destination.mkdir(parents=True, exist_ok=True)
+    for entry in source.iterdir():
+        target = destination / entry.name
+        if entry.is_dir():
+            shutil.copytree(entry, target, dirs_exist_ok=True)
+        else:
+            shutil.copy2(entry, target)
 
 
-def _install_conception(spec_dir: Path, *, force: bool, ok: str) -> None:
-    """Write a blank conception.yaml stub."""
-    dest = spec_dir / "conception.yaml"
-    if dest.exists() and not force:
-        print(_dim(f"  - conception.yaml already present; use --force to overwrite"))
-        return
-    dest.write_text(_CONCEPTION_STUB, encoding="utf-8")
-    print(f"  {ok} spec/conception.yaml {_dim('(fill in your conception details)')}")
+def _vendor_assets(root: Path) -> None:
+    assets = _asset_root()
+    docs_src = assets / "docs"
+    frameworks_src = assets / "frameworks"
+    skills_src = assets / "agents_skills"
+
+    if docs_src.exists():
+        _copy_tree_contents(docs_src, root / "docs")
+    if frameworks_src.exists():
+        _copy_tree_contents(frameworks_src, root / "frameworks")
+    if skills_src.exists():
+        _copy_tree_contents(skills_src, root / ".agents" / "skills")
 
 
-def _skills_src() -> Path | None:
-    """Return the bundled skills directory, or None if not found."""
-    cli_dir = Path(cli.__file__).resolve().parent
-    skills_dir = cli_dir / "skills"
-    return skills_dir if skills_dir.is_dir() else None
+def _safe_symlink(src: Path, dest: Path) -> str:
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if dest.is_symlink():
+        dest.unlink()
+    elif dest.exists():
+        return f"skip:{dest}"
+    dest.symlink_to(src)
+    return f"linked:{dest}"
 
 
-def _install_skills(*, force: bool, ok: str) -> None:
-    """Symlink each bundled skill into all agent client scan directories."""
-    skills_dir = _skills_src()
-    if skills_dir is None:
-        print(_dim("  - skills directory not found in package; skipping"))
-        return
+def _skill_link_targets(home: Path) -> list[Path]:
+    targets = [
+        home / ".claude" / "skills",
+        home / ".codex" / "skills",
+        # agentskills.io-compatible clients such as VS Code Copilot and Cursor.
+        home / ".agents" / "skills",
+    ]
+    copilot_root = home / ".copilot"
+    if copilot_root.exists():
+        targets.append(copilot_root / "skills")
+    return targets
 
-    linked = 0
-    skipped = 0
-    errors = 0
 
-    for scan_dir in _SKILL_SCAN_DIRS:
-        try:
-            scan_dir.mkdir(parents=True, exist_ok=True)
-        except OSError:
+def _link_project_skills(root: Path) -> list[str]:
+    project_skills = root / ".agents" / "skills"
+    if not project_skills.exists():
+        return []
+    home = Path.home()
+    targets = _skill_link_targets(home)
+    results: list[str] = []
+    for skill_dir in sorted(project_skills.iterdir()):
+        if not skill_dir.is_dir():
             continue
+        for target_base in targets:
+            result = _safe_symlink(skill_dir, target_base / skill_dir.name)
+            results.append(result)
+    return results
 
-        for name in SKILL_NAMES:
-            src = skills_dir / name
-            if not src.is_dir():
-                continue
-            dest = scan_dir / name
 
-            if dest.is_symlink():
-                if force:
-                    dest.unlink()
-                else:
-                    skipped += 1
-                    continue
-            elif dest.exists():
-                errors += 1
-                print(f"  {_color(160, '✗')} {dest} exists and is not a symlink — skipping")
-                continue
+def run(args: Namespace) -> int:
+    root = Path(args.root).resolve()
+    profile = args.profile or _prompt("Project profile", "full-stack")
+    name = args.name or _prompt("System name")
+    system_id = args.id or slugify(name)
 
-            try:
-                dest.symlink_to(src)
-                linked += 1
-            except OSError as e:
-                errors += 1
-                print(f"  {_color(160, '✗')} could not link {dest}: {e}")
+    forge = ensure_dir(root / "forge")
+    blueprint = PROFILE_BLUEPRINTS[profile]
+    for section in [
+        "verticals",
+        "units",
+        "types",
+        "operations",
+        "surfaces",
+        "stores",
+        "flows",
+        "verification/startup",
+        "verification/surfaces",
+        "verification/flows",
+        "workbench",
+    ]:
+        ensure_dir(forge / section)
 
-    if linked:
-        short_dirs = ", ".join(f"~/{d.relative_to(Path.home())}" for d in _SKILL_SCAN_DIRS)
-        print(f"  {ok} {linked} skill link{'s' if linked != 1 else ''} → {short_dirs}")
-    if skipped:
-        print(_dim(f"  - {skipped} skill link{'s' if skipped != 1 else ''} already present; use --force to refresh"))
-    if not linked and not skipped and not errors:
-        print(_dim("  - no skills to install"))
+    for relative in PROFILES[profile]:
+        ensure_dir(root / relative)
+
+    _write_yaml(
+        forge / "system.yaml",
+        {
+            "schema_version": "forge.v2",
+            "system": {
+                "id": system_id,
+                "name": name,
+                "project_profile": profile,
+                "description": "Replace with a one-sentence system summary.",
+                "purpose": "Replace with the system purpose.",
+                "goals": ["Replace with the first concrete goal."],
+                "invariants": ["Replace with a non-negotiable system truth."],
+                "auth_contexts": [{"id": "anonymous", "description": "Unauthenticated caller"}],
+                "security": {
+                    "posture": ["Replace with a global security rule."],
+                    "data_handling": ["Replace with a global data handling rule."],
+                },
+                "environments": [
+                    {"id": "dev", "description": "Local development"},
+                    {"id": "prod", "description": "Production deployment"},
+                ],
+                "promotion_stages": ["dev", "prod"],
+            },
+        },
+    )
+    for vertical in blueprint["verticals"]:
+        _write_yaml(forge / "verticals" / f"{vertical['id']}.yaml", vertical)
+    for unit in blueprint["units"]:
+        _write_yaml(forge / "units" / f"{unit['id']}.yaml", unit)
+    for store in blueprint["stores"]:
+        _write_yaml(forge / "stores" / f"{store['id']}.yaml", store)
+    _write_yaml(
+        forge / "bootstrap.yaml",
+        {
+            "bootstrap": {
+                "description": "Replace with the first runnable vertical slice for this profile.",
+                "required_units": [unit["id"] for unit in blueprint["units"]],
+                "required_stores": [store["id"] for store in blueprint["stores"]],
+                "required_surfaces": [],
+                "path": [],
+                "success_criteria": ["Replace with what makes bootstrap count as working."],
+                "preserve": True,
+            }
+        },
+    )
+    _write_yaml(
+        forge / "build_policy.yaml",
+        {
+            "build_policy": {
+                "strategy": "vertical_first",
+                "preserve_runnability": True,
+                "completion_states": [
+                    "specified",
+                    "scaffolded",
+                    "implemented",
+                    "composed",
+                    "reachable",
+                    "verified",
+                ],
+                "rules": [
+                    "No task may break the bootstrap path.",
+                    "Every public surface must reference a canonical operation.",
+                    "Every writable canonical type must declare persistence semantics.",
+                ],
+            }
+        },
+    )
+    _write_yaml(forge / "verification" / "promotion_gates.yaml", {"dev": [], "test": [], "prod": []})
+    _write_yaml(
+        forge / "workbench" / "status.yaml",
+        {
+            "bootstrap_health": "unknown",
+            "schema_coverage": "initial",
+            "implementation_progress": "not_started",
+            "validation_state": "not_run",
+            "operator_checkpoints": [],
+        },
+    )
+    (forge / "workbench" / "discovery.md").write_text(
+        "# Discovery Notes\n\nDocument the reasoning behind system, unit, bootstrap, and security decisions here.\n",
+        encoding="utf-8",
+    )
+    _write_text(
+        root / "README.md",
+        f"# {name}\n\nThis project was scaffolded by Forge V2 with the `{profile}` profile.\n\nSchema lives under `forge/`.\n",
+    )
+    _write_text(
+        root / ".gitignore",
+        ".venv/\n__pycache__/\n.pytest_cache/\nnode_modules/\ndist/\nbuild/\n",
+    )
+    for relative, contents in blueprint["starter_files"].items():
+        _write_text(root / relative, contents)
+    if not args.no_vendor_assets:
+        _vendor_assets(root)
+    link_results: list[str] = []
+    if not args.no_link_skills:
+        link_results = _link_project_skills(root)
+    print(f"Initialized Forge V2 scaffold in {root}")
+    print(f"Profile: {profile}")
+    if not args.no_vendor_assets:
+        print("Vendored Forge docs, frameworks, and agent skills into the project.")
+    if not args.no_link_skills:
+        linked = len([result for result in link_results if result.startswith("linked:")])
+        skipped = len([result for result in link_results if result.startswith("skip:")])
+        print(
+            "Skill links: "
+            f"{linked} linked, {skipped} skipped across Claude, Codex, and Copilot-compatible scan locations."
+        )
+    print("Next steps: fill in forge/system.yaml, define bootstrap, then use `forge list` and `forge context` to inspect the scaffolded schema.")
+    return 0

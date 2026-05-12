@@ -1,0 +1,26 @@
+id: show_status
+vertical: core
+name: Show Status
+description: Print the minimal CLI status payload.
+purpose: Anchor the first runnable CLI slice around a named operation.
+unit: cli
+inputs: []
+outputs:
+- CliStatusOutput
+referenced_types: []
+errors: []
+reads:
+  types: []
+  stores: []
+writes:
+  types: []
+  stores: []
+emits: []
+consumes: []
+auth:
+  context: anonymous
+  required: false
+behavior:
+  idempotent: true
+  retryable: true
+invariants: []

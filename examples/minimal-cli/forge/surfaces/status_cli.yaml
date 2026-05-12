@@ -1,0 +1,16 @@
+id: status_cli
+vertical: core
+name: Status CLI
+description: CLI surface for the status command.
+unit: cli
+transport: cli
+operation: show_status
+binding:
+  command: status
+error_mappings: []
+auth:
+  context: anonymous
+  required: false
+behavior:
+  idempotent: true
+  retryable: true

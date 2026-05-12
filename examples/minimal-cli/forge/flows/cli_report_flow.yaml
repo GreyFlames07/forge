@@ -1,0 +1,13 @@
+id: cli_report_flow
+vertical: reports
+name: CLI Report Flow
+description: User runs the example report command.
+purpose: Add a second development slice to the CLI example.
+trigger: User runs the report command.
+path:
+- kind: surface
+  ref: report_cli
+- kind: operation
+  ref: show_report
+side_effects: []
+failure_modes: []

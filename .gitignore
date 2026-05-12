@@ -28,3 +28,9 @@ env/
 /.claude/
 /.codex/
 /.forge/
+
+# Local tool/runtime artifacts
+/.playwright-mcp/
+/.specify/
+/forge-graph.html
+/graph-*.png

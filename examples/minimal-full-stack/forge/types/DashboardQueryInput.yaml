@@ -1,0 +1,28 @@
+id: DashboardQueryInput
+vertical: core
+name: DashboardQueryInput
+description: Minimal API input for requesting the dashboard payload.
+kind: payload
+fields:
+- name: home_id
+  description: Home whose dashboard should be loaded.
+  spec: "String; required; example=home-demo"
+- name: include_summary
+  description: Whether summary statistics should be returned.
+  spec: "Boolean; required; default=true"
+lifecycle:
+  mutability: immutable
+  rebuildable: false
+  retention: ephemeral
+  state_field: ""
+  states: []
+  transitions: []
+persistence:
+  authority: canonical
+  store: ""
+  metadata_store: ""
+  payload_store: ""
+  consistency: strong
+  access_patterns: []
+data_classification: internal
+invariants: []

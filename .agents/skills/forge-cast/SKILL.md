@@ -1,136 +1,102 @@
 ---
 name: forge-cast
 description: >
-  Forge casting skill for existing codebases. Use when a user has an existing project (code,
-  config, docs) and wants to bring it into the Forge spec system. Reads the repository using
-  an evidence hierarchy (code > config > tests > contracts > docs > naming heuristics) and produces
-  a draft Forge spec corpus anchored to what the repository actually does — no speculative
-  requirements, no invented structure.
-  Triggers on: "cast this repo", "reverse engineer this codebase into forge", "forge-cast",
-  or any request to derive a Forge spec from an existing project.
+  Forge V2 casting skill for existing codebases. Use when a user has an implemented project and wants
+  to derive a draft Forge V2 schema from the code, config, tests, and contracts that already exist.
+  Produces draft V2 schema files plus a cast report that separates high-confidence evidence from open
+  uncertainty.
 ---
 
 # forge-cast
 
-Read `references/framework.md` before starting — you need the full schema for all output files.
+Read before starting:
+
+- `docs/forge-v2-schema.md`
+- `docs/forge-v2-architecture.md`
+- `frameworks/cast/FRAMEWORK.md`
 
 ## Purpose
 
-Translate an existing codebase into a draft Forge spec corpus. Every spec claim must be anchored to repository evidence. The output is a starting point — not a complete spec. Ambiguous or uncertain areas go into `workbench/cast-report.md` as candidates for human review.
+Translate an existing codebase into a draft Forge V2 schema and workbench context.
 
-## Evidence Hierarchy
+This stage should never invent requirements that the repo does not support.
 
-When signals disagree, use this precedence:
+## Evidence Standard
 
-1. **Executable code paths and type/schema definitions** — highest confidence
-2. **Config and deployment artifacts** (docker-compose, k8s manifests, terraform, CI)
-3. **Tests with explicit assertions**
-4. **Machine-readable contracts** (OpenAPI, GraphQL schema, protobuf, AsyncAPI)
-5. **Repository docs with concrete behavior statements**
-6. **Naming heuristics and structural patterns** — lowest confidence; goes to cast-report, not spec files
+When signals disagree, prefer:
 
-The lower the evidence class, the more likely the output belongs in `workbench/cast-report.md` rather than a committed spec file.
+1. executable code and typed schemas
+2. config and deployment artifacts
+3. tests
+4. machine-readable contracts
+5. repository docs
+6. naming heuristics
+
+Low-confidence conclusions belong in `forge/workbench/cast-report.md`, not as hard schema truth.
 
 ## Output Artifacts
 
 | File | Contents |
 |------|----------|
-| `spec/conception.yaml` | Conception, actors (from auth/middleware code), glossary |
-| `spec/<system>/system.yaml` | System node inferred from repo structure |
-| `spec/<system>/<domain>/domain.yaml` | Domains inferred from package/module boundaries |
-| `spec/<system>/<domain>/<module>/module.yaml` | One per service/package with packaging + runtime |
-| `spec/<system>/<domain>/<module>/<element>.yaml` | Elements with inline properties + operations |
-| `spec/<system>/types/<TypeName>.yaml` | Types extracted from schema definitions |
-| `spec/<system>/errors/<ErrorName>.yaml` | Errors extracted from error enums, HTTP status handling |
-| `spec/<system>/policies/<policy>.yaml` | Policies inferred from auth middleware, rate limiters, validators |
-| `spec/<system>/contracts/<contract>.yaml` | Contracts from OpenAPI / protobuf / explicit interface boundaries |
-| `spec/<system>/interactions/<interaction>.yaml` | Interactions from service-to-service call sites |
-| `spec/<system>/flows/<flow>.yaml` | Flows from orchestration code or explicit workflow definitions |
-| `spec/<system>/implementation/datastores.yaml` | Datastores from ORM schemas, migrations, connection config |
-| `spec/<system>/implementation/environments.yaml` | Environments from CI/CD config, .env files, deployment manifests |
-| `spec/<system>/workbench/discovery.md` | System overview, decisions inferred, open questions |
-| `spec/<system>/workbench/cast-report.md` | Uncertain candidates, low-confidence inferences, gaps |
+| `forge/system.yaml` | Draft system identity and posture |
+| `forge/verticals/*.yaml` | Capability slices inferred from repo seams |
+| `forge/units/*.yaml` | Runtime boundaries inferred from services, apps, workers, or CLIs |
+| `forge/types/*.yaml` | Canonical types inferred from code and contracts |
+| `forge/operations/*.yaml` | Business actions inferred from handlers, commands, jobs, or services |
+| `forge/surfaces/*.yaml` | Reachability bindings inferred from routes, queues, cron jobs, or commands |
+| `forge/stores/*.yaml` | Persistence backbones inferred from config and code |
+| `forge/flows/*.yaml` | Higher-confidence end-to-end journeys inferred from orchestration paths |
+| `forge/bootstrap.yaml` | Draft first working slice inferred from the most central runnable path |
+| `forge/verification/**/*` | Starter checks inferred from health routes, tests, or obvious workflows |
+| `forge/workbench/discovery.md` | Repo-level observations and rationale |
+| `forge/workbench/cast-report.md` | Uncertain candidates, gaps, and questions for human review |
 
-## Hydration Strategy by Node Type
+## Process
 
-### Conception and Actors
+### Step 1 — Assess the Repo
 
-- Scan auth middleware and JWT/OAuth config for actor types.
-- Scan route guards, RBAC definitions, and permission checks for roles.
-- Infer `auth_mechanism` from auth library usage (e.g. `passport-jwt` → `jwt`).
-- Glossary: extract domain terms from README, API docs, or prominent naming patterns.
+Before writing anything:
 
-### System and Domains
+- identify the runtime profile
+- identify runnable entrypoints
+- identify exposed interfaces
+- identify persistent storage
+- identify the likeliest bootstrap path
 
-- Infer system name from repo name, package name, or root README.
-- Identify domains from top-level package structure, monorepo workspace names, or service directories.
-- `platform`: infer from `Dockerfile`, CI provider, cloud SDK imports.
-- `language`: infer from file extensions and package managers.
-- `deployment`: infer from infra config (lambda → `cloud`, k8s → `cloud`, docker-compose alone → `on_prem`).
+### Step 2 — Draft High-Confidence Schema
 
-### Modules
+Write only what is strongly supported:
 
-- One module per deployable service, microservice, or bounded package.
-- `packaging.kind`: infer from entry point type (HTTP server → `service`, cron → `job`, Lambda handler → `function`).
-- `packaging.runtime`: read from `Dockerfile`, `.nvmrc`, `pyproject.toml`, `go.mod`.
-- `packaging.scaling`: infer from HPA config, auto-scaling groups, Lambda concurrency settings.
-- `external_dependencies`: scan import statements and HTTP client call sites.
+- system
+- units
+- obvious verticals
+- canonical operations
+- surfaces
+- stores
+- bootstrap
 
-### Elements
+### Step 3 — Record Uncertainty
 
-- Map classes/structs to elements. Use `kind` heuristics:
-  - Has identity field + lifecycle methods → `aggregate` or `entity`
-  - No identity, immutable → `value_object`
-  - No state, only behavior → `service`
-  - Read-only derived state → `projection`
-- Properties: extract from class fields, ORM column definitions, schema types.
-- Operations: extract from public methods, route handlers, exported functions.
+Anything supported only weakly should go to `forge/workbench/cast-report.md` with:
 
-### Types and Errors
+- inferred object
+- evidence source
+- confidence level
+- question for the human
 
-- Extract composite types from DTOs, request/response bodies, ORM models, protobuf messages.
-- Extract scalar types from validated fields with explicit constraints (regex, min/max).
-- Extract errors from error enums, HTTP status mappings, custom exception classes.
-- Do not extract types that are purely internal implementation detail with no cross-module exposure.
+### Step 4 — Hand Over
 
-### Contracts
+Recommend the human review:
 
-- Create contracts from OpenAPI paths, protobuf service definitions, GraphQL schema types, or explicit interface files.
-- Where no machine-readable contract exists but clear service-to-service HTTP calls do, infer a contract from the call site — note as evidence class 1, but flag in cast-report for human confirmation.
+- the bootstrap draft
+- operation boundaries
+- auth contexts
+- verification gaps
 
-### Datastores
-
-- Extract from ORM entity definitions, migration files, connection strings in config.
-- `engine`: read from driver package name (e.g. `pg` → `postgres`, `mongoose` → `mongodb`).
-- `kind`: map engine to StorageType enum.
-- `schemas`: map ORM entities/collections to `storage_name` (table/collection name).
-
-### Environments
-
-- Extract from `.env.example`, CI/CD pipeline variables, deployment manifests.
-- `region`: from cloud config (e.g. `AWS_REGION`, GCP `--region` flags).
-- `instance_class`: from RDS/CloudSQL instance type config, if present.
-
-## Uncertainty Handling
-
-When confidence is below evidence class 3 (tests):
-- Write the candidate to `workbench/cast-report.md` under `## Uncertain Candidates`.
-- Do not write it to a spec file.
-- Format: `- [<evidence class>] <node-type> <proposed-id>: <inferred value> — <reason for uncertainty>`
-
-When a section has no evidence at all, note it as a gap in `cast-report.md` under `## Spec Gaps`.
-
-## Completion
-
-After writing all files:
-1. Run `forge validate` — resolve structural errors (broken ID references, missing required fields).
-2. Summarise what was produced, what evidence class each major decision used, and what's in the cast-report.
-3. Recommend the human reviews `workbench/cast-report.md` and then runs `forge-spec` to fill gaps, followed by `forge-review`.
+Then route to `forge-spec` and `forge-review`.
 
 ## Key Constraints
 
-- No speculative requirements — only what the repo evidences.
-- No implementation changes — spec only.
-- Do not force-complete sections unsupported by evidence; leave them as gaps.
-- `status: draft` on all generated nodes.
-- All `id` fields must match path-derived IDs — run `forge validate` to confirm.
+- no speculative requirements
+- no implementation changes
+- no fake certainty

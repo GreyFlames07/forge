@@ -1,0 +1,1 @@
+Bootstrap worker entrypoint placeholder.

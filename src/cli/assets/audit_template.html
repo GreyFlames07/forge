@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Forge Audit</title>
+  <link rel="icon" href="./forge_white_small.drawio.svg" />
+  <script src="https://cdn.jsdelivr.net/npm/elkjs@0.9.3/lib/elk.bundled.js"></script>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --panel: #ffffff;
+      --panel-alt: #f6f8fa;
+      --border: #d7dce3;
+      --text: #1f2328;
+      --muted: #59636e;
+      --subtle: #818b98;
+      --accent: #fd8c73;
+      --hover: #f6f8fa;
+      --active: #eaeef2;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    button {
+      font: inherit;
+      color: inherit;
+      background: none;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+    }
+    .subnav {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 0 24px;
+      height: 52px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      overflow-x: auto;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      height: 100%;
+      margin-right: 2px;
+    }
+    .brand-logo {
+      width: 88px;
+      height: 22px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      overflow: visible;
+      transform: translateY(0);
+    }
+    .brand-logo img {
+      display: block;
+      width: auto;
+      height: 100%;
+      max-width: 100%;
+      object-fit: contain;
+      object-position: left center;
+    }
+    .brand-sep-v {
+      width: 1px;
+      height: 22px;
+      background: var(--border);
+      margin: 0 16px 0 12px;
+    }
+    .tab {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 14px;
+      font-size: 14px;
+      color: var(--text);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      white-space: nowrap;
+      border-radius: 6px 6px 0 0;
+    }
+    .tab:hover {
+      background: var(--hover);
+    }
+    .tab.active {
+      border-bottom-color: var(--accent);
+      font-weight: 600;
+    }
+    .main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 28px 32px;
+    }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-bottom: none;
+      border-radius: 6px 6px 0 0;
+      background: var(--panel-alt);
+      font-size: 13px;
+      color: var(--text);
+      overflow-x: auto;
+    }
+    .toolbar-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .toolbar-btn:hover {
+      background: var(--active);
+    }
+    .toolbar-btn.active {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .toolbar-meta {
+      margin-left: auto;
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .artifact {
+      border: 1px solid var(--border);
+      border-radius: 0 0 6px 6px;
+      background: var(--bg);
+      min-height: 600px;
+    }
+    .section {
+      display: none;
+      padding: 28px 32px 32px;
+      animation: fadeIn 180ms ease;
+    }
+    .section.active {
+      display: block;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px;
+    }
+    .card h3, .card h4 {
+      margin: 0 0 8px;
+    }
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+      white-space: pre-line;
+    }
+    .diagram-card {
+      padding: 0;
+      overflow: visible;
+    }
+    .diagram-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel-alt);
+    }
+    .diagram-controls {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .diagram-control-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 36px;
+      height: 32px;
+      padding: 0 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1;
+    }
+    .diagram-control-btn:hover {
+      background: var(--hover);
+    }
+    .diagram-wrap {
+      padding: 18px;
+      overflow-x: auto;
+      overflow-y: visible;
+      overscroll-behavior: contain;
+      touch-action: pan-x pan-y;
+    }
+    .diagram-wrap .diagram-surface,
+    .diagram-wrap .elk-graph {
+      display: block;
+      width: max-content;
+      min-width: 100%;
+    }
+    .diagram-wrap svg {
+      display: block;
+      max-width: none;
+      height: auto;
+    }
+    .diagram-wrap [data-scale] svg {
+      transform-origin: top left;
+    }
+    .elk-node {
+      cursor: pointer;
+    }
+    .elk-node rect,
+    .elk-node ellipse {
+      fill: #ffffff;
+      stroke: #d1d9e0;
+      stroke-width: 1.5;
+    }
+    .elk-node.system rect {
+      fill: #fff7ed;
+      stroke: #fdba74;
+    }
+    .elk-node.database rect {
+      fill: #f6f8fa;
+    }
+    .elk-node.external rect,
+    .elk-node.dependency ellipse {
+      fill: #fff7ed;
+      stroke: #fdba74;
+    }
+    .elk-node.actor ellipse {
+      fill: #ffffff;
+    }
+    .elk-node text {
+      fill: var(--text);
+    }
+    .elk-node .label {
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .elk-node .subtitle {
+      font-size: 12px;
+      fill: var(--muted);
+    }
+    .elk-edge {
+      fill: none;
+      stroke: #d1d9e0;
+      stroke-width: 1.5;
+    }
+    .elk-edge.dashed {
+      stroke-dasharray: 4 4;
+    }
+    .elk-edge-label {
+      font-size: 12px;
+      fill: var(--muted);
+    }
+    .elk-edge-label-bg {
+      fill: rgba(255,255,255,0.92);
+    }
+    svg.audit-diagram {
+      width: 100%;
+      min-width: 760px;
+      height: auto;
+    }
+    .node {
+      cursor: pointer;
+      transition: 160ms ease;
+    }
+    .node:hover rect, .node:hover ellipse, .node:hover circle {
+      stroke-width: 2.6;
+    }
+    .edge-label {
+      fill: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.02em;
+    }
+    .node-label {
+      fill: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+      text-anchor: middle;
+    }
+    .node-sub {
+      fill: var(--muted);
+      font-size: 11px;
+      text-anchor: middle;
+    }
+    .pill-list {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+    .pill {
+      display: inline-flex;
+      border-radius: 999px;
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.82rem;
+      cursor: pointer;
+    }
+    .flow-steps {
+      display: grid;
+      gap: 14px;
+    }
+    .flow-step {
+      position: relative;
+      padding-left: 22px;
+      border-left: 2px solid #d1d5db;
+    }
+    .flow-step::before {
+      content: "";
+      position: absolute;
+      left: -7px;
+      top: 4px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px #fff1ed;
+    }
+    .flow-step h4 {
+      margin: 0 0 6px;
+    }
+    .flow-step p {
+      margin: 0;
+      color: var(--muted);
+      white-space: pre-line;
+    }
+    .branch-list {
+      margin-top: 10px;
+      padding-left: 18px;
+      color: var(--muted);
+    }
+    .branch-list li {
+      margin-bottom: 8px;
+    }
+    .footer-note, .footer {
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+    .footer {
+      max-width: 1280px;
+      margin: 24px auto 0;
+      padding: 16px 32px 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @media (max-width: 720px) {
+      .subnav {
+        padding: 0 12px;
+      }
+      .main {
+        padding: 20px;
+      }
+      .section {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav class="subnav">
+    <div class="brand">
+      <div class="brand-logo">
+        <img src="./forge_full_logo.drawio.svg" alt="Forge logo" />
+      </div>
+    </div>
+    <div class="brand-sep-v"></div>
+    <button class="tab" data-group="Overview">Overview</button>
+    <button class="tab" data-group="System">System</button>
+    <button class="tab" data-group="Flows">Flows</button>
+    <button class="tab" data-group="Runtime">Runtime</button>
+    <button class="tab" data-group="Data">Data</button>
+    <button class="tab" data-group="Verticals">Verticals</button>
+    <button class="tab" data-group="Deployment">Deployment</button>
+  </nav>
+  <main class="main">
+    <div class="toolbar">
+      <button class="toolbar-btn" data-target="overview" data-group="Overview">Overview</button>
+      <button class="toolbar-btn" data-target="system-overview" data-group="System">System</button>
+      <button class="toolbar-btn" data-target="runtime-overview" data-group="Runtime">Runtime Overview</button>
+      <button class="toolbar-btn" data-target="data-overview" data-group="Data">Data Overview</button>
+      <button class="toolbar-btn" data-target="verticals-overview" data-group="Verticals">Verticals</button>
+      <button class="toolbar-btn" data-target="deployment-overview" data-group="Deployment">Deployment</button>
+      __DYNAMIC_ITEM_BUTTONS_HTML__
+      <div class="toolbar-meta" data-fallback="forge_project / audit">__SYSTEM_ID__ / audit</div>
+    </div>
+    <div class="artifact">
+      <section class="section" id="overview" data-group="Overview">
+        <div data-slot="overview-body">__OVERVIEW_BODY__</div>
+      </section>
+      <section class="section" id="system-overview" data-group="System">
+        <div data-slot="system-body">__SYSTEM_BODY__</div>
+      </section>
+      <section class="section" id="runtime-overview" data-group="Runtime">
+        <div data-slot="runtime-body">__RUNTIME_BODY__</div>
+      </section>
+      <section class="section" id="data-overview" data-group="Data">
+        <div data-slot="data-body">__DATA_BODY__</div>
+      </section>
+      <section class="section" id="verticals-overview" data-group="Verticals">
+        <div data-slot="verticals-body">__VERTICALS_BODY__</div>
+      </section>
+      <section class="section" id="deployment-overview" data-group="Deployment">
+        <div data-slot="deployment-body">__DEPLOYMENT_BODY__</div>
+      </section>
+      __DYNAMIC_SECTIONS_HTML__
+    </div>
+  </main>
+  <footer class="footer">
+    <span>© Forge</span>
+    <span data-fallback="forge_project">__SYSTEM_ID__</span>
+  </footer>
+  <script id="audit-data" type="application/json">__AUDIT_DATA__</script>
+  <script>
+    function fillTemplateFallbacks() {
+      document.querySelectorAll('[data-fallback]').forEach(element => {
+        if (element.textContent.includes('__')) {
+          element.textContent = element.dataset.fallback;
+        }
+      });
+      document.querySelectorAll('[data-slot]').forEach(slot => {
+        if (slot.textContent.trim().startsWith('__')) {
+          slot.innerHTML = '<div class="card"><h3>Schema Content</h3><p>This framework section is part of the static audit template. Forge will inject the schema-specific content here when the artifact is rendered.</p></div>';
+        }
+      });
+      const placeholderNodes = Array.from(document.querySelectorAll('.toolbar, .artifact'))
+        .flatMap(node => Array.from(node.childNodes))
+        .filter(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim().startsWith('__'));
+      placeholderNodes.forEach(node => node.textContent = '');
+    }
+
+    function readAuditData() {
+      const el = document.getElementById('audit-data');
+      if (!el) return {};
+      try {
+        return JSON.parse(el.textContent);
+      } catch {
+        return {};
+      }
+    }
+
+    fillTemplateFallbacks();
+    const AUDIT_DATA = readAuditData();
+    const GRAPH_TARGETS = AUDIT_DATA.graph_targets || {};
+    const sections = Array.from(document.querySelectorAll('.section'));
+    const itemButtons = Array.from(document.querySelectorAll('.toolbar-btn'));
+    const tabs = Array.from(document.querySelectorAll('.tab'));
+
+    function setActiveGroup(group) {
+      tabs.forEach(tab => tab.classList.toggle('active', tab.dataset.group === group));
+      itemButtons.forEach(button => {
+        button.style.display = button.dataset.group === group ? 'inline-flex' : 'none';
+      });
+    }
+
+    function getSvgNaturalSize(svg) {
+      const viewBox = svg.viewBox && svg.viewBox.baseVal;
+      if (viewBox && viewBox.width && viewBox.height) {
+        return { width: viewBox.width, height: viewBox.height };
+      }
+      const width = parseFloat(svg.getAttribute('width')) || svg.getBoundingClientRect().width || 1;
+      const height = parseFloat(svg.getAttribute('height')) || svg.getBoundingClientRect().height || 1;
+      return { width, height };
+    }
+
+    function normalizeSvgBounds(surfaceNode) {
+      const svg = surfaceNode.querySelector('svg');
+      if (!svg) return;
+      const measureSelectors = ['g', 'path', 'line', 'polyline', 'rect', 'ellipse', 'circle', 'text'];
+      const candidates = measureSelectors
+        .flatMap(selector => Array.from(svg.querySelectorAll(selector)))
+        .filter(element => typeof element.getBBox === 'function');
+      if (!candidates.length) return;
+
+      const bounds = candidates
+        .map(element => {
+          try {
+            return element.getBBox();
+          } catch {
+            return null;
+          }
+        })
+        .filter(Boolean);
+      if (!bounds.length) return;
+
+      const padding = 24;
+      const minX = Math.min(...bounds.map(box => box.x)) - padding;
+      const minY = Math.min(...bounds.map(box => box.y)) - padding;
+      const maxX = Math.max(...bounds.map(box => box.x + box.width)) + padding;
+      const maxY = Math.max(...bounds.map(box => box.y + box.height)) + padding;
+      const width = Math.max(1, maxX - minX);
+      const height = Math.max(1, maxY - minY);
+
+      svg.setAttribute('viewBox', `${minX} ${minY} ${width} ${height}`);
+      svg.setAttribute('width', `${width}`);
+      svg.setAttribute('height', `${height}`);
+      svg.style.maxWidth = 'none';
+      svg.style.overflow = 'visible';
+      surfaceNode._naturalSize = { width, height };
+    }
+
+    function applyDiagramScale(surfaceNode, scale) {
+      const svg = surfaceNode.querySelector('svg');
+      if (!svg) return;
+      const natural = surfaceNode._naturalSize || getSvgNaturalSize(svg);
+      surfaceNode._naturalSize = natural;
+      surfaceNode.dataset.scale = scale.toFixed(2);
+      svg.style.width = `${natural.width * scale}px`;
+      svg.style.height = `${natural.height * scale}px`;
+    }
+
+    function bindDiagramControls(section) {
+      section.querySelectorAll('.diagram-card').forEach(card => {
+        if (card.dataset.controlsBound === 'true') return;
+        card.dataset.controlsBound = 'true';
+        const wrap = card.querySelector('.diagram-wrap');
+        const surfaceNode = wrap && (wrap.querySelector('.elk-graph') || wrap.querySelector('.diagram-surface'));
+        const buttons = card.querySelectorAll('[data-diagram-zoom]');
+        if (!wrap || !surfaceNode) return;
+        buttons.forEach(button => {
+          button.addEventListener('click', () => {
+            const current = parseFloat(surfaceNode.dataset.scale || '1');
+            const mode = button.dataset.diagramZoom;
+            const next = mode === 'in'
+              ? Math.min(2.5, current + 0.2)
+              : mode === 'out'
+                ? Math.max(0.6, current - 0.2)
+                : 1;
+            applyDiagramScale(surfaceNode, next);
+          });
+        });
+        wrap.addEventListener('wheel', event => {
+          if (!(event.metaKey || event.ctrlKey)) return;
+          event.preventDefault();
+          const current = parseFloat(surfaceNode.dataset.scale || '1');
+          const direction = event.deltaY < 0 ? 0.2 : -0.2;
+          const next = Math.max(0.6, Math.min(2.5, current + direction));
+          applyDiagramScale(surfaceNode, next);
+        }, { passive: false });
+      });
+    }
+
+    async function renderElkGraph(container) {
+      const graph = JSON.parse(container.dataset.graph);
+      const elk = window.__forgeElk || (window.__forgeElk = new ELK());
+      const layout = await elk.layout(graph);
+      const pad = 16;
+      const svgNs = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(svgNs, 'svg');
+      svg.setAttribute('class', 'diagram-svg');
+      svg.setAttribute('width', String((layout.width || 0) + pad * 2));
+      svg.setAttribute('height', String((layout.height || 0) + pad * 2));
+      svg.setAttribute('viewBox', `0 0 ${(layout.width || 0) + pad * 2} ${(layout.height || 0) + pad * 2}`);
+
+      const defs = document.createElementNS(svgNs, 'defs');
+      const marker = document.createElementNS(svgNs, 'marker');
+      marker.setAttribute('id', 'arrowhead');
+      marker.setAttribute('markerWidth', '10');
+      marker.setAttribute('markerHeight', '10');
+      marker.setAttribute('refX', '8');
+      marker.setAttribute('refY', '5');
+      marker.setAttribute('orient', 'auto');
+      const arrowPath = document.createElementNS(svgNs, 'path');
+      arrowPath.setAttribute('d', 'M 0 0 L 10 5 L 0 10 z');
+      arrowPath.setAttribute('fill', '#d1d9e0');
+      marker.appendChild(arrowPath);
+      defs.appendChild(marker);
+      svg.appendChild(defs);
+
+      const edgeLayer = document.createElementNS(svgNs, 'g');
+      const nodeLayer = document.createElementNS(svgNs, 'g');
+
+      const edges = layout.edges || [];
+      edges.forEach(edge => {
+        const forge = edge.forge || {};
+        const section = edge.sections && edge.sections[0];
+        if (!section) return;
+        const points = [section.startPoint, ...(section.bendPoints || []), section.endPoint]
+          .map(point => `${point.x + pad},${point.y + pad}`)
+          .join(' ');
+        const polyline = document.createElementNS(svgNs, 'polyline');
+        polyline.setAttribute('points', points);
+        polyline.setAttribute('class', `elk-edge ${forge.style === 'dashed' ? 'dashed' : ''}`.trim());
+        polyline.setAttribute('marker-end', 'url(#arrowhead)');
+        edgeLayer.appendChild(polyline);
+
+        const label = String(forge.label || '').trim();
+        if (label) {
+          const mid = (section.bendPoints && section.bendPoints.length)
+            ? section.bendPoints[Math.floor(section.bendPoints.length / 2)]
+            : {
+                x: (section.startPoint.x + section.endPoint.x) / 2,
+                y: (section.startPoint.y + section.endPoint.y) / 2,
+              };
+          const text = document.createElementNS(svgNs, 'text');
+          text.setAttribute('class', 'elk-edge-label');
+          text.setAttribute('x', String(mid.x + pad));
+          text.setAttribute('y', String(mid.y + pad - 8));
+          text.setAttribute('text-anchor', 'middle');
+          text.textContent = label;
+          edgeLayer.appendChild(text);
+          const bbox = text.getBBox();
+          const bg = document.createElementNS(svgNs, 'rect');
+          bg.setAttribute('class', 'elk-edge-label-bg');
+          bg.setAttribute('x', String(bbox.x - 6));
+          bg.setAttribute('y', String(bbox.y - 2));
+          bg.setAttribute('width', String(bbox.width + 12));
+          bg.setAttribute('height', String(bbox.height + 4));
+          bg.setAttribute('rx', '4');
+          edgeLayer.insertBefore(bg, text);
+        }
+      });
+
+      (layout.children || []).forEach(node => {
+        const forge = node.forge || {};
+        const group = document.createElementNS(svgNs, 'g');
+        group.setAttribute('class', `elk-node ${forge.kind || ''}`.trim());
+        group.setAttribute('transform', `translate(${(node.x || 0) + pad}, ${(node.y || 0) + pad})`);
+        if (forge.target) {
+          group.dataset.target = forge.target;
+        }
+        const shape = (forge.kind === 'actor' || forge.kind === 'dependency') ? 'ellipse' : 'rect';
+        const shapeEl = document.createElementNS(svgNs, shape);
+        if (shape === 'ellipse') {
+          shapeEl.setAttribute('cx', String((node.width || 0) / 2));
+          shapeEl.setAttribute('cy', String((node.height || 0) / 2));
+          shapeEl.setAttribute('rx', String((node.width || 0) / 2));
+          shapeEl.setAttribute('ry', String((node.height || 0) / 2));
+        } else {
+          shapeEl.setAttribute('width', String(node.width || 0));
+          shapeEl.setAttribute('height', String(node.height || 0));
+          shapeEl.setAttribute('rx', '10');
+        }
+        group.appendChild(shapeEl);
+
+        const label = document.createElementNS(svgNs, 'text');
+        label.setAttribute('class', 'label');
+        label.setAttribute('x', String((node.width || 0) / 2));
+        label.setAttribute('y', String((node.height || 0) / 2 - 4));
+        label.setAttribute('text-anchor', 'middle');
+        label.textContent = forge.label || node.id;
+        group.appendChild(label);
+
+        const subtitle = document.createElementNS(svgNs, 'text');
+        subtitle.setAttribute('class', 'subtitle');
+        subtitle.setAttribute('x', String((node.width || 0) / 2));
+        subtitle.setAttribute('y', String((node.height || 0) / 2 + 18));
+        subtitle.setAttribute('text-anchor', 'middle');
+        subtitle.textContent = forge.subtitle || '';
+        group.appendChild(subtitle);
+
+        if (forge.target) {
+          group.addEventListener('click', () => { void activateSection(forge.target); });
+        }
+        nodeLayer.appendChild(group);
+      });
+
+      svg.appendChild(edgeLayer);
+      svg.appendChild(nodeLayer);
+      container.innerHTML = '';
+      container.appendChild(svg);
+      container.classList.add('diagram-surface');
+      normalizeSvgBounds(container);
+      container.dataset.elkRendered = 'true';
+      applyDiagramScale(container, parseFloat(container.dataset.scale || '1'));
+    }
+
+    async function renderSectionGraphs(section) {
+      if (!section) return;
+      const graphs = Array.from(section.querySelectorAll('.elk-graph'));
+      const pending = graphs.filter(node => !node.dataset.elkRendered);
+      if (!pending.length) {
+        bindDiagramControls(section);
+        return;
+      }
+      try {
+        for (const node of pending) {
+          await renderElkGraph(node);
+        }
+        bindDiagramControls(section);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    async function activateSection(id, updateHash = true) {
+      const targetSection = sections.find(section => section.id === id);
+      if (!targetSection) return;
+      const group = targetSection.dataset.group;
+      sections.forEach(section => section.classList.toggle('active', section.id === id));
+      itemButtons.forEach(button => button.classList.toggle('active', button.dataset.target === id));
+      setActiveGroup(group);
+      if (updateHash) {
+        window.location.hash = id;
+      }
+      await renderSectionGraphs(targetSection);
+    }
+
+    function activateGroup(group) {
+      const first = itemButtons.find(button => button.dataset.group === group);
+      if (first) {
+        void activateSection(first.dataset.target);
+      }
+    }
+
+    window.graphNavigate = function (nodeId) {
+      const target = GRAPH_TARGETS[nodeId];
+      if (target) {
+        void activateSection(target);
+      }
+    };
+
+    function bindNavigation() {
+      document.addEventListener('click', event => {
+        const element = event.target.closest('[data-target]');
+        if (!element) return;
+        void activateSection(element.dataset.target);
+      });
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => activateGroup(tab.dataset.group));
+      });
+    }
+    bindNavigation();
+    const initial = window.location.hash.replace('#', '') || 'overview';
+    void activateSection(initial);
+  </script>
+</body>
+</html>

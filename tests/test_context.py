@@ -98,7 +98,6 @@ def test_init_scaffolds_traversable_repo(tmp_path: Path, capsys) -> None:
     assert (forge_root / "FRAMEWORK_V3.md").exists()
     assert (forge_root / "USING_FORGE.md").exists()
     assert (forge_root / "skills" / "forge-schema" / "SKILL.md").exists()
-    assert (forge_root / "skills" / "forge-spec" / "SKILL.md").exists()
     assert "dist/" in (root / ".gitignore").read_text(encoding="utf-8")
     assert "*.egg-info/" in (root / ".gitignore").read_text(encoding="utf-8")
     codex_skill = root / ".codex" / "skills" / "forge-build"
@@ -110,11 +109,7 @@ def test_init_scaffolds_traversable_repo(tmp_path: Path, capsys) -> None:
     assert "../../../forge/SCHEMA_REFERENCE_V3.md" in surfaced_skill
     assert "../../../forge/USING_FORGE.md" in surfaced_skill
     assert "../forge-schema/SKILL.md" in surfaced_skill
-    spec_alias = (root / ".codex" / "skills" / "forge-spec" / "SKILL.md").read_text(encoding="utf-8")
-    assert "name: forge-spec" in spec_alias
-    assert "../forge-schema/SKILL.md" in spec_alias
     assert (root / ".claude" / "skills" / "forge-schema" / "SKILL.md").exists()
-    assert (root / ".claude" / "skills" / "forge-spec" / "SKILL.md").exists()
     assert (root / ".agents" / "skills" / "forge-review" / "SKILL.md").exists()
     rewritten_skill = (forge_root / "skills" / "forge-schema" / "SKILL.md").read_text(encoding="utf-8")
     assert "../../SCHEMA_REFERENCE_V3.md" in rewritten_skill

@@ -135,6 +135,24 @@ Check:
 3. No flow step mixes linear and branch forms.
 4. Runtime-aware steps represent one container participation each.
 5. Component-flow steps represent one component participation each.
+6. A container may retain in-flight workflow-scoped state across its own runtime steps when it is clearly the orchestrator of the slice.
+7. Do not assume that a later step only knows the immediately preceding boundary payload when the same container is plausibly coordinating the broader workflow.
+
+For orchestrated runtime flows:
+
+- Do not raise a contract-consistency finding solely because earlier workflow context is not re-threaded through every intermediate boundary hop.
+- Do not require a new `persistent_shape` for intermediate context unless durability is actually needed.
+- Raise a finding only when the artifact is ambiguous about whether the needed knowledge comes from:
+  - immediate boundary payloads
+  - retained in-flight workflow state
+  - reloaded durable state
+
+Accept explicit wording such as:
+
+- "acts as the workflow orchestrator for this slice"
+- "retains in-flight workflow context across its own steps"
+- "correlates the payment intent with earlier challenge-entry context"
+- "uses backend-retained workflow state established earlier in the flow"
 
 ### Pass 4: Promotion Discipline
 
@@ -153,6 +171,15 @@ Use these challenge questions:
 - Is this actually persisted?
 - Does this container really need internal component modeling?
 - Is this vertical really buildable end to end?
+
+Require a new `persistent_shape` only when the intermediate state must be durable for:
+
+- retry after interruption
+- recovery after process loss
+- auditability
+- reconciliation
+- cross-session continuation
+- asynchronous resumption that cannot rely on live in-flight state alone
 
 ### Pass 5: Security Coverage
 

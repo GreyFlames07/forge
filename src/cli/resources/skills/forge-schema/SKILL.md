@@ -230,6 +230,20 @@ Default behavior:
 - Where do branches occur?
 - Which outputs are one-off and which feel reusable?
 
+When a container is clearly orchestrating the workflow:
+
+- model every container-boundary hop explicitly
+- allow later steps in that same container to rely on retained in-flight workflow context
+- make that retention explicit in step descriptions rather than pretending every step is isolated
+- do not introduce a new `persistent_shape` unless the state truly needs durability
+
+Preferred wording:
+
+- "acts as the workflow orchestrator for this slice"
+- "retains in-flight workflow context across its own steps"
+- "correlates the payment intent with earlier challenge-entry context"
+- "uses backend-retained workflow state established earlier in the flow"
+
 ### `data_shape`
 
 - Which payloads or stored shapes are reused?

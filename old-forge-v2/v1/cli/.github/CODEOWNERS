@@ -1,0 +1,26 @@
+# CODEOWNERS — review assignment for pull requests.
+#
+# GitHub uses this file with branch protection's "Require review from Code
+# Owners" rule. Every PR touching the paths below requires approval from
+# the listed owner(s) before it can be merged.
+#
+# Syntax: <pattern>  <@username or @org/team>
+# First-matching-pattern wins. Later rules override earlier ones.
+
+# Default owner: every path, unless superseded below.
+*                        @GreyFlames07
+
+# Spec templates and schemas are high-leverage — explicit ownership.
+/src/templates/          @GreyFlames07
+/src/example/            @GreyFlames07
+
+# CLI implementation and tests.
+/src/cli/                @GreyFlames07
+/tests/                  @GreyFlames07
+
+# Skill source — changes here propagate to every project via symlink.
+/.agents/skills/         @GreyFlames07
+
+# Ops and governance.
+/.github/                @GreyFlames07
+/scripts/                @GreyFlames07

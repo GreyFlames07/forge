@@ -1,0 +1,36 @@
+schema: forge.v2.high_level_flow
+
+high_level_flow:
+  id: place_fulfillment_order
+  description: >
+    A customer submits an order that is screened, allocated, booked for
+    shipment, and either confirmed or rejected with a clear outcome.
+  trigger: Customer completes checkout for shippable items.
+  steps:
+    - id: 1
+      description: Customer submits the order and delivery details.
+      next: 2
+    - id: 2
+      description: System evaluates fraud and basic order correctness.
+      branches:
+        - condition: Order is safe to proceed.
+          next: 3
+        - condition: Order is rejected or sent to manual review.
+          next: 6
+    - id: 3
+      description: System reserves inventory and prepares a shipment plan.
+      branches:
+        - condition: Inventory is available and shipment can be booked.
+          next: 4
+        - condition: Inventory cannot be committed cleanly.
+          next: 5
+    - id: 4
+      description: System confirms the order and communicates the shipment outcome.
+    - id: 5
+      description: System opens an operational shortage path and informs the customer of the delay.
+    - id: 6
+      description: System informs the customer that the order did not proceed.
+  outcomes:
+    - Order is confirmed with shipment details.
+    - Order enters shortage recovery after an allocation failure.
+    - Order is rejected before fulfillment starts.

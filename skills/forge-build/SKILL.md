@@ -1,163 +1,348 @@
 ---
 name: forge-build
-description: >
-  Forge V2 build skill. Use when the schema is complete enough for the target slices, the plan exists,
-  and the user wants working implementation code and tests generated while preserving runnability. Acts
-  as an orchestrator: validates readiness, consults the plan, dispatches implementation work using
-  forge context, checks bootstrap continuously, and updates workbench status and validation evidence.
+description: Plan and build a Forge V2 vertical slice. Use when the user wants to implement a chosen vertical from the Forge V2 schema after it has already passed `forge-review` and `forge-security`, or when the user is explicitly resolving findings from those pre-build passes. If no build plan exists for that vertical, create the build plan first; otherwise execute the build. Use when implementation must proceed in thin vertical slices, follow a TDD-style workflow, and be validated through unit, integration, and full-system testing in the real build environment.
 ---
 
 # forge-build
 
 Read before starting:
 
-- `docs/forge-v2-schema.md`
-- `docs/forge-v2-architecture.md`
-- `frameworks/build/FRAMEWORK.md`
-- `forge/workbench/discovery.md`
-- `forge/workbench/plan.yaml`
+- `../../SCHEMA_REFERENCE_V3.md`
+- `../forge-schema/SKILL.md`
+- `../forge-review/SKILL.md`
+- `../forge-security/SKILL.md`
+
+Prefer when available:
+
+- Forge CLI `init`
+- Forge CLI `context`
+- Forge CLI `audit`
+
+Maintain throughout the workflow:
+
+- `../../decision_notes.md`
 
 ## Purpose
 
-Implement the planned slices while keeping the system runnable.
+Handle both planning and implementation for a Forge V2 vertical.
 
-This stage is not a free-form code generator. It is a bootstrap-first implementation orchestrator.
+This skill is bifurcated:
 
-`forge/workbench/*` files are internal framework artifacts in V2. They are produced and consumed by the stage skills; they are not separate public CLI commands.
+1. `plan` mode
+2. `build` mode
 
-## Non-negotiables
+Use `plan` mode when no build plan exists yet for the target vertical.
+Use `build` mode when a build plan already exists and implementation should proceed.
 
-1. Bootstrap first. No broad implementation before the bootstrap path exists.
-2. Run bootstrap as early as possible.
-3. Build against the running bootstrap when possible.
-4. Re-check startup, bootstrap, and affected flows after each material slice.
-5. If automation is insufficient, require operator verification instead of pretending coverage exists.
-6. Schema files are frozen during a build run. Do not silently edit schema truth to make implementation easier.
+Do not treat planning and implementation as unrelated. The output of planning must directly drive the build.
 
-## Inputs
+## Pre-Build Gate
 
-- schema under `forge/`
-- `forge/workbench/plan.yaml`
-- existing repo state
-- verification items
+`forge-build` is not the first skill to use on a new or newly deepened slice.
 
-## Workbench Outputs
+Before using this skill, the slice should already have:
 
-- `forge/workbench/status.yaml`
-- `forge/workbench/validation.md`
+1. a coherent schema pass from `forge-schema`
+2. a consistency pass from `forge-review`
+3. a security pass from `forge-security`
 
-## Source Control Outputs
+Use this skill before those checks only when the user is explicitly asking you to repair issues discovered by review or security work.
 
-At each meaningful checkpoint, the build stage should also update source control state.
+## Mode Selection
 
-Checkpoint examples:
+For the chosen vertical:
 
-- bootstrap first becomes runnable
-- a planned slice lands
-- a meaningful runtime or contract change lands without breaking bootstrap
+1. Check whether a build plan already exists.
+2. If it does not exist, enter `plan` mode first.
+3. If it exists, enter `build` mode.
 
-Expected behavior:
+If a build plan exists but is clearly incompatible with the current schema, repair the plan before building.
 
-1. inspect git state
-2. summarize the checkpoint in plain language
-3. create a checkpoint commit when the human or repo policy allows it
-4. push or update the GitHub branch when a remote exists and credentials are available
-5. if push is not possible, stop at a clean local checkpoint and record the next action explicitly
+## Forge CLI First
 
-## Step 1 — Readiness Gate
+When the Forge CLI exists, prefer it as the primary context and audit interface.
 
-Before writing code:
+Use it for:
 
-1. inspect the plan
-2. inspect the bootstrap definition
-3. use `forge list` and `forge context` to confirm the relevant schema objects and IDs
-4. stop if the schema is structurally ambiguous or incomplete
+1. initializing a workspace or schema tree
+2. retrieving scoped context for a vertical, runtime container, component, or flow
+3. launching the audit surface for human inspection of audit artifacts
 
-If bootstrap is underspecified, route back to `forge-spec` or `forge-plan` rather than guessing.
+Expected commands:
 
-## Step 2 — Bootstrap Assessment
+- `forge init`
+- `forge context`
+- `forge audit`
 
-Establish:
+Use `forge context` before planning or building a scoped task whenever it is the most efficient way to retrieve the relevant schema context.
 
-- whether bootstrap already exists in runnable form
-- what commands or checks prove it
-- what operator verification is required
+If the CLI is not available yet, fall back to reading the schema artifacts directly.
 
-If bootstrap does not exist yet:
+## Plan Mode
 
-- implement the minimum bootstrap slice first
-- do not parallelize expansion work ahead of it
+Plan mode should:
 
-## Step 3 — Execution Plan
+1. Choose or confirm the target vertical.
+2. Define the thinnest runnable end-to-end slice.
+3. Break that slice into ordered build increments.
+4. Define verification checkpoints for each increment.
+5. Record meaningful planning decisions in `decision_notes.md`.
 
-Work slice by slice from `forge/workbench/plan.yaml`.
+### Planning Rules
 
-For each slice:
+1. Plan vertically, not by technical layer.
+2. Start with the smallest slice that proves the architecture.
+3. Make deferrals explicit.
+4. Do not add architecture just to make the plan look neat.
+5. Draft the first plan, explain the reasoning, then let the user critique it.
 
-1. load schema context through `forge context`
-2. identify touched units, operations, surfaces, flows, and stores
-3. implement the smallest complete version of that slice
-4. run the declared checks
-5. update workbench status
-6. update git/GitHub at the slice checkpoint when the change is meaningful
+### Planning Output
 
-## Step 4 — Subagent Dispatch
+The plan should identify:
 
-When delegation is useful, subagents should receive:
+- chosen vertical
+- first runnable slice
+- ordered increments
+- dependencies
+- deferrals
+- verification checkpoints
 
-- the slice or target ID
-- the instruction to call `forge context <id>`
-- the architecture and layout rules implied by the repo and plan
-- the requirement to implement exactly what the schema declares
+## Build Mode
 
-Subagents should not be given giant inlined schema dumps when the CLI can provide context directly.
+Build mode should execute the approved plan incrementally.
 
-## Step 5 — Failure Handling
+### Build Workflow
 
-If a slice fails:
+For each increment:
 
-1. identify whether the failure is implementation, architecture, or schema ambiguity
-2. retry implementation failures with specific feedback
-3. stop immediately on schema ambiguity and surface it to the human
-4. if bootstrap breaks, repair bootstrap before continuing
+1. Confirm the current increment goal.
+2. Write or update tests first.
+3. Implement the minimum code required to make the tests pass.
+4. Simplify the implementation where needed without changing behavior.
+5. Run the required verification.
+6. Record important implementation decisions in `decision_notes.md`.
+7. Move to the next increment only when the current one is green.
 
-## Step 6 — Checkpoint Source Control
+Do not batch large amounts of work without testing.
 
-At each checkpoint:
+### Context Retrieval During Build
 
-1. confirm bootstrap and the touched slice still work at the declared level
-2. review `git status`
-3. prepare a checkpoint summary tied to the slice or bootstrap milestone
-4. create a checkpoint commit if permitted
-5. push the branch or update the open GitHub branch if permitted and possible
+Before implementing a scoped task, retrieve the narrowest useful context.
 
-Do not batch many meaningful slice landings into one opaque commit when the framework can keep checkpoints intelligible.
+Prefer:
 
-## Failure Routing
+1. `forge context` for the current vertical, container, component, or flow
+2. direct schema reads only when CLI context is unavailable or insufficient
 
-- If bootstrap is missing or underspecified, stop and route back to `forge-plan` or `forge-spec`.
-- If implementation pressure reveals missing or conflicting contracts, stop and route back to `forge-spec` instead of mutating schema truth ad hoc.
-- If the current plan no longer reflects the real execution order, stop and route back to `forge-plan`.
-- If operator verification is required before expansion, stop after bootstrap hardening and hand off to `forge-validate` or the human operator.
-- If a GitHub update is required by the workflow but remote state, permissions, or branch policy block it, stop and surface that operational blocker instead of silently continuing.
+Do not implement from vague whole-repo context when a smaller scoped context can be retrieved.
 
-## Completion
+### Sub-Agent Dispatch
 
-When a slice lands:
+Use sub-agents when the current build increment can be safely partitioned into independent work.
 
-1. record status in `forge/workbench/status.yaml`
-2. record validation evidence in `forge/workbench/validation.md`
-3. state whether bootstrap was preserved, expanded, or regressed
-4. state whether the checkpoint was committed locally, pushed to GitHub, or blocked operationally
+Good cases:
 
-When all planned slices for the run are complete:
+- backend container work and frontend container work with a stable contract
+- one component implementation and another component implementation with disjoint ownership
+- production code work and independent test harness work with clear interfaces
+- parallel verification passes after implementation
 
-1. summarize files written
-2. summarize bootstrap health
-3. recommend `forge-validate`
+Rules:
 
-## Key Constraints
+1. Do not dispatch sub-agents for the current blocking task if the main path needs immediate tightly coupled reasoning.
+2. Give each sub-agent a disjoint ownership scope.
+3. Give each sub-agent the relevant Forge CLI or schema context for its scope.
+4. Do not ask sub-agents to redesign the architecture.
+5. Review and integrate sub-agent output before moving on.
 
-- Do not continue building through a broken bootstrap.
-- Do not claim a slice is done without running its declared checks.
-- Do not hide operator-required checks in prose; they must correspond to verification items.
+## Required TDD Workflow
+
+Build mode must use a TDD-style cycle wherever behavior changes:
+
+1. write a failing test
+2. make it pass with the smallest reasonable implementation
+3. refactor or simplify while keeping tests green
+
+For bug fixes:
+
+1. reproduce the bug with a failing test first
+2. fix the bug
+3. confirm the test passes
+
+Never rely on "it looks right" as proof.
+
+## Test Sandboxing Rule
+
+Treat tests as a protected correctness boundary, not a flexible implementation companion.
+
+Rules:
+
+1. Write or extend tests before changing implementation behavior.
+2. Do not rewrite tests just to make a broken implementation pass.
+3. Only change an existing test when one of these is true:
+   - the test encodes behavior that is genuinely wrong
+   - the test contradicts the approved schema or build plan
+   - the test is structurally flaky or invalid
+   - the intended behavior has been explicitly changed and approved
+4. If a test fails, prefer fixing the implementation first.
+5. If a test appears wrong, explain why before changing it.
+6. Keep test changes scoped to the behavior actually under construction.
+
+Use this decision check before editing an existing test:
+
+- Is the test wrong, or is the code wrong?
+- Does the test contradict the approved architecture or vertical plan?
+- Would a human reviewer believe this test edit improves correctness, rather than hiding a defect?
+
+## Required Testing Levels
+
+The build is not complete unless it is tested at all relevant levels.
+
+### 1. Unit Tests
+
+Use for:
+
+- pure logic
+- validators
+- transforms
+- component-local behavior
+- service-level rules
+
+### 2. Integration Tests
+
+Use for:
+
+- API boundaries
+- persistence boundaries
+- container-to-store interaction
+- critical component interactions
+
+### 3. Full-System Tests
+
+Use for:
+
+- real end-to-end execution of the vertical in the environment in which it is being built
+- actual startup/run behavior
+- real user or system flows
+
+Do not stop at unit or integration coverage if the vertical can be exercised end to end.
+
+### Full-System Test Rule
+
+Always test the full system in the environment being built whenever that is feasible.
+
+Examples:
+
+- local build -> run and test locally
+- dev environment build -> run and test in dev
+- browser-facing vertical -> verify in the actual browser/runtime environment
+
+The point is to prove the vertical works as a real system path, not just in isolated tests.
+
+## Anti-Bloat Build Rules
+
+1. Do not build horizontally.
+2. Do not introduce speculative abstractions.
+3. Do not create new shapes unless the schema or the build clearly requires them.
+4. Do not broaden scope mid-increment.
+5. Do not "clean up" unrelated code during a vertical build.
+6. Prefer the simplest working implementation first.
+7. Refactor only after behavior is proved by tests.
+
+Use these challenge questions:
+
+- Does this code change directly advance the current vertical slice?
+- Can this be deferred without invalidating the slice?
+- Is this abstraction earned yet?
+- Is this test proving real behavior or just testing implementation detail?
+
+## Review Rules During Build
+
+For each increment, check:
+
+1. the code still aligns with the schema
+2. the build still follows the chosen vertical
+3. the tests actually prove the changed behavior
+4. the system still runs after the increment
+5. complexity has not grown unnecessarily
+
+If implementation reveals architectural drift, stop and route back:
+
+- schema problem -> `forge-schema`
+- consistency problem -> `forge-review`
+- security issue -> `forge-security`
+
+## Reference Skill Usage
+
+This skill should use the coding-agent reference repo for specific workflows instead of duplicating them.
+
+Before relying on that reference repo, always update it first:
+
+```bash
+git -C skills/forge-build/coding_agent_skills_reference pull --ff-only
+```
+
+Then consult the relevant skills under:
+
+- `skills/forge-build/coding_agent_skills_reference/skills/`
+
+Especially useful reference skills:
+
+- `planning-and-task-breakdown`
+- `incremental-implementation`
+- `test-driven-development`
+- `frontend-ui-engineering`
+- `api-and-interface-design`
+- `code-simplification`
+- `browser-testing-with-devtools`
+- `security-and-hardening`
+
+Use them like this:
+
+- planning work -> `planning-and-task-breakdown`
+- incremental delivery discipline -> `incremental-implementation`
+- test-first implementation -> `test-driven-development`
+- frontend implementation quality -> `frontend-ui-engineering`
+- backend/API contract and interface work -> `api-and-interface-design`
+- reducing unnecessary complexity -> `code-simplification`
+- browser/runtime verification -> `browser-testing-with-devtools`
+- implementation hardening -> `security-and-hardening`
+
+The Forge build logic stays here. The task-specific implementation technique comes from those reference skills.
+
+## Audit Surface
+
+When audit artifacts need human review, prefer the Forge CLI audit surface.
+
+Expected command:
+
+```bash
+forge audit
+```
+
+The intended behavior is:
+
+- spin up a local webserver
+- render the available audit artifacts
+- allow interactive inspection
+- allow export of those artifacts
+
+Use this surface for reviewable architecture outputs rather than forcing humans to inspect raw files when the audit interface is available.
+
+## Decision Notes
+
+Record meaningful build decisions in `decision_notes.md`, including:
+
+- why a vertical was chosen first
+- why a slice was considered thin enough
+- what was deferred
+- why a test strategy was chosen
+- why a simplification or refactor was made
+- any architectural issues discovered during build
+
+## Constraints
+
+1. Do not implement without a build plan.
+2. Do not treat testing as optional.
+3. Do not call a slice complete without full-system verification where feasible.
+4. Do not silently reshape the architecture during implementation.

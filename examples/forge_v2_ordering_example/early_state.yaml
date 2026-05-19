@@ -1,0 +1,26 @@
+schema: forge.v2.early_state
+
+early_state:
+  - id: order
+    description: >
+      The order represents a customer's intent to purchase one or more handmade
+      products and progresses through payment and fulfillment outcomes.
+    category: lifecycleObject
+    why_it_matters: >
+      The order is the core object that connects checkout, payment, fulfillment,
+      and customer communication.
+  - id: product
+    description: >
+      The product represents a maker-listed item that can be discovered,
+      priced, and purchased through the marketplace.
+    category: entity
+    why_it_matters: >
+      Products drive browsing, pricing, and line item composition across the
+      system.
+  - id: payment_attempt
+    description: >
+      The payment attempt records a single authorization attempt for an order.
+    category: record
+    why_it_matters: >
+      Payment attempts are needed to explain order failures, retries, and audit
+      trails even before the full persistent model is defined.

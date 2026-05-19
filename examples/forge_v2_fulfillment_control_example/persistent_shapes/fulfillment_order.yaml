@@ -1,0 +1,55 @@
+schema: forge.v2.persistent_shape
+
+persistent_shapes:
+  - id: fulfillment_order
+    description: Persisted fulfillment order shape representing the end-to-end post-purchase operational lifecycle.
+    data_shape: fulfillment_order_record
+    logical_owner_container: orchestration_api
+    data_store_container: fulfillment_db
+    storage_model: relational
+    persistence_behavior: >
+      Orders are created when a valid fulfillment request enters the backend and
+      are updated as screening, allocation, shipment, delivery, shortage, and
+      return-related outcomes occur.
+    lifecycle_status_notes: >
+      Orders move through screening, allocation, shortage recovery, shipment,
+      delivery, partial shipment, cancellation, or failure paths.
+    security: >
+      Contains customer and operational data that must be encrypted at rest,
+      masked in staff views where possible, and available only to approved
+      orchestration workflows.
+    state_machine:
+      states:
+        - pending_screening
+        - pending_allocation
+        - shortage_review
+        - confirmed
+        - partially_shipped
+        - delivered
+        - canceled
+        - failed
+      transitions:
+        - from: pending_screening
+          to: pending_allocation
+          condition: Fraud screening approves the order.
+        - from: pending_allocation
+          to: confirmed
+          condition: Inventory reservation and shipment booking succeed.
+        - from: pending_allocation
+          to: shortage_review
+          condition: Allocation or booking fails and operational recovery is required.
+        - from: shortage_review
+          to: confirmed
+          condition: Recovery succeeds through reroute.
+        - from: shortage_review
+          to: partially_shipped
+          condition: Recovery succeeds through partial shipment.
+        - from: shortage_review
+          to: canceled
+          condition: Recovery ends in cancellation.
+        - from: confirmed
+          to: delivered
+          condition: The carrier reports successful delivery.
+        - from: shortage_review
+          to: failed
+          condition: Recovery cannot produce a shippable outcome.

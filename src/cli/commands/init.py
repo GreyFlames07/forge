@@ -1,461 +1,441 @@
 from __future__ import annotations
 
-from argparse import ArgumentParser, Namespace
-from pathlib import Path
+import os
 import shutil
+import sys
+import threading
+import time
+from argparse import Namespace
+from pathlib import Path
 
-import yaml
+from cli.schema import dump_yaml
 
-from cli.common import ensure_dir, slugify
+COLLECTION_DIRS = [
+    "high_level_flows",
+    "runtime_flows",
+    "data_shapes",
+    "persistent_shapes",
+    "verticals",
+    "containers",
+]
 
+SKILL_DIRS = [
+    "forge-schema",
+    "forge-review",
+    "forge-security",
+    "forge-build",
+]
 
-PROFILES = {
-    "full-stack": ["apps/app", "apps/api", "packages/contracts", "packages/types", "infra"],
-    "api-service": ["apps/api", "packages/contracts", "packages/types", "infra"],
-    "cli-tool": ["apps/cli", "packages/types", "infra"],
-    "worker-service": ["apps/worker", "packages/types", "infra"],
-}
+DOC_FILES = [
+    "SCHEMA_REFERENCE_V3.md",
+    "FRAMEWORK_V3.md",
+]
 
-
-PROFILE_BLUEPRINTS = {
-    "full-stack": {
-        "verticals": [
-            {
-                "id": "core",
-                "name": "Core Experience",
-                "description": "The first end-user capability path.",
-                "purpose": "Deliver the first user-visible working slice.",
-                "owned_by": "Replace with owning team or person.",
-                "invariants": [],
-            }
-        ],
-        "units": [
-            {
-                "id": "app",
-                "name": "Frontend App",
-                "description": "User-facing application shell.",
-                "kind": "ui",
-                "purpose": "Expose the bootstrap capability to end users.",
-                "owned_by": "Replace with owner.",
-                "entrypoint": "apps/app/src/main.txt",
-                "serves_verticals": ["core"],
-                "run": {"dev": "Replace with app dev command", "test": "Replace with app test/build command", "prod": "Replace with app production run/deploy command"},
-                "env": [],
-                "depends_on": {"units": ["api"], "stores": [], "externals": []},
-                "healthcheck": {"kind": "none", "target": ""},
-                "promotion": {"independently_promotable": True, "notes": "Static app or frontend deployment."},
-            },
-            {
-                "id": "api",
-                "name": "Backend Service",
-                "description": "Primary backend runtime for the bootstrap path.",
-                "kind": "service",
-                "purpose": "Serve the first backend capability and health checks.",
-                "owned_by": "Replace with owner.",
-                "entrypoint": "apps/api/src/main.txt",
-                "serves_verticals": ["core"],
-                "run": {"dev": "Replace with API dev command", "test": "Replace with API test command", "prod": "Replace with API production run command"},
-                "env": [],
-                "depends_on": {"units": [], "stores": ["main"], "externals": []},
-                "healthcheck": {"kind": "http", "target": "/health"},
-                "promotion": {"independently_promotable": True, "notes": "Primary service runtime."},
-            },
-        ],
-        "stores": [
-            {
-                "id": "main",
-                "name": "Main Transactional Store",
-                "description": "Primary canonical operational store.",
-                "class": "transactional",
-                "dev": "sqlite",
-                "test": "sqlite",
-                "prod": "postgres",
-                "guarantees": {"durability": "durable", "consistency": "strong"},
-                "notes": "",
-            }
-        ],
-        "starter_files": {
-            "apps/app/README.md": "# App\n\nReplace this with the frontend app runtime.\n",
-            "apps/app/src/main.txt": "Bootstrap app entrypoint placeholder.\n",
-            "apps/api/README.md": "# API\n\nReplace this with the backend service runtime.\n",
-            "apps/api/src/main.txt": "Bootstrap API entrypoint placeholder.\n",
-            "packages/contracts/README.md": "# Contracts\n\nShared transport contracts live here.\n",
-            "packages/types/README.md": "# Types\n\nShared domain and support types live here.\n",
-            "infra/README.md": "# Infra\n\nDeployment and infrastructure files live here.\n",
-        },
-    },
-    "api-service": {
-        "verticals": [
-            {
-                "id": "core",
-                "name": "Core API",
-                "description": "The first externally useful API capability.",
-                "purpose": "Deliver the first working service interaction.",
-                "owned_by": "Replace with owning team or person.",
-                "invariants": [],
-            }
-        ],
-        "units": [
-            {
-                "id": "api",
-                "name": "API Service",
-                "description": "Primary service runtime.",
-                "kind": "service",
-                "purpose": "Expose the bootstrap API surface.",
-                "owned_by": "Replace with owner.",
-                "entrypoint": "apps/api/src/main.txt",
-                "serves_verticals": ["core"],
-                "run": {"dev": "Replace with API dev command", "test": "Replace with API test command", "prod": "Replace with API production run command"},
-                "env": [],
-                "depends_on": {"units": [], "stores": ["main"], "externals": []},
-                "healthcheck": {"kind": "http", "target": "/health"},
-                "promotion": {"independently_promotable": True, "notes": "Primary runtime."},
-            }
-        ],
-        "stores": [
-            {
-                "id": "main",
-                "name": "Main Transactional Store",
-                "description": "Primary canonical operational store.",
-                "class": "transactional",
-                "dev": "sqlite",
-                "test": "sqlite",
-                "prod": "postgres",
-                "guarantees": {"durability": "durable", "consistency": "strong"},
-                "notes": "",
-            }
-        ],
-        "starter_files": {
-            "apps/api/README.md": "# API Service\n\nReplace this with the service runtime.\n",
-            "apps/api/src/main.txt": "Bootstrap API entrypoint placeholder.\n",
-            "packages/contracts/README.md": "# Contracts\n\nShared transport contracts live here.\n",
-            "packages/types/README.md": "# Types\n\nShared domain and support types live here.\n",
-            "infra/README.md": "# Infra\n\nDeployment and infrastructure files live here.\n",
-        },
-    },
-    "cli-tool": {
-        "verticals": [
-            {
-                "id": "core",
-                "name": "Core CLI",
-                "description": "The first useful command workflow.",
-                "purpose": "Deliver the first working operator or user command path.",
-                "owned_by": "Replace with owning team or person.",
-                "invariants": [],
-            }
-        ],
-        "units": [
-            {
-                "id": "cli",
-                "name": "CLI Runtime",
-                "description": "Primary command-line runtime.",
-                "kind": "cli",
-                "purpose": "Expose the bootstrap command path.",
-                "owned_by": "Replace with owner.",
-                "entrypoint": "apps/cli/src/main.txt",
-                "serves_verticals": ["core"],
-                "run": {"dev": "Replace with CLI dev command", "test": "Replace with CLI test command", "prod": "Replace with CLI package or run command"},
-                "env": [],
-                "depends_on": {"units": [], "stores": [], "externals": []},
-                "healthcheck": {"kind": "command", "target": "Replace with a bootstrap command health check"},
-                "promotion": {"independently_promotable": True, "notes": "CLI distribution runtime."},
-            }
-        ],
-        "stores": [],
-        "starter_files": {
-            "apps/cli/README.md": "# CLI\n\nReplace this with the command runtime.\n",
-            "apps/cli/src/main.txt": "Bootstrap CLI entrypoint placeholder.\n",
-            "packages/types/README.md": "# Types\n\nShared support types live here.\n",
-            "infra/README.md": "# Infra\n\nPackaging, release, and infra files live here.\n",
-        },
-    },
-    "worker-service": {
-        "verticals": [
-            {
-                "id": "core",
-                "name": "Core Worker Capability",
-                "description": "The first background-processing capability.",
-                "purpose": "Deliver the first useful background workflow.",
-                "owned_by": "Replace with owning team or person.",
-                "invariants": [],
-            }
-        ],
-        "units": [
-            {
-                "id": "worker",
-                "name": "Worker Runtime",
-                "description": "Primary background-processing runtime.",
-                "kind": "worker",
-                "purpose": "Process the bootstrap background workflow.",
-                "owned_by": "Replace with owner.",
-                "entrypoint": "apps/worker/src/main.txt",
-                "serves_verticals": ["core"],
-                "run": {"dev": "Replace with worker dev command", "test": "Replace with worker test command", "prod": "Replace with worker production run command"},
-                "env": [],
-                "depends_on": {"units": [], "stores": ["main"], "externals": []},
-                "healthcheck": {"kind": "process", "target": "Replace with a worker liveness indicator"},
-                "promotion": {"independently_promotable": True, "notes": "Background runtime."},
-            }
-        ],
-        "stores": [
-            {
-                "id": "main",
-                "name": "Main Operational Store",
-                "description": "Primary store for background processing state.",
-                "class": "transactional",
-                "dev": "sqlite",
-                "test": "sqlite",
-                "prod": "postgres",
-                "guarantees": {"durability": "durable", "consistency": "strong"},
-                "notes": "",
-            }
-        ],
-        "starter_files": {
-            "apps/worker/README.md": "# Worker\n\nReplace this with the worker runtime.\n",
-            "apps/worker/src/main.txt": "Bootstrap worker entrypoint placeholder.\n",
-            "packages/types/README.md": "# Types\n\nShared support types live here.\n",
-            "infra/README.md": "# Infra\n\nDeployment and scheduling files live here.\n",
-        },
-    },
-}
+ORANGE = "208"
+YELLOW = "220"
+GOLD = "214"
+AMBER = "178"
+RED = "166"
 
 
 def register_init(subparsers) -> None:
-    parser = subparsers.add_parser("init", help="Scaffold a Forge V2 project")
-    parser.add_argument("--profile", choices=sorted(PROFILES), help="Project profile to scaffold")
-    parser.add_argument("--name", help="System name")
-    parser.add_argument("--id", help="System id")
-    parser.add_argument("--root", default=".", help="Project root to scaffold into")
-    parser.add_argument("--no-vendor-assets", action="store_true", help="Do not copy Forge docs/frameworks/skills into the project")
-    parser.add_argument(
-        "--no-link-skills",
-        action="store_true",
-        help="Do not link project skills into Claude/Codex/Copilot-compatible home skill scan locations",
-    )
+    parser = subparsers.add_parser("init", help="Initialize a Forge repository")
+    parser.add_argument("--root", default=".", help="Target repository root to scaffold into")
+    parser.add_argument("--name", default="Forge Project", help="Human-readable project name")
+    parser.add_argument("--id", default="forge_project", help="System id to seed into system.yaml")
+    parser.add_argument("--force", action="store_true", help="Allow initializing into an existing non-empty directory")
+    parser.add_argument("--no-animation", action="store_true", help="Disable the terminal initialization animation")
     parser.set_defaults(func=run)
 
 
-def _prompt(text: str, default: str | None = None) -> str:
-    suffix = f" [{default}]" if default else ""
-    value = input(f"{text}{suffix}: ").strip()
-    if value:
-        return value
-    if default is not None:
-        return default
-    raise ValueError(f"{text} is required")
-
-
-def _write_yaml(path: Path, payload: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as handle:
-        yaml.safe_dump(payload, handle, sort_keys=False, allow_unicode=False)
-
-
-def _write_text(path: Path, contents: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(contents, encoding="utf-8")
-
-
-def _asset_root() -> Path:
-    return Path(__file__).resolve().parents[1] / "assets"
-
-
-def _copy_tree_contents(source: Path, destination: Path) -> None:
-    destination.mkdir(parents=True, exist_ok=True)
-    for entry in source.iterdir():
-        target = destination / entry.name
-        if entry.is_dir():
-            shutil.copytree(entry, target, dirs_exist_ok=True)
-        else:
-            shutil.copy2(entry, target)
-
-
-def _vendor_assets(root: Path) -> None:
-    assets = _asset_root()
-    docs_src = assets / "docs"
-    frameworks_src = assets / "frameworks"
-    skills_src = assets / "agents_skills"
-
-    if docs_src.exists():
-        _copy_tree_contents(docs_src, root / "docs")
-    if frameworks_src.exists():
-        _copy_tree_contents(frameworks_src, root / "frameworks")
-    if skills_src.exists():
-        _copy_tree_contents(skills_src, root / ".agents" / "skills")
-
-
-def _safe_symlink(src: Path, dest: Path) -> str:
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    if dest.is_symlink():
-        dest.unlink()
-    elif dest.exists():
-        return f"skip:{dest}"
-    dest.symlink_to(src)
-    return f"linked:{dest}"
-
-
-def _skill_link_targets(home: Path) -> list[Path]:
-    targets = [
-        home / ".claude" / "skills",
-        home / ".codex" / "skills",
-        # agentskills.io-compatible clients such as VS Code Copilot and Cursor.
-        home / ".agents" / "skills",
-    ]
-    copilot_root = home / ".copilot"
-    if copilot_root.exists():
-        targets.append(copilot_root / "skills")
-    return targets
-
-
-def _link_project_skills(root: Path) -> list[str]:
-    project_skills = root / ".agents" / "skills"
-    if not project_skills.exists():
-        return []
-    home = Path.home()
-    targets = _skill_link_targets(home)
-    results: list[str] = []
-    for skill_dir in sorted(project_skills.iterdir()):
-        if not skill_dir.is_dir():
-            continue
-        for target_base in targets:
-            result = _safe_symlink(skill_dir, target_base / skill_dir.name)
-            results.append(result)
-    return results
-
-
 def run(args: Namespace) -> int:
-    root = Path(args.root).resolve()
-    profile = args.profile or _prompt("Project profile", "full-stack")
-    name = args.name or _prompt("System name")
-    system_id = args.id or slugify(name)
+    target_root = Path(args.root).expanduser().resolve()
+    _prepare_target_root(target_root, force=args.force)
 
-    forge = ensure_dir(root / "forge")
-    blueprint = PROFILE_BLUEPRINTS[profile]
-    for section in [
-        "verticals",
-        "units",
-        "types",
-        "operations",
-        "surfaces",
-        "stores",
-        "flows",
-        "verification/startup",
-        "verification/surfaces",
-        "verification/flows",
-        "workbench",
-    ]:
-        ensure_dir(forge / section)
+    stop_event: threading.Event | None = None
+    animation_thread: threading.Thread | None = None
+    if _should_animate(args.no_animation):
+        _typewriter_sequence("INITIALISING FORGE")
+        stop_event = threading.Event()
+        animation_thread = threading.Thread(target=_animate_spinner, args=(stop_event,), daemon=True)
+        animation_thread.start()
 
-    for relative in PROFILES[profile]:
-        ensure_dir(root / relative)
+    try:
+        _scaffold_repository(target_root, system_name=args.name, system_id=args.id)
+    finally:
+        if stop_event is not None:
+            stop_event.set()
+        if animation_thread is not None:
+            animation_thread.join(timeout=1)
+            sys.stdout.write("\r\033[2K")
+            sys.stdout.flush()
 
-    _write_yaml(
-        forge / "system.yaml",
-        {
-            "schema_version": "forge.v2",
-            "system": {
-                "id": system_id,
-                "name": name,
-                "project_profile": profile,
-                "description": "Replace with a one-sentence system summary.",
-                "purpose": "Replace with the system purpose.",
-                "goals": ["Replace with the first concrete goal."],
-                "invariants": ["Replace with a non-negotiable system truth."],
-                "auth_contexts": [{"id": "anonymous", "description": "Unauthenticated caller"}],
-                "security": {
-                    "posture": ["Replace with a global security rule."],
-                    "data_handling": ["Replace with a global data handling rule."],
-                },
-                "environments": [
-                    {"id": "dev", "description": "Local development"},
-                    {"id": "prod", "description": "Production deployment"},
-                ],
-                "promotion_stages": ["dev", "prod"],
-            },
-        },
-    )
-    for vertical in blueprint["verticals"]:
-        _write_yaml(forge / "verticals" / f"{vertical['id']}.yaml", vertical)
-    for unit in blueprint["units"]:
-        _write_yaml(forge / "units" / f"{unit['id']}.yaml", unit)
-    for store in blueprint["stores"]:
-        _write_yaml(forge / "stores" / f"{store['id']}.yaml", store)
-    _write_yaml(
-        forge / "bootstrap.yaml",
-        {
-            "bootstrap": {
-                "description": "Replace with the first runnable vertical slice for this profile.",
-                "required_units": [unit["id"] for unit in blueprint["units"]],
-                "required_stores": [store["id"] for store in blueprint["stores"]],
-                "required_surfaces": [],
-                "path": [],
-                "success_criteria": ["Replace with what makes bootstrap count as working."],
-                "preserve": True,
-            }
-        },
-    )
-    _write_yaml(
-        forge / "build_policy.yaml",
-        {
-            "build_policy": {
-                "strategy": "vertical_first",
-                "preserve_runnability": True,
-                "completion_states": [
-                    "specified",
-                    "scaffolded",
-                    "implemented",
-                    "composed",
-                    "reachable",
-                    "verified",
-                ],
-                "rules": [
-                    "No task may break the bootstrap path.",
-                    "Every public surface must reference a canonical operation.",
-                    "Every writable canonical type must declare persistence semantics.",
-                ],
-            }
-        },
-    )
-    _write_yaml(forge / "verification" / "promotion_gates.yaml", {"dev": [], "test": [], "prod": []})
-    _write_yaml(
-        forge / "workbench" / "status.yaml",
-        {
-            "bootstrap_health": "unknown",
-            "schema_coverage": "initial",
-            "implementation_progress": "not_started",
-            "validation_state": "not_run",
-            "operator_checkpoints": [],
-        },
-    )
-    (forge / "workbench" / "discovery.md").write_text(
-        "# Discovery Notes\n\nDocument the reasoning behind system, unit, bootstrap, and security decisions here.\n",
-        encoding="utf-8",
-    )
-    _write_text(
-        root / "README.md",
-        f"# {name}\n\nThis project was scaffolded by Forge V2 with the `{profile}` profile.\n\nSchema lives under `forge/`.\n",
-    )
-    _write_text(
-        root / ".gitignore",
-        ".venv/\n__pycache__/\n.pytest_cache/\nnode_modules/\ndist/\nbuild/\n",
-    )
-    for relative, contents in blueprint["starter_files"].items():
-        _write_text(root / relative, contents)
-    if not args.no_vendor_assets:
-        _vendor_assets(root)
-    link_results: list[str] = []
-    if not args.no_link_skills:
-        link_results = _link_project_skills(root)
-    print(f"Initialized Forge V2 scaffold in {root}")
-    print(f"Profile: {profile}")
-    if not args.no_vendor_assets:
-        print("Vendored Forge docs, frameworks, and agent skills into the project.")
-    if not args.no_link_skills:
-        linked = len([result for result in link_results if result.startswith("linked:")])
-        skipped = len([result for result in link_results if result.startswith("skip:")])
-        print(
-            "Skill links: "
-            f"{linked} linked, {skipped} skipped across Claude, Codex, and Copilot-compatible scan locations."
-        )
-    print("Next steps: fill in forge/system.yaml, define bootstrap, then use `forge list` and `forge context` to inspect the scaffolded schema.")
+    _print_init_summary(target_root=target_root, system_name=args.name, system_id=args.id)
     return 0
+
+
+def _prepare_target_root(target_root: Path, force: bool) -> None:
+    if not target_root.exists():
+        target_root.mkdir(parents=True, exist_ok=True)
+        return
+    if not target_root.is_dir():
+        raise FileNotFoundError(f"Target path is not a directory: {target_root}")
+    if force:
+        return
+    if any(target_root.iterdir()):
+        raise FileNotFoundError(
+            f"Target directory is not empty: {target_root}. Re-run with --force if you want to scaffold into it."
+        )
+
+
+def _should_animate(no_animation: bool) -> bool:
+    return (not no_animation) and sys.stdout.isatty()
+
+
+def _typewriter_sequence(text: str, delay: float = 0.04) -> None:
+    orange = "\033[38;5;208m"
+    reset = "\033[0m"
+    current = ""
+    for char in text:
+        current += char
+        sys.stdout.write(f"\r{orange}. {current}{reset}")
+        sys.stdout.flush()
+        time.sleep(delay)
+
+
+def _animate_spinner(stop_event: threading.Event) -> None:
+    frames = ["✦", "✶", "✷", "✹", "✺", "✧"]
+    color_codes = [88, 124, 160, 166, 202, 208, 214]
+    reset = "\033[0m"
+    text = "INITIALISING FORGE"
+    idx = 0
+    while not stop_event.is_set():
+        frame = frames[idx % len(frames)]
+        rendered = "".join(
+            f"\033[38;5;{color_codes[(idx + offset) % len(color_codes)]}m{char}"
+            for offset, char in enumerate(text)
+        )
+        star_color = f"\033[38;5;{color_codes[idx % len(color_codes)]}m"
+        sys.stdout.write(f"\r{star_color}{frame} {rendered}{reset}")
+        sys.stdout.flush()
+        time.sleep(0.18)
+        idx += 1
+
+
+def _supports_color() -> bool:
+    return sys.stdout.isatty()
+
+
+def _color(text: str, code: str, *, bold: bool = False) -> str:
+    if not _supports_color():
+        return text
+    weight = "1;" if bold else ""
+    return f"\033[{weight}38;5;{code}m{text}\033[0m"
+
+
+def _banner(text: str) -> str:
+    return _color(f"✦ {text} ✦", ORANGE, bold=True)
+
+
+def _section(text: str) -> str:
+    return _color(f"✶ {text}", YELLOW, bold=True)
+
+
+def _bullet(text: str, *, accent: str = GOLD) -> str:
+    return f"{_color('✷', accent, bold=True)} {text}"
+
+
+def _step(number: int, title: str, detail: str) -> str:
+    head = _color(f"{number}.", RED, bold=True)
+    label = _color(title, AMBER, bold=True)
+    return f"{head} {label}\n   {detail}"
+
+
+def _scaffold_repository(target_root: Path, system_name: str, system_id: str) -> None:
+    _write_text(target_root / "README.md", _project_readme(system_name))
+    _write_text(target_root / "decision_notes.md", "# Decision Notes\n\nRecord meaningful Forge decisions here.\n")
+    _write_text(target_root / ".gitignore", _scaffold_gitignore())
+
+    _write_yaml(target_root / "system.yaml", _system_seed(system_name, system_id))
+    _write_yaml(target_root / "runtime.yaml", {"schema": "forge.v2.runtime", "runtime": {"containers": [], "relationships": []}})
+    _write_yaml(target_root / "early_state.yaml", {"schema": "forge.v2.early_state", "early_state": []})
+    _write_yaml(target_root / "deployment.yaml", {"schema": "forge.v2.deployment", "deployment": {"environments": []}})
+
+    for directory in COLLECTION_DIRS:
+        (target_root / directory).mkdir(parents=True, exist_ok=True)
+
+    _copy_docs(target_root)
+    _copy_skills(target_root)
+    _rewrite_skill_references(target_root)
+    _create_skill_symlinks(target_root)
+
+
+def _source_root() -> Path:
+    return Path(__file__).resolve().parents[3]
+
+
+def _copy_docs(target_root: Path) -> None:
+    docs_root = target_root / "docs"
+    docs_root.mkdir(parents=True, exist_ok=True)
+    source_root = _source_root()
+    for filename in DOC_FILES:
+        shutil.copy2(source_root / filename, docs_root / filename)
+    _write_text(docs_root / "USING_FORGE.md", _using_forge_doc())
+
+
+def _copy_skills(target_root: Path) -> None:
+    source_skills = _source_root() / "skills"
+    target_skills = target_root / "skills"
+    target_skills.mkdir(parents=True, exist_ok=True)
+    for skill_name in SKILL_DIRS:
+        shutil.copytree(
+            source_skills / skill_name,
+            target_skills / skill_name,
+            dirs_exist_ok=True,
+            ignore=shutil.ignore_patterns(".DS_Store", "__pycache__"),
+        )
+
+
+def _rewrite_skill_references(target_root: Path) -> None:
+    for skill_name in SKILL_DIRS:
+        skill_path = target_root / "skills" / skill_name / "SKILL.md"
+        text = skill_path.read_text(encoding="utf-8")
+        text = text.replace("../../SCHEMA_REFERENCE_V3.md", "../../docs/SCHEMA_REFERENCE_V3.md")
+        text = text.replace("../../FRAMEWORK_V3.md", "../../docs/FRAMEWORK_V3.md")
+        if "Read before starting:" in text and "../../docs/USING_FORGE.md" not in text:
+            text = text.replace(
+                "Read before starting:\n",
+                "Read before starting:\n\n- `../../docs/USING_FORGE.md`\n",
+                1,
+            )
+        skill_path.write_text(text, encoding="utf-8")
+
+
+def _create_skill_symlinks(target_root: Path) -> None:
+    for surface in (".claude/skills", ".codex/skills", ".agents/skills"):
+        surface_root = target_root / surface
+        surface_root.mkdir(parents=True, exist_ok=True)
+        for skill_name in SKILL_DIRS:
+            target = surface_root / skill_name
+            if target.exists() or target.is_symlink():
+                target.unlink()
+            target.symlink_to(_relative_symlink_target(surface_root, target_root / "skills" / skill_name))
+
+
+def _relative_symlink_target(link_parent: Path, destination: Path) -> Path:
+    return Path(os.path.relpath(destination, start=link_parent))
+
+
+def _project_readme(system_name: str) -> str:
+    return (
+        f"# {system_name}\n\n"
+        "Initialized with Forge.\n\n"
+        "Start with `docs/USING_FORGE.md`. Forge is skills-first: the skills drive "
+        "the workflow, and the CLI supplies only the scoped context or artifacts "
+        "the active skill needs.\n"
+    )
+
+
+def _system_seed(system_name: str, system_id: str) -> dict[str, object]:
+    return {
+        "schema": "forge.v2.system",
+        "system": {
+            "id": system_id,
+            "purpose": f"Define the purpose of {system_name}.",
+            "description": "Replace with a plain-language description of the system.",
+            "boundary": "Replace with a plain-language statement of what sits inside the system boundary.",
+            "security": "Replace with any global security posture rules that already clearly apply.",
+            "actors": [],
+            "external_dependencies": [],
+        },
+    }
+
+
+def _scaffold_gitignore() -> str:
+    return "\n".join(
+        [
+            ".venv/",
+            "__pycache__/",
+            "*.py[cod]",
+            "*.egg-info/",
+            ".pytest_cache/",
+            "build/",
+            "dist/",
+            ".DS_Store",
+            "",
+        ]
+    )
+
+
+def _print_init_summary(target_root: Path, system_name: str, system_id: str) -> None:
+    docs_root = target_root / "docs"
+    print(_banner("FORGE INITIALIZED"))
+    print(f"Forge initialized at {target_root}")
+    print(f"{_color('Location:', YELLOW, bold=True)} {target_root}")
+    print("")
+    print(_section("Framework"))
+    print(_bullet(f"system: {system_name} (`{system_id}`)"))
+    print(_bullet(f"schema root: {target_root}"))
+    print(_bullet(f"docs: {docs_root}"))
+    print(_bullet(f"skills: {target_root / 'skills'}"))
+    print("")
+    print(_section("Start With Skills"))
+    print(_bullet("primary driver: `skills/forge-schema/SKILL.md`"))
+    print(_bullet("pre-build architecture review: `skills/forge-review/SKILL.md`"))
+    print(_bullet("pre-build security review: `skills/forge-security/SKILL.md`"))
+    print(_bullet("plan and build only after those passes: `skills/forge-build/SKILL.md`"))
+    print(_bullet("the CLI supports the active skill; it is not the main workflow", accent=ORANGE))
+    print("")
+    print(_section("Use Forge In This Order"))
+    print(_step(1, "Define the broad truth with `forge-schema`.", "Author `system.yaml`, `high_level_flows/`, `early_state.yaml`, and `runtime.yaml` first."))
+    print(_step(2, "Split the system into development slices in `verticals/`.", "Keep each vertical thin, buildable, and tied to clear user value."))
+    print(_step(3, "Deepen one vertical only.", "Add `runtime_flows/`, `data_shapes/`, `persistent_shapes/`, `containers/`, and `deployment.yaml` as needed."))
+    print(
+        _step(
+            4,
+            "Run `forge-review` and `forge-security` before building.",
+            "Use them as readiness gates to catch drift, bloat, missing references, and security gaps before implementation starts.",
+        )
+    )
+    print(_step(5, "Use `forge-build` only after the slice is reviewable.", "Plan or implement the approved vertical, then validate it end to end."))
+    print("")
+    print(_section("How To Get The Most Out Of The Framework"))
+    print(_bullet("stay broad until the previous layer is clear"))
+    print(_bullet("model real runtime boundaries, not imagined ones"))
+    print(_bullet("only promote shapes that are reused, persisted, or system-significant"))
+    print(_bullet("capture meaningful tradeoffs in `decision_notes.md`"))
+    print("")
+    print(_section("Read Next"))
+    print(_bullet(f"`{docs_root / 'USING_FORGE.md'}`"))
+    print(_bullet(f"`{docs_root / 'FRAMEWORK_V3.md'}`"))
+    print(_bullet(f"`{docs_root / 'SCHEMA_REFERENCE_V3.md'}`"))
+    print("")
+    print(_section("CLI Support Workflow"))
+    print(_bullet("ask the active skill what scope it needs first", accent=ORANGE))
+    print(_bullet(f"broad context: `forge context --project-dir {target_root} --system --format md`"))
+    print(_bullet(f"vertical context: `forge context --project-dir {target_root} --vertical <id> --format json`"))
+    print(_bullet(f"audit dashboard: `forge audit --project-dir {target_root} --output forge-audit.html`"))
+
+
+def _using_forge_doc() -> str:
+    return """# Using Forge
+
+Forge works best when you move from broad architectural truth to one thin,
+buildable vertical at a time.
+
+## Start With Skills
+
+Forge is **skills-first**. The skills are the main operating surface:
+
+- `skills/forge-schema/SKILL.md`
+- `skills/forge-review/SKILL.md`
+- `skills/forge-security/SKILL.md`
+- `skills/forge-build/SKILL.md`
+
+Use the CLI only to support the active skill:
+
+- `forge context` for scoped context
+- `forge audit` for a reviewable HTML artifact
+
+Do not start by pulling broad CLI output. Start by choosing the skill, then ask
+for only the narrowest context that skill needs next.
+
+## Use Forge In This Order
+
+1. Define the system:
+   - `system.yaml`
+   - `high_level_flows/`
+   - `early_state.yaml`
+   - `runtime.yaml`
+2. Derive `verticals/` once the runtime picture is stable.
+3. Pick one vertical and deepen only that slice:
+   - `runtime_flows/`
+   - `data_shapes/`
+   - `persistent_shapes/`
+   - `containers/`
+   - `deployment.yaml`
+4. Review and secure that slice before build starts.
+5. Build and validate the approved slice before moving on.
+
+## Core Artifacts
+
+- `system.yaml`: purpose, boundary, actors, dependencies, and global security posture
+- `runtime.yaml`: the real runtime containers and their relationships
+- `early_state.yaml`: the important business things that matter before exact typing
+- `high_level_flows/`: business and system flows
+- `verticals/`: thin development slices derived from the system
+- `runtime_flows/`: how a vertical moves through containers
+- `data_shapes/`: promoted reusable payload/state shapes
+- `persistent_shapes/`: the persisted subset of data shapes
+- `containers/`: internal component structure for important containers
+- `deployment.yaml`: environments, nodes, trust boundaries, and operational placement
+
+## Skill Roles
+
+- `forge-schema`: define and refine the architecture
+- `forge-review`: catch drift, bloat, and broken references
+- `forge-security`: review security posture across system, runtime, persistence,
+  and deployment
+- `forge-build`: plan or implement one vertical with TDD and full-system
+  validation
+
+## Recommended Workflow
+
+1. Use `forge-schema` to define the system, flows, early state, and runtime.
+2. Initialize `verticals` once the runtime picture is clear.
+3. Pick one vertical and deepen only that vertical.
+4. Use `forge-review` to catch drift, bloat, and broken references before implementation starts.
+5. Use `forge-security` to make the security posture explicit before implementation starts.
+6. Use `forge-build` to plan or implement the approved slice.
+
+## Best Operating Mode
+
+- Start with `forge-schema`, not with `forge context`.
+- Stay broad until the current layer is genuinely clear.
+- Use `forge context` only after the active skill asks for a specific scope.
+- Keep `forge audit` as the main artifact for human review and sign-off.
+- Record meaningful tradeoffs and scope choices in `decision_notes.md`.
+
+## CLI Usage
+
+Use the CLI to retrieve only the context needed for the current skill step:
+
+- `forge context --project-dir . --system --format md`
+- `forge context --project-dir . --vertical <id> --format json`
+- `forge context --project-dir . --flow <id> --format md`
+- `forge context --project-dir . --container <id> --format yaml`
+- `forge context --project-dir . --component <id> --format json`
+
+Start broad, then narrow:
+
+1. vertical
+2. flow
+3. container
+4. component
+
+Use `forge audit --project-dir . --output forge-audit.html` when you want a
+reviewable HTML artifact for the whole schema.
+
+## Golden Path Examples
+
+- compact walkthrough: `examples/forge_v2_ordering_example`
+- richer reference system: `examples/forge_v2_fulfillment_control_example`
+
+## Anti-Bloat Rules
+
+- Keep one-off payloads inline unless they are reused, persisted, or important enough to deserve a stable name.
+- Do not invent containers unless they are real runtime boundaries.
+- Do not create container internals unless a container truly needs explicit internal modeling.
+- Do not drift deployment into low-level infrastructure configuration.
+- Keep the current vertical thin and runnable.
+"""
+
+
+def _write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
+def _write_yaml(path: Path, payload: dict[str, object]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(dump_yaml(payload), encoding="utf-8")

@@ -1,0 +1,46 @@
+schema: forge.v2.persistent_shape
+
+persistent_shapes:
+  - id: return_request
+    description: Persisted return and refund lifecycle shape for customer-initiated returns.
+    data_shape: return_request_record
+    logical_owner_container: orchestration_api
+    data_store_container: fulfillment_db
+    storage_model: relational
+    persistence_behavior: >
+      Return requests are created when customers submit an eligible request and
+      updated as approval, transit, receipt, refund, or refund failure events occur.
+    lifecycle_status_notes: >
+      Return requests move from pending review to approved or denied, then
+      through transit, receipt, refunded, or refund failed outcomes.
+    security: >
+      Must retain policy and refund outcomes for audit while ensuring provider
+      references and customer data remain visible only to approved workflows.
+    state_machine:
+      states:
+        - pending_review
+        - approved
+        - denied
+        - in_transit
+        - received
+        - refunded
+        - refund_failed
+      transitions:
+        - from: pending_review
+          to: approved
+          condition: Policy and delivery checks approve the return.
+        - from: pending_review
+          to: denied
+          condition: Policy or delivery checks reject the return.
+        - from: approved
+          to: in_transit
+          condition: The customer sends the item back.
+        - from: in_transit
+          to: received
+          condition: The returned item is received or confirmed.
+        - from: received
+          to: refunded
+          condition: The refund completes successfully.
+        - from: received
+          to: refund_failed
+          condition: The refund attempt fails and requires follow-up.

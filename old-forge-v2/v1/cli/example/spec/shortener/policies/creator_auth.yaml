@@ -1,0 +1,20 @@
+id: linkhub.shortener.policies.creator_auth
+type: policy
+name: CreatorAuth
+description: Link creation and management operations require JWT authentication.
+status: active
+owner: platform-team
+kind: security
+authentication:
+  required: true
+  mechanism: jwt
+authorisation:
+  roles:
+    - creator
+  permissions:
+    - write
+  rule: "caller must have role=creator and valid JWT"
+encryption:
+  at_rest: true
+  in_transit: true
+  field_level: false

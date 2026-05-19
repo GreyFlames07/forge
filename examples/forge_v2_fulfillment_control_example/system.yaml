@@ -1,0 +1,46 @@
+schema: forge.v2.system
+
+system:
+  id: omnichannel_fulfillment_control
+  purpose: Coordinate order fulfillment, shortage recovery, and returns across customer, warehouse, and finance workflows.
+  description: >
+    Omnichannel Fulfillment Control is a post-purchase operations system that
+    accepts customer orders, allocates inventory, creates shipment plans,
+    handles inventory exceptions, and manages return and refund outcomes across
+    customer and operations-facing surfaces.
+  boundary: >
+    The system includes the customer portal, operations console, internal
+    orchestration services, fulfillment worker processes, persistence stores,
+    and the deployment topology needed to run those parts. Carrier, payment,
+    fraud, and notification providers remain outside the system boundary.
+  security: >
+    All traffic crossing public boundaries must use HTTPS, operational actions
+    must be attributable to authenticated staff identities, and payment or
+    return decisions must never expose raw provider credentials or card data.
+  actors:
+    - id: customer
+      description: Places orders, tracks fulfillment, and requests returns.
+      kind: human
+    - id: warehouse_operator
+      description: Resolves inventory shortages and approves operational recovery actions.
+      kind: human
+    - id: finance_analyst
+      description: Reviews refund outcomes and monitors exception cases.
+      kind: human
+  external_dependencies:
+    - id: fraud_decision_api
+      description: External fraud scoring API used before inventory is committed.
+      kind: api
+      documentation_url: https://example.com/fraud-docs
+    - id: carrier_network
+      description: External carrier booking API used to reserve shipping labels and pickup windows.
+      kind: api
+      documentation_url: https://example.com/carrier-docs
+    - id: payment_gateway
+      description: External payment provider used to issue refunds for approved returns.
+      kind: api
+      documentation_url: https://example.com/payment-docs
+    - id: notification_hub
+      description: Transactional messaging provider used for customer and operator notifications.
+      kind: service
+      documentation_url: https://example.com/notification-docs

@@ -1,0 +1,42 @@
+schema: forge.v2.persistent_shape
+
+persistent_shapes:
+  - id: shortage_case
+    description: Persisted exception case for inventory and shipment booking failures that require active resolution.
+    data_shape: shortage_case_record
+    logical_owner_container: orchestration_api
+    data_store_container: fulfillment_db
+    storage_model: relational
+    persistence_behavior: >
+      Shortage cases are opened when allocation or booking cannot complete and
+      are updated by operator decisions and background recovery work until closed.
+    lifecycle_status_notes: >
+      Cases move from open to in progress, then to rerouted, partial shipment,
+      canceled, or failed depending on the selected recovery path.
+    security: >
+      Must preserve a complete audit trail of operational intervention and
+      customer impact without exposing unnecessary customer payment context.
+    state_machine:
+      states:
+        - open
+        - in_progress
+        - rerouted
+        - partial_shipment
+        - canceled
+        - failed
+      transitions:
+        - from: open
+          to: in_progress
+          condition: An operator selects a recovery action.
+        - from: in_progress
+          to: rerouted
+          condition: Recovery succeeds through inventory reallocation and rebooking.
+        - from: in_progress
+          to: partial_shipment
+          condition: Recovery succeeds through a partial shipment path.
+        - from: in_progress
+          to: canceled
+          condition: Recovery closes the order through cancellation.
+        - from: in_progress
+          to: failed
+          condition: Recovery cannot produce a viable outcome.

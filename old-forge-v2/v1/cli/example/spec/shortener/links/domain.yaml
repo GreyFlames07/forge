@@ -1,0 +1,13 @@
+id: linkhub.shortener.links
+type: domain
+name: Links
+description: Domain responsible for creating, storing, and resolving short links.
+status: active
+owner: platform-team
+responsibility: >
+  Manages the full lifecycle of a short link: creation, persistence, resolution,
+  and deactivation. Does not concern itself with redirect mechanics or analytics.
+modules:
+  - linkhub.shortener.links.link_manager
+policies:
+  - linkhub.shortener.policies.creator_auth

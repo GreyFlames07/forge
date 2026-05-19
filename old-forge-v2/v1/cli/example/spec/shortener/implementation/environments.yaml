@@ -1,0 +1,39 @@
+id: linkhub.shortener.environments.production
+type: environment
+name: Production
+description: Live production environment in eu-west-1.
+status: active
+kind: production
+region: eu-west-1
+overlays: []
+datastores:
+  - datastore: linkhub.shortener.datastores.links_db
+    connection: "postgresql://prod-rds.internal:5432/linkhub"
+    instance_class: db.r6g.xlarge
+  - datastore: linkhub.shortener.datastores.clicks_store
+    connection: "clickhouse://prod-ch.internal:9000/clicks"
+    instance_class: ch.c3.4xlarge
+features:
+  - name: click_recording_enabled
+    enabled: true
+
+---
+
+id: linkhub.shortener.environments.staging
+type: environment
+name: Staging
+description: Pre-production staging environment mirroring production topology.
+status: active
+kind: staging
+region: eu-west-1
+overlays: []
+datastores:
+  - datastore: linkhub.shortener.datastores.links_db
+    connection: "postgresql://staging-rds.internal:5432/linkhub"
+    instance_class: db.t4g.medium
+  - datastore: linkhub.shortener.datastores.clicks_store
+    connection: "clickhouse://staging-ch.internal:9000/clicks"
+    instance_class: ch.c3.large
+features:
+  - name: click_recording_enabled
+    enabled: true

@@ -1,0 +1,38 @@
+schema: forge.v2.persistent_shape
+
+persistent_shapes:
+  - id: inventory_reservation
+    description: Persisted stock reservation shape that records committed inventory for an order.
+    data_shape: inventory_reservation_record
+    logical_owner_container: orchestration_api
+    data_store_container: fulfillment_db
+    storage_model: relational
+    persistence_behavior: >
+      Reservation rows are created during allocation, updated when stock is
+      partially or fully committed, and released when orders fail, cancel, or
+      reallocate successfully.
+    lifecycle_status_notes: >
+      Reservation state starts pending, then moves to reserved, partial, or
+      released depending on allocation and recovery outcomes.
+    security: >
+      Must remain available for audit and stock reconciliation without exposing
+      more customer context than is required for warehouse operations.
+    state_machine:
+      states:
+        - pending
+        - reserved
+        - partial
+        - released
+      transitions:
+        - from: pending
+          to: reserved
+          condition: All requested inventory is committed successfully.
+        - from: pending
+          to: partial
+          condition: Only a subset of requested inventory can be committed.
+        - from: reserved
+          to: released
+          condition: The reservation is canceled or replaced by another recovery path.
+        - from: partial
+          to: released
+          condition: The unresolved reservation is abandoned after final recovery handling.

@@ -1,0 +1,31 @@
+schema: forge.v2.high_level_flow
+
+high_level_flow:
+  id: recover_inventory_shortage
+  description: >
+    A warehouse operator resolves an active shortage by rerouting, partial
+    shipping, or canceling the affected fulfillment work.
+  trigger: Operations staff opens an active shortage case for a fulfillment order.
+  steps:
+    - id: 1
+      description: Operator reviews the shortage context and available recovery options.
+      next: 2
+    - id: 2
+      description: Operator chooses a recovery action.
+      branches:
+        - condition: Another warehouse can fulfill the missing items.
+          next: 3
+        - condition: A partial shipment is acceptable.
+          next: 4
+        - condition: The order must be canceled or abandoned.
+          next: 5
+    - id: 3
+      description: System reallocates stock, rebooks shipment, and closes the shortage.
+    - id: 4
+      description: System updates the order to a partial shipment path and informs the customer.
+    - id: 5
+      description: System marks the order as failed or canceled and informs affected parties.
+  outcomes:
+    - Shortage is recovered through rerouting.
+    - Shortage is resolved by partial shipment.
+    - Shortage is resolved by cancellation or failure closure.

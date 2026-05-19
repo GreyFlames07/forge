@@ -1,0 +1,15 @@
+schema: forge.v2.data_shape
+
+data_shapes:
+  - id: order_rejection_response
+    description: Customer-facing failure response returned when an order cannot proceed.
+    kind: payload
+    shape:
+      order_id?: string
+      status: enum[rejected]
+      payment_status?: enum[failed]
+      failure_reason?: string
+      errors?:
+        - field: string
+          message: string
+      user_message: string

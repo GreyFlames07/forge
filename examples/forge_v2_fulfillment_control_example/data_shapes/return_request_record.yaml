@@ -1,0 +1,18 @@
+schema: forge.v2.data_shape
+
+data_shapes:
+  - id: return_request_record
+    description: Persisted state for a customer return request and its downstream refund progression.
+    kind: state
+    shape:
+      return_request_id: string
+      order_id: string
+      customer_id: string
+      requested_resolution: enum[refund, exchange, store_credit]
+      return_status: enum[pending_review, approved, denied, in_transit, received, refunded, refund_failed]
+      return_items:
+        - sku: string
+          quantity: integer @min(1)
+          return_reason: string
+      created_at: datetime
+      updated_at: datetime

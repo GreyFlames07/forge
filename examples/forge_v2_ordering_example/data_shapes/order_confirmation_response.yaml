@@ -1,0 +1,11 @@
+schema: forge.v2.data_shape
+
+data_shapes:
+  - id: order_confirmation_response
+    description: Customer-facing success response returned when an order is confirmed.
+    kind: payload
+    shape:
+      order_id: string
+      status: enum[confirmed]
+      payment_status: enum[authorized]
+      confirmation_message: string

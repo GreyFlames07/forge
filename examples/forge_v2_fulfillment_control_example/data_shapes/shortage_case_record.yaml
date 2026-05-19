@@ -1,0 +1,17 @@
+schema: forge.v2.data_shape
+
+data_shapes:
+  - id: shortage_case_record
+    description: Persisted exception record for an allocation or shipment booking problem that needs operator resolution.
+    kind: state
+    shape:
+      shortage_case_id: string
+      order_id: string
+      shortage_reason: enum[insufficient_stock, split_inventory, carrier_booking_failure]
+      case_status: enum[open, in_progress, rerouted, partial_shipment, canceled, failed]
+      affected_items:
+        - sku: string
+          requested_quantity: integer @min(1)
+          available_quantity: integer @min(0)
+      opened_at: datetime
+      updated_at: datetime

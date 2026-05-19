@@ -1,0 +1,15 @@
+id: linkhub.shortener.traffic.click_recorder
+type: module
+name: ClickRecorder
+description: Receives click events and persists them for downstream analytics.
+status: active
+owner: platform-team
+version: 1.0.0
+packaging:
+  kind: worker
+  runtime: python3.12
+  scaling: horizontal
+external_dependencies: []
+elements:
+  - linkhub.shortener.traffic.click_recorder.click
+policies: []

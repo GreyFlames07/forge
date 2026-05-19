@@ -1,0 +1,44 @@
+schema: forge.v2.early_state
+
+early_state:
+  - id: fulfillment_order
+    description: >
+      The fulfillment order represents a confirmed customer purchase as it moves
+      from intake through fraud review, inventory allocation, shipment booking,
+      delivery, or failure.
+    category: lifecycleObject
+    why_it_matters: >
+      It is the central operational object connecting allocation, shipment,
+      exceptions, customer notifications, and returns.
+  - id: inventory_reservation
+    description: >
+      The inventory reservation records stock committed to a fulfillment order
+      at a specific warehouse or node.
+    category: record
+    why_it_matters: >
+      Reservation state determines whether the order can ship normally or must
+      enter shortage recovery.
+  - id: shortage_case
+    description: >
+      The shortage case tracks an allocation or pick failure that requires a
+      warehouse decision and possible rerouting or customer communication.
+    category: lifecycleObject
+    why_it_matters: >
+      Exception recovery is a first-class behavior that materially changes
+      shipment and customer outcomes.
+  - id: shipment_plan
+    description: >
+      The shipment plan captures the booked carrier movement and package details
+      used to fulfill an order.
+    category: lifecycleObject
+    why_it_matters: >
+      Shipment planning drives customer tracking, carrier integration, and
+      downstream return eligibility.
+  - id: return_request
+    description: >
+      The return request represents a customer-initiated request to send items
+      back and potentially receive a refund.
+    category: lifecycleObject
+    why_it_matters: >
+      Returns introduce a second operational lifecycle tied to delivery state,
+      policy decisions, and refund completion.

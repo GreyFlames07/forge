@@ -25,7 +25,12 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: var(--bg);
       color: var(--text);
+      height: 100vh;
       min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-y: hidden;
+      overflow-x: hidden;
     }
     button {
       font: inherit;
@@ -36,14 +41,26 @@
       cursor: pointer;
     }
     .subnav {
+      flex: 0 0 auto;
+      z-index: 40;
       display: flex;
       align-items: center;
       gap: 2px;
       padding: 0 24px;
-      height: 52px;
+      height: 68px;
       border-bottom: 1px solid var(--border);
       background: var(--bg);
       overflow-x: auto;
+    }
+    .subnav::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -10px;
+      height: 8px;
+      background: var(--bg);
+      pointer-events: none;
     }
     .brand {
       display: flex;
@@ -75,37 +92,60 @@
       margin: 0 16px 0 12px;
     }
     .tab {
+      position: relative;
       display: inline-flex;
       align-items: center;
       gap: 8px;
       padding: 12px 14px;
       font-size: 14px;
       color: var(--text);
-      border-bottom: 2px solid transparent;
-      margin-bottom: -1px;
+      height: 100%;
       white-space: nowrap;
-      border-radius: 6px 6px 0 0;
     }
     .tab:hover {
       background: var(--hover);
     }
     .tab.active {
-      border-bottom-color: var(--accent);
       font-weight: 600;
     }
+    .tab.active::after {
+      content: "";
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 0;
+      height: 2px;
+      background: var(--accent);
+    }
     .main {
+      flex: 1 1 auto;
+      width: 100%;
       max-width: 1280px;
       margin: 0 auto;
-      padding: 28px 32px;
+      padding: 12px 32px;
+      min-height: 0;
+    }
+    .dashboard-shell {
+      height: 100%;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      overflow: hidden;
     }
     .toolbar {
+      flex: 0 0 auto;
+      z-index: 30;
       display: flex;
       align-items: center;
       gap: 6px;
-      padding: 8px 12px;
-      border: 1px solid var(--border);
-      border-bottom: none;
-      border-radius: 6px 6px 0 0;
+      min-height: 56px;
+      padding: 12px 16px;
+      border: none;
+      border-bottom: 1px solid var(--border);
+      border-radius: 0;
       background: var(--panel-alt);
       font-size: 13px;
       color: var(--text);
@@ -128,17 +168,14 @@
       color: var(--text);
       border: 1px solid var(--border);
     }
-    .toolbar-meta {
-      margin-left: auto;
-      font-size: 12px;
-      color: var(--muted);
-      white-space: nowrap;
-    }
     .artifact {
-      border: 1px solid var(--border);
-      border-radius: 0 0 6px 6px;
+      flex: 1 1 auto;
+      min-height: 0;
+      border: none;
+      border-radius: 0;
       background: var(--bg);
-      min-height: 600px;
+      overflow-x: hidden;
+      overflow-y: auto;
     }
     .section {
       display: none;
@@ -154,19 +191,273 @@
       gap: 16px;
       margin-bottom: 22px;
     }
+    .grid.grid-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      align-items: start;
+    }
+    .grid.grid-1 {
+      grid-template-columns: minmax(0, 1fr);
+      align-items: start;
+    }
+    .grid.grid-4 {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    .horizontal-cards {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(240px, 1fr);
+      gap: 16px;
+      margin-top: 16px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .vertical-cards {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 16px;
+      margin-top: 16px;
+    }
+    .deployment-stack {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 22px;
+    }
+    .deployment-stack .vertical-cards {
+      margin-top: 0;
+    }
+    .container-stack {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 22px;
+    }
+    .component-rows {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 16px;
+    }
+    .container-stack .grid {
+      margin-bottom: 0;
+    }
     .card {
       background: var(--panel);
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 18px;
     }
+    .card-defined {
+      background: var(--panel);
+    }
+    .card-defined[data-target] {
+      cursor: pointer;
+    }
+    .card-defined[data-target]:hover {
+      background: var(--hover);
+    }
+    .card-defined[data-target]:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    .card-muted {
+      background: var(--panel-alt);
+    }
+    .deployment-node-card .card-header {
+      align-items: center;
+    }
+    .deployment-node-card .pill-list {
+      justify-content: flex-end;
+    }
+    .deployment-node-card .footer-note {
+      margin-top: 10px;
+    }
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .card-header h3,
+    .card-header h4 {
+      margin-bottom: 0;
+    }
     .card h3, .card h4 {
       margin: 0 0 8px;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
     .card p {
       margin: 0;
       color: var(--muted);
       line-height: 1.45;
+      white-space: pre-line;
+    }
+    .record-list {
+      display: grid;
+      gap: 12px;
+    }
+    .record-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: start;
+      width: 100%;
+      text-align: left;
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel);
+    }
+    .record-row:hover {
+      background: var(--hover);
+    }
+    .record-main h3 {
+      margin: 0 0 8px;
+    }
+    .record-main p {
+      margin: 0;
+    }
+    .record-side {
+      display: grid;
+      gap: 8px;
+      justify-items: end;
+      min-width: 140px;
+    }
+    .record-meta {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: right;
+      overflow-wrap: anywhere;
+    }
+    .kind-chip {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .chip-early {
+      background: #eff6ff;
+      border-color: #bfdbfe;
+      color: #1d4ed8;
+    }
+    .chip-shape {
+      background: #fef3c7;
+      border-color: #fcd34d;
+      color: #92400e;
+    }
+    .chip-persistent {
+      background: #ecfdf5;
+      border-color: #86efac;
+      color: #166534;
+    }
+    .chip-deploy {
+      background: #eef2ff;
+      border-color: #c7d2fe;
+      color: #3730a3;
+    }
+    .chip-boundary {
+      background: #fff7ed;
+      border-color: #fdba74;
+      color: #9a3412;
+    }
+    .schema-viewer {
+      margin-top: 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fbfcfe;
+      overflow: auto;
+    }
+    .schema-viewer pre {
+      margin: 0;
+      padding: 16px;
+      font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: var(--text);
+      white-space: pre;
+    }
+    .metadata-table-wrap {
+      margin-top: 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--bg);
+    }
+    .data-entry-stack {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 22px;
+      margin-top: 22px;
+    }
+    .early-state-card,
+    .persistent-shape-card,
+    .data-entry-stack > .card {
+      margin-top: 0;
+    }
+    .persistent-shape-card {
+      margin-top: 0;
+    }
+    .persistent-shape-card > p {
+      margin-top: 10px;
+    }
+    .persistent-shape-card .metadata-summary,
+    .persistent-shape-card .metadata-table-wrap,
+    .persistent-shape-card .diagram-card {
+      margin-top: 22px;
+    }
+    .metadata-summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+    .metadata-summary-item {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--panel-alt);
+      padding: 12px 14px;
+      min-width: 0;
+    }
+    .metadata-summary-label {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--subtle);
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .metadata-summary-value {
+      color: var(--text);
+      font-weight: 600;
+      overflow-wrap: anywhere;
+    }
+    .metadata-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .metadata-table th,
+    .metadata-table td {
+      padding: 12px 14px;
+      border-top: 1px solid var(--border);
+      text-align: left;
+      vertical-align: top;
+      line-height: 1.45;
+    }
+    .metadata-table tr:first-child th,
+    .metadata-table tr:first-child td {
+      border-top: none;
+    }
+    .metadata-table th {
+      width: 240px;
+      background: var(--panel-alt);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .metadata-table td {
+      color: var(--muted);
       white-space: pre-line;
     }
     .diagram-card {
@@ -208,7 +499,7 @@
     .diagram-wrap {
       padding: 18px;
       overflow-x: auto;
-      overflow-y: visible;
+      overflow-y: auto;
       overscroll-behavior: contain;
       touch-action: pan-x pan-y;
     }
@@ -261,6 +552,72 @@
       font-size: 12px;
       fill: var(--muted);
     }
+    .elk-node .icon {
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .elk-node .browser-frame,
+    .elk-node .browser-bar,
+    .elk-node .browser-dot,
+    .elk-node .db-body,
+    .elk-node .db-top,
+    .elk-node .db-bottom,
+    .elk-node .service-panel,
+    .elk-node .service-terminal,
+    .elk-node .external-panel,
+    .elk-node .edge-panel,
+    .elk-node .edge-badge {
+      stroke-width: 1.5;
+    }
+    .elk-node.deploy-browser rect {
+      fill: #f8fafc;
+      stroke: #94a3b8;
+    }
+    .elk-node.deploy-edge rect {
+      fill: #eff6ff;
+      stroke: #60a5fa;
+    }
+    .elk-node.deploy-service rect {
+      fill: #ffffff;
+      stroke: #d1d9e0;
+    }
+    .elk-node.deploy-database rect {
+      fill: #f6f8fa;
+      stroke: #94a3b8;
+    }
+    .elk-node.deploy-external rect {
+      fill: #fff7ed;
+      stroke: #fdba74;
+    }
+    .elk-node.deploy-browser .browser-frame,
+    .elk-node.deploy-browser .browser-bar {
+      fill: #f8fafc;
+      stroke: #94a3b8;
+    }
+    .elk-node.deploy-browser .browser-dot {
+      fill: #94a3b8;
+      stroke: none;
+    }
+    .elk-node.deploy-edge .edge-panel,
+    .elk-node.deploy-edge .edge-badge {
+      fill: #eff6ff;
+      stroke: #60a5fa;
+    }
+    .elk-node.deploy-service .service-panel,
+    .elk-node.deploy-service .service-terminal {
+      fill: #ffffff;
+      stroke: #64748b;
+    }
+    .elk-node.deploy-database .db-body,
+    .elk-node.deploy-database .db-top,
+    .elk-node.deploy-database .db-bottom {
+      fill: #f8fafc;
+      stroke: #64748b;
+    }
+    .elk-node.deploy-external .external-panel {
+      fill: #fff7ed;
+      stroke: #dc2626;
+    }
     .elk-edge {
       fill: none;
       stroke: #d1d9e0;
@@ -270,7 +627,7 @@
       stroke-dasharray: 4 4;
     }
     .elk-edge-label {
-      font-size: 12px;
+      font-size: 10px;
       fill: var(--muted);
     }
     .elk-edge-label-bg {
@@ -322,23 +679,116 @@
     }
     .flow-steps {
       display: grid;
-      gap: 14px;
+      gap: 18px;
+      margin-top: 24px;
+    }
+    .flow-trigger {
+      margin-top: 8px;
+      color: var(--muted);
+    }
+    .flow-step-meta {
+      margin: 0 0 8px;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .flow-map {
+      display: grid;
+      gap: 10px;
+      margin: 14px 0 18px;
+    }
+    .flow-map-node {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel-alt);
+      padding: 12px 14px;
+    }
+    .flow-map-node.decision {
+      background: #fff7ed;
+      border-color: #fdba74;
+    }
+    .flow-map-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .flow-map-step {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 56px;
+      height: 24px;
+      padding: 0 8px;
+      border-radius: 999px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .flow-map-title {
+      font-weight: 600;
+    }
+    .flow-map-desc {
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .flow-map-arrow {
+      color: var(--subtle);
+      font-size: 18px;
+      line-height: 1;
+      padding-left: 18px;
+    }
+    .flow-map-branches {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+      padding-left: 18px;
+    }
+    .flow-map-branch {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--bg);
+      padding: 10px 12px;
+    }
+    .flow-map-branch-label {
+      color: var(--text);
+      font-weight: 500;
+    }
+    .flow-map-branch-target {
+      color: var(--muted);
+      white-space: nowrap;
+      font-size: 12px;
     }
     .flow-step {
       position: relative;
-      padding-left: 22px;
-      border-left: 2px solid #d1d5db;
+      padding-left: 34px;
     }
     .flow-step::before {
       content: "";
       position: absolute;
-      left: -7px;
+      left: 0;
       top: 4px;
       width: 12px;
       height: 12px;
       border-radius: 50%;
       background: var(--accent);
       box-shadow: 0 0 0 4px #fff1ed;
+    }
+    .flow-step::after {
+      content: "";
+      position: absolute;
+      left: 5px;
+      top: 24px;
+      bottom: -18px;
+      width: 2px;
+      background: #d1d5db;
+    }
+    .flow-step:last-child::after {
+      display: none;
     }
     .flow-step h4 {
       margin: 0 0 6px;
@@ -348,6 +798,19 @@
       color: var(--muted);
       white-space: pre-line;
     }
+    .flow-outcomes {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .flow-outcomes h4 {
+      margin: 0 0 8px;
+    }
+    .flow-outcomes p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }
     .branch-list {
       margin-top: 10px;
       padding-left: 18px;
@@ -356,14 +819,84 @@
     .branch-list li {
       margin-bottom: 8px;
     }
+    .payload-expandable {
+      margin-top: 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel-alt);
+      overflow: hidden;
+    }
+    .payload-expandable summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 9px 12px;
+      font-size: 0.86rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .payload-expandable summary::-webkit-details-marker {
+      display: none;
+    }
+    .payload-expandable summary::after {
+      content: "+";
+      float: right;
+      color: var(--muted);
+    }
+    .payload-expandable[open] summary {
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .payload-expandable[open] summary::after {
+      content: "-";
+    }
+    .payload-expandable .schema-viewer {
+      margin-top: 0;
+      border: none;
+      border-radius: 0;
+      background: #fbfcfe;
+    }
+    .payload-expandable .schema-viewer pre {
+      white-space: pre;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .flow-expandable {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel);
+      margin-top: 12px;
+      overflow: hidden;
+    }
+    .flow-expandable summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 14px 16px;
+      font-weight: 600;
+      border-bottom: 1px solid transparent;
+    }
+    .flow-expandable[open] summary {
+      border-bottom-color: var(--border);
+      background: var(--panel-alt);
+    }
+    .flow-expandable-body {
+      padding: 16px;
+    }
+    .flow-expandable-body > .card {
+      margin-top: 12px;
+    }
+    .flow-expandable summary::-webkit-details-marker {
+      display: none;
+    }
     .footer-note, .footer {
       color: var(--muted);
       font-size: 0.84rem;
     }
     .footer {
+      flex: 0 0 auto;
+      width: 100%;
       max-width: 1280px;
-      margin: 24px auto 0;
-      padding: 16px 32px 24px;
+      margin: 0 auto;
+      padding: 12px 32px 16px;
       border-top: 1px solid var(--border);
       display: flex;
       justify-content: space-between;
@@ -379,10 +912,29 @@
         padding: 0 12px;
       }
       .main {
-        padding: 20px;
+        padding: 12px 20px;
       }
       .section {
         padding: 20px;
+      }
+      .record-row {
+        grid-template-columns: 1fr;
+      }
+      .grid.grid-3 {
+        grid-template-columns: 1fr;
+      }
+      .grid.grid-4 {
+        grid-template-columns: 1fr;
+      }
+      .metadata-summary {
+        grid-template-columns: 1fr;
+      }
+      .record-side {
+        justify-items: start;
+        min-width: 0;
+      }
+      .record-meta {
+        text-align: left;
       }
     }
   </style>
@@ -395,7 +947,6 @@
       </div>
     </div>
     <div class="brand-sep-v"></div>
-    <button class="tab" data-group="Overview">Overview</button>
     <button class="tab" data-group="System">System</button>
     <button class="tab" data-group="Flows">Flows</button>
     <button class="tab" data-group="Runtime">Runtime</button>
@@ -404,36 +955,28 @@
     <button class="tab" data-group="Deployment">Deployment</button>
   </nav>
   <main class="main">
-    <div class="toolbar">
-      <button class="toolbar-btn" data-target="overview" data-group="Overview">Overview</button>
-      <button class="toolbar-btn" data-target="system-overview" data-group="System">System</button>
-      <button class="toolbar-btn" data-target="runtime-overview" data-group="Runtime">Runtime Overview</button>
-      <button class="toolbar-btn" data-target="data-overview" data-group="Data">Data Overview</button>
-      <button class="toolbar-btn" data-target="verticals-overview" data-group="Verticals">Verticals</button>
-      <button class="toolbar-btn" data-target="deployment-overview" data-group="Deployment">Deployment</button>
-      __DYNAMIC_ITEM_BUTTONS_HTML__
-      <div class="toolbar-meta" data-fallback="forge_project / audit">__SYSTEM_ID__ / audit</div>
-    </div>
-    <div class="artifact">
-      <section class="section" id="overview" data-group="Overview">
-        <div data-slot="overview-body">__OVERVIEW_BODY__</div>
-      </section>
-      <section class="section" id="system-overview" data-group="System">
-        <div data-slot="system-body">__SYSTEM_BODY__</div>
-      </section>
-      <section class="section" id="runtime-overview" data-group="Runtime">
-        <div data-slot="runtime-body">__RUNTIME_BODY__</div>
-      </section>
-      <section class="section" id="data-overview" data-group="Data">
-        <div data-slot="data-body">__DATA_BODY__</div>
-      </section>
-      <section class="section" id="verticals-overview" data-group="Verticals">
-        <div data-slot="verticals-body">__VERTICALS_BODY__</div>
-      </section>
-      <section class="section" id="deployment-overview" data-group="Deployment">
-        <div data-slot="deployment-body">__DEPLOYMENT_BODY__</div>
-      </section>
-      __DYNAMIC_SECTIONS_HTML__
+    <div class="dashboard-shell">
+      <div class="toolbar">
+        __DYNAMIC_ITEM_BUTTONS_HTML__
+      </div>
+      <div class="artifact">
+        <section class="section" id="system-overview" data-group="System">
+          <div data-slot="system-body">__SYSTEM_BODY__</div>
+        </section>
+        <section class="section" id="runtime-overview" data-group="Runtime">
+          <div data-slot="runtime-body">__RUNTIME_BODY__</div>
+        </section>
+        <section class="section" id="data-overview" data-group="Data">
+          <div data-slot="data-body">__DATA_BODY__</div>
+        </section>
+        <section class="section" id="verticals-overview" data-group="Verticals">
+          <div data-slot="verticals-body">__VERTICALS_BODY__</div>
+        </section>
+        <section class="section" id="deployment-overview" data-group="Deployment">
+          <div data-slot="deployment-body">__DEPLOYMENT_BODY__</div>
+        </section>
+        __DYNAMIC_SECTIONS_HTML__
+      </div>
     </div>
   </main>
   <footer class="footer">
@@ -475,11 +1018,21 @@
     const sections = Array.from(document.querySelectorAll('.section'));
     const itemButtons = Array.from(document.querySelectorAll('.toolbar-btn'));
     const tabs = Array.from(document.querySelectorAll('.tab'));
+    const scrollRoot = document.querySelector('.artifact');
+    const GROUP_OVERVIEW_TARGETS = {
+      System: 'system-overview',
+      Runtime: 'runtime-overview',
+      Data: 'data-overview',
+      Verticals: 'verticals-overview',
+      Deployment: 'deployment-overview',
+    };
 
-    function setActiveGroup(group) {
+    function setActiveGroup(group, activeSectionId = '') {
+      const isOverviewSection = activeSectionId.endsWith('-overview');
       tabs.forEach(tab => tab.classList.toggle('active', tab.dataset.group === group));
       itemButtons.forEach(button => {
-        button.style.display = button.dataset.group === group ? 'inline-flex' : 'none';
+        const isVisible = button.dataset.group === group && !isOverviewSection;
+        button.style.display = isVisible ? 'inline-flex' : 'none';
       });
     }
 
@@ -533,10 +1086,303 @@
       const svg = surfaceNode.querySelector('svg');
       if (!svg) return;
       const natural = surfaceNode._naturalSize || getSvgNaturalSize(svg);
+      const wrap = surfaceNode.closest('.diagram-wrap');
       surfaceNode._naturalSize = natural;
       surfaceNode.dataset.scale = scale.toFixed(2);
-      svg.style.width = `${natural.width * scale}px`;
-      svg.style.height = `${natural.height * scale}px`;
+      svg.style.width = `${natural.width}px`;
+      svg.style.height = `${natural.height}px`;
+      svg.style.transform = `scale(${scale})`;
+      svg.style.transformOrigin = 'top left';
+      surfaceNode.style.width = `${natural.width * scale}px`;
+      surfaceNode.style.height = `${natural.height * scale}px`;
+      if (wrap && !wrap.dataset.fixedHeight) {
+        wrap.style.height = `${Math.ceil(natural.height + 36)}px`;
+        wrap.dataset.fixedHeight = 'true';
+      }
+    }
+
+    function getInitialDiagramScale(surfaceNode) {
+      const wrap = surfaceNode.closest('.diagram-wrap');
+      const natural = surfaceNode._naturalSize;
+      if (!wrap || !natural || !natural.width) return 1;
+      const available = Math.max(320, wrap.clientWidth - 12);
+      return Math.max(0.55, Math.min(1, available / natural.width));
+    }
+
+    function wrapLabelText(label, maxChars = 20) {
+      const words = String(label).trim().split(/\s+/).filter(Boolean);
+      if (!words.length) return [];
+      const lines = [];
+      let current = words[0];
+      for (const word of words.slice(1)) {
+        if ((current + ' ' + word).length <= maxChars) {
+          current += ' ' + word;
+        } else {
+          lines.push(current);
+          current = word;
+        }
+      }
+      lines.push(current);
+      return lines;
+    }
+
+    function wrapNodeLines(label, maxChars = 18) {
+      return wrapLabelText(label, maxChars);
+    }
+
+    function drawRoundedRect(svgNs, attributes) {
+      const rect = document.createElementNS(svgNs, 'rect');
+      Object.entries(attributes).forEach(([key, value]) => rect.setAttribute(key, String(value)));
+      return rect;
+    }
+
+    function drawEllipse(svgNs, attributes) {
+      const ellipse = document.createElementNS(svgNs, 'ellipse');
+      Object.entries(attributes).forEach(([key, value]) => ellipse.setAttribute(key, String(value)));
+      return ellipse;
+    }
+
+    function drawDeploymentShape(svgNs, group, forge, node) {
+      const width = Number(node.width || 0);
+      const height = Number(node.height || 0);
+      const kind = String(forge.kind || '');
+
+      if (kind === 'deploy-browser') {
+        const frame = drawRoundedRect(svgNs, {
+          class: 'browser-frame',
+          x: 0,
+          y: 0,
+          width,
+          height,
+          rx: 10,
+        });
+        const bar = drawRoundedRect(svgNs, {
+          class: 'browser-bar',
+          x: 0,
+          y: 0,
+          width,
+          height: 22,
+          rx: 10,
+        });
+        group.appendChild(frame);
+        group.appendChild(bar);
+        [16, 28, 40].forEach((cx) => {
+          const dot = drawEllipse(svgNs, {
+            class: 'browser-dot',
+            cx,
+            cy: 11,
+            rx: 2.4,
+            ry: 2.4,
+          });
+          group.appendChild(dot);
+        });
+        return;
+      }
+
+      if (kind === 'deploy-database') {
+        const bodyTop = 18;
+        const bodyBottom = height - 16;
+        const radiusX = Math.max(36, (width / 2) - 18);
+        const centerX = width / 2;
+        const body = drawRoundedRect(svgNs, {
+          class: 'db-body',
+          x: 16,
+          y: bodyTop,
+          width: width - 32,
+          height: bodyBottom - bodyTop,
+          rx: 0,
+        });
+        const top = drawEllipse(svgNs, {
+          class: 'db-top',
+          cx: centerX,
+          cy: bodyTop,
+          rx: radiusX,
+          ry: 10,
+        });
+        const bottom = drawEllipse(svgNs, {
+          class: 'db-bottom',
+          cx: centerX,
+          cy: bodyBottom,
+          rx: radiusX,
+          ry: 10,
+        });
+        group.appendChild(body);
+        group.appendChild(top);
+        group.appendChild(bottom);
+        return;
+      }
+
+      if (kind === 'deploy-external') {
+        const panel = drawRoundedRect(svgNs, {
+          class: 'external-panel',
+          x: 0,
+          y: 0,
+          width,
+          height,
+          rx: 10,
+        });
+        group.appendChild(panel);
+        return;
+      }
+
+      if (kind === 'deploy-edge') {
+        const panel = drawRoundedRect(svgNs, {
+          class: 'edge-panel',
+          x: 0,
+          y: 0,
+          width,
+          height,
+          rx: 10,
+        });
+        const badge = drawRoundedRect(svgNs, {
+          class: 'edge-badge',
+          x: 12,
+          y: 12,
+          width: 36,
+          height: 26,
+          rx: 7,
+        });
+        group.appendChild(panel);
+        group.appendChild(badge);
+        return;
+      }
+
+      if (kind === 'deploy-service') {
+        const panel = drawRoundedRect(svgNs, {
+          class: 'service-panel',
+          x: 0,
+          y: 0,
+          width,
+          height,
+          rx: 10,
+        });
+        const terminal = drawRoundedRect(svgNs, {
+          class: 'service-terminal',
+          x: 12,
+          y: 12,
+          width: 34,
+          height: 22,
+          rx: 5,
+        });
+        group.appendChild(panel);
+        group.appendChild(terminal);
+        return;
+      }
+    }
+
+    function deploymentTextLayout(kind, node) {
+      const width = Number(node.width || 0);
+      const height = Number(node.height || 0);
+      if (kind === 'deploy-database') {
+        const bodyTop = 18;
+        const bodyBottom = height - 16;
+        const bodyCenterY = bodyTop + ((bodyBottom - bodyTop) / 2);
+        return {
+          labelX: width / 2,
+          labelY: bodyCenterY - 10,
+          labelMaxChars: 16,
+          subtitleX: width / 2,
+          subtitleY: bodyCenterY + 14,
+          subtitleMaxChars: 20,
+        };
+      }
+      if (kind === 'deploy-browser') {
+        return {
+          labelX: width / 2,
+          labelY: 38,
+          labelMaxChars: 18,
+          subtitleX: width / 2,
+          subtitleY: 58,
+          subtitleMaxChars: 20,
+        };
+      }
+      if (kind === 'deploy-edge' || kind === 'deploy-service' || kind === 'deploy-external') {
+        return {
+          labelX: width / 2,
+          labelY: 40,
+          labelMaxChars: 18,
+          subtitleX: width / 2,
+          subtitleY: 60,
+          subtitleMaxChars: 22,
+        };
+      }
+      return {
+        labelX: width / 2,
+        labelY: (height / 2) - 2,
+        labelMaxChars: 18,
+        subtitleX: width / 2,
+        subtitleY: (height / 2) + 18,
+        subtitleMaxChars: 20,
+      };
+    }
+
+    function nodeTextLayout(kind, node) {
+      const width = Number(node.width || 0);
+      const height = Number(node.height || 0);
+      if (kind === 'actor' || kind === 'dependency' || kind === 'state-node') {
+        return {
+          labelX: width / 2,
+          labelY: (height / 2) - 8,
+          labelMaxChars: 16,
+          subtitleX: width / 2,
+          subtitleY: (height / 2) + 14,
+          subtitleMaxChars: 18,
+          centered: true,
+        };
+      }
+      return {
+        labelX: width / 2,
+        labelY: (height / 2) - 10,
+        labelMaxChars: 18,
+        subtitleX: width / 2,
+        subtitleY: height - 16,
+        subtitleMaxChars: 20,
+        centered: false,
+      };
+    }
+
+    function centeredTextStartY(totalLines, lineHeight, centerY, baselineOffset = 0) {
+      const totalHeight = Math.max(0, (totalLines - 1) * lineHeight);
+      return centerY - (totalHeight / 2) + baselineOffset;
+    }
+
+    function labelAnchorPoint(section) {
+      const points = [section.startPoint, ...(section.bendPoints || []), section.endPoint];
+      if (points.length < 2) {
+        return {
+          x: section.startPoint.x,
+          y: section.startPoint.y,
+          horizontal: true,
+        };
+      }
+
+      let chosen = null;
+      for (let index = 0; index < points.length - 1; index += 1) {
+        const a = points[index];
+        const b = points[index + 1];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const horizontal = Math.abs(dx) >= Math.abs(dy);
+        const length = horizontal ? Math.abs(dx) : Math.abs(dy);
+        const candidate = { a, b, horizontal, length };
+        if (!chosen || candidate.length > chosen.length || (candidate.horizontal && !chosen.horizontal)) {
+          chosen = candidate;
+        }
+      }
+
+      if (!chosen) {
+        const mid = {
+          x: (section.startPoint.x + section.endPoint.x) / 2,
+          y: (section.startPoint.y + section.endPoint.y) / 2,
+        };
+        return { ...mid, horizontal: true };
+      }
+
+      return {
+        x: (chosen.a.x + chosen.b.x) / 2,
+        y: (chosen.a.y + chosen.b.y) / 2,
+        horizontal: chosen.horizontal,
+      };
     }
 
     function bindDiagramControls(section) {
@@ -615,19 +1461,24 @@
         edgeLayer.appendChild(polyline);
 
         const label = String(forge.label || '').trim();
-        if (label) {
-          const mid = (section.bendPoints && section.bendPoints.length)
-            ? section.bendPoints[Math.floor(section.bendPoints.length / 2)]
-            : {
-                x: (section.startPoint.x + section.endPoint.x) / 2,
-                y: (section.startPoint.y + section.endPoint.y) / 2,
-              };
+        if (label && forge.showLabel !== false) {
+          const lane = Number(forge.labelLane || 0);
+          const anchor = labelAnchorPoint(section);
+          const offsetY = anchor.horizontal ? lane * 18 : lane * 10;
+          const offsetX = anchor.horizontal ? 0 : lane * 22;
           const text = document.createElementNS(svgNs, 'text');
           text.setAttribute('class', 'elk-edge-label');
-          text.setAttribute('x', String(mid.x + pad));
-          text.setAttribute('y', String(mid.y + pad - 8));
+          text.setAttribute('x', String(anchor.x + pad + offsetX));
+          text.setAttribute('y', String(anchor.y + pad + offsetY));
           text.setAttribute('text-anchor', 'middle');
-          text.textContent = label;
+          const lines = wrapLabelText(label, Number(forge.labelWrap || 18));
+          lines.forEach((line, index) => {
+            const tspan = document.createElementNS(svgNs, 'tspan');
+            tspan.setAttribute('x', String(anchor.x + pad + offsetX));
+            tspan.setAttribute('dy', index === 0 ? '0' : '14');
+            tspan.textContent = line;
+            text.appendChild(tspan);
+          });
           edgeLayer.appendChild(text);
           const bbox = text.getBBox();
           const bg = document.createElementNS(svgNs, 'rect');
@@ -649,35 +1500,73 @@
         if (forge.target) {
           group.dataset.target = forge.target;
         }
-        const shape = (forge.kind === 'actor' || forge.kind === 'dependency') ? 'ellipse' : 'rect';
-        const shapeEl = document.createElementNS(svgNs, shape);
-        if (shape === 'ellipse') {
-          shapeEl.setAttribute('cx', String((node.width || 0) / 2));
-          shapeEl.setAttribute('cy', String((node.height || 0) / 2));
-          shapeEl.setAttribute('rx', String((node.width || 0) / 2));
-          shapeEl.setAttribute('ry', String((node.height || 0) / 2));
+        if (String(forge.kind || '').startsWith('deploy-')) {
+          drawDeploymentShape(svgNs, group, forge, node);
         } else {
-          shapeEl.setAttribute('width', String(node.width || 0));
-          shapeEl.setAttribute('height', String(node.height || 0));
-          shapeEl.setAttribute('rx', '10');
+          const shape = (forge.kind === 'actor' || forge.kind === 'dependency') ? 'ellipse' : 'rect';
+          const shapeEl = document.createElementNS(svgNs, shape);
+          if (shape === 'ellipse') {
+            shapeEl.setAttribute('cx', String((node.width || 0) / 2));
+            shapeEl.setAttribute('cy', String((node.height || 0) / 2));
+            shapeEl.setAttribute('rx', String((node.width || 0) / 2));
+            shapeEl.setAttribute('ry', String((node.height || 0) / 2));
+          } else {
+            shapeEl.setAttribute('width', String(node.width || 0));
+            shapeEl.setAttribute('height', String(node.height || 0));
+            shapeEl.setAttribute('rx', '10');
+          }
+          group.appendChild(shapeEl);
         }
-        group.appendChild(shapeEl);
 
         const label = document.createElementNS(svgNs, 'text');
         label.setAttribute('class', 'label');
-        label.setAttribute('x', String((node.width || 0) / 2));
-        label.setAttribute('y', String((node.height || 0) / 2 - 4));
+        const kind = String(forge.kind || '');
+        const textLayout = kind.startsWith('deploy-')
+          ? deploymentTextLayout(kind, node)
+          : nodeTextLayout(kind, node);
+        label.setAttribute('x', String(textLayout.labelX));
         label.setAttribute('text-anchor', 'middle');
-        label.textContent = forge.label || node.id;
+        const labelLines = wrapNodeLines(forge.label || node.id, textLayout.labelMaxChars);
+        const isCenteredBlock = Boolean(textLayout.centered) || kind.startsWith('deploy-');
+        const labelStartY = isCenteredBlock
+          ? centeredTextStartY(labelLines.length, 18, textLayout.labelY, 6)
+          : textLayout.labelY;
+        label.setAttribute('y', String(labelStartY));
+        labelLines.forEach((line, index) => {
+          const tspan = document.createElementNS(svgNs, 'tspan');
+          tspan.setAttribute('x', String(textLayout.labelX));
+          tspan.setAttribute('dy', index === 0 ? '0' : '18');
+          tspan.textContent = line;
+          label.appendChild(tspan);
+        });
         group.appendChild(label);
 
         const subtitle = document.createElementNS(svgNs, 'text');
         subtitle.setAttribute('class', 'subtitle');
-        subtitle.setAttribute('x', String((node.width || 0) / 2));
-        subtitle.setAttribute('y', String((node.height || 0) / 2 + 18));
+        subtitle.setAttribute('x', String(textLayout.subtitleX));
         subtitle.setAttribute('text-anchor', 'middle');
-        subtitle.textContent = forge.subtitle || '';
+        const subtitleLines = wrapLabelText(forge.subtitle || '', textLayout.subtitleMaxChars);
+        const subtitleStartY = isCenteredBlock
+          ? centeredTextStartY(subtitleLines.length, 14, textLayout.subtitleY, 4)
+          : textLayout.subtitleY;
+        subtitle.setAttribute('y', String(subtitleStartY));
+        subtitleLines.forEach((line, index) => {
+          const tspan = document.createElementNS(svgNs, 'tspan');
+          tspan.setAttribute('x', String(textLayout.subtitleX));
+          tspan.setAttribute('dy', index === 0 ? '0' : '14');
+          tspan.textContent = line;
+          subtitle.appendChild(tspan);
+        });
         group.appendChild(subtitle);
+
+        if (forge.icon && !String(forge.kind || '').startsWith('deploy-')) {
+          const icon = document.createElementNS(svgNs, 'text');
+          icon.setAttribute('class', 'icon');
+          icon.setAttribute('x', '16');
+          icon.setAttribute('y', '24');
+          icon.textContent = forge.icon;
+          group.appendChild(icon);
+        }
 
         if (forge.target) {
           group.addEventListener('click', () => { void activateSection(forge.target); });
@@ -692,7 +1581,7 @@
       container.classList.add('diagram-surface');
       normalizeSvgBounds(container);
       container.dataset.elkRendered = 'true';
-      applyDiagramScale(container, parseFloat(container.dataset.scale || '1'));
+      applyDiagramScale(container, parseFloat(container.dataset.scale || String(getInitialDiagramScale(container))));
     }
 
     async function renderSectionGraphs(section) {
@@ -719,14 +1608,21 @@
       const group = targetSection.dataset.group;
       sections.forEach(section => section.classList.toggle('active', section.id === id));
       itemButtons.forEach(button => button.classList.toggle('active', button.dataset.target === id));
-      setActiveGroup(group);
+      setActiveGroup(group, id);
       if (updateHash) {
         window.location.hash = id;
       }
+      scrollRoot.scrollTo({ top: 0, behavior: 'auto' });
       await renderSectionGraphs(targetSection);
     }
 
     function activateGroup(group) {
+      const fallbackTarget = GROUP_OVERVIEW_TARGETS[group]
+        || sections.find(section => section.dataset.group === group)?.id;
+      if (fallbackTarget) {
+        void activateSection(fallbackTarget);
+        return;
+      }
       const first = itemButtons.find(button => button.dataset.group === group);
       if (first) {
         void activateSection(first.dataset.target);
@@ -746,12 +1642,19 @@
         if (!element) return;
         void activateSection(element.dataset.target);
       });
+      document.addEventListener('keydown', event => {
+        const element = event.target.closest('[data-target]');
+        if (!element) return;
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        void activateSection(element.dataset.target);
+      });
       tabs.forEach(tab => {
         tab.addEventListener('click', () => activateGroup(tab.dataset.group));
       });
     }
     bindNavigation();
-    const initial = window.location.hash.replace('#', '') || 'overview';
+    const initial = window.location.hash.replace('#', '') || 'system-overview';
     void activateSection(initial);
   </script>
 </body>

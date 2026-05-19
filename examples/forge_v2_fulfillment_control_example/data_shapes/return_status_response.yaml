@@ -1,0 +1,13 @@
+schema: forge.v2.data_shape
+
+data_shapes:
+  - id: return_status_response
+    description: Customer-facing return status payload covering approval, denial, refund completion, and failure follow-up.
+    kind: payload
+    shape:
+      return_request_id?: string
+      order_id: string
+      return_status: enum[approved, denied, in_transit, refunded, refund_failed]
+      refund_amount?: decimal
+      user_message: string
+      next_action?: string

@@ -1,0 +1,14 @@
+id: linkhub.shortener.types.ShortCode
+type: type
+name: ShortCode
+description: An 8-character alphanumeric string uniquely identifying a short link.
+status: active
+kind: scalar
+base: system.types.String
+constraints:
+  pattern: "^[A-Za-z0-9]{8}$"
+  min_length: 8
+  max_length: 8
+examples:
+  - aB3xKq7P
+  - Zr9mNwQ2

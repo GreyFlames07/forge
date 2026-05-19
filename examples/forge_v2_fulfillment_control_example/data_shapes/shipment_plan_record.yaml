@@ -1,0 +1,17 @@
+schema: forge.v2.data_shape
+
+data_shapes:
+  - id: shipment_plan_record
+    description: Persisted shipment booking state for a confirmed fulfillment order.
+    kind: state
+    shape:
+      shipment_plan_id: string
+      order_id: string
+      carrier_booking_id: string
+      shipment_status: enum[booked, label_created, in_transit, delivered, exception]
+      tracking_number: string
+      packages:
+        - package_id: string
+          weight_kg: decimal
+      estimated_delivery_at: datetime
+      booked_at: datetime

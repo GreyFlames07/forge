@@ -1,0 +1,33 @@
+id: linkhub.shortener.types.ClickRecord
+type: type
+name: ClickRecord
+description: A recorded click event for analytics.
+status: active
+kind: composite
+version: 1.0.0
+properties:
+  - name: code
+    data_type: linkhub.shortener.types.ShortCode
+    is_array: false
+    is_nullable: false
+    embedding: inline
+  - name: clicked_at
+    data_type: system.types.Timestamp
+    is_array: false
+    is_nullable: false
+    embedding: inline
+  - name: referrer
+    data_type: linkhub.shortener.types.URL
+    is_array: false
+    is_nullable: true
+    embedding: inline
+  - name: user_agent
+    data_type: system.types.String
+    is_array: false
+    is_nullable: true
+    embedding: inline
+examples:
+  - code: aB3xKq7P
+    clicked_at: "2026-01-15T09:23:11Z"
+    referrer: null
+    user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"

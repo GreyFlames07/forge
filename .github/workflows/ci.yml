@@ -2,27 +2,58 @@ name: CI
 
 on:
   push:
-    branches: [main]
   pull_request:
-    branches: [main]
 
 jobs:
-  test:
-    name: pytest
+  validate:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
 
-      - name: Create venv + install package
+      - name: Install project and dev dependencies
         run: |
-          uv venv --python 3.13 .venv
-          uv pip install -e . pytest
+          python -m pip install --upgrade pip
+          python -m pip install -e .[dev]
 
-      - name: Run test suite
-        run: .venv/bin/pytest -q
+      - name: Lint
+        run: ruff check src tests
 
-      - name: Smoke build
-        run: uv build
+      - name: Typecheck
+        run: mypy
+
+      - name: Run tests
+        run: pytest -q
+
+      - name: Compile source
+        run: python -m compileall -q src
+
+      - name: Build distributions
+        run: python -m build
+
+      - name: Check distribution metadata
+        run: python -m twine check dist/*
+
+      - name: Smoke test installed wheel
+        run: |
+          python -m venv /tmp/forge-wheel-venv
+          /tmp/forge-wheel-venv/bin/python -m ensurepip --upgrade >/dev/null
+          /tmp/forge-wheel-venv/bin/python -m pip install dist/*.whl
+          /tmp/forge-wheel-venv/bin/forge --help
+
+      - name: Smoke test init onboarding
+        run: |
+          tmpdir="$(mktemp -d)"
+          /tmp/forge-wheel-venv/bin/forge init --root "$tmpdir" --name "CI Project" --id ci_project --no-animation >/tmp/forge-init.log
+          test -f "$tmpdir/docs/USING_FORGE.md"
+          grep -q "Start With Skills" "$tmpdir/docs/USING_FORGE.md"

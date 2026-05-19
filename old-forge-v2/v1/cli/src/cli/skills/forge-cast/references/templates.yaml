@@ -1,0 +1,371 @@
+# Forge Node Templates
+# One document per node type. Copy the relevant block and fill in placeholders.
+# See framework.md for field-level documentation.
+
+---
+# conception.yaml — one per project, at spec/conception.yaml
+id: <conception>
+type: conception
+name: <ConceptionName>
+description: <one-sentence>
+status: draft
+owner: <team or individual>
+intent: >
+  <multi-line statement of purpose and constraints>
+systems:
+  - <conception>.<system>
+actors:
+  - id: <conception>.actors.<actor>
+    name: <ActorName>
+    description: <who this actor represents>
+    kind: <human | service | partner | internal_system>
+    auth_mechanism: <none | jwt | api_key | oauth2 | mtls | hmac | session>
+    default_permissions:
+      - <read | write | delete | execute>
+glossary:
+  - id: <conception>.glossary.<term>
+    term: <human-readable term>
+    definition: >
+      <precise definition>
+    synonyms: []
+    related_terms: []
+    appears_in: []
+policies: []
+
+---
+# system.yaml — at spec/<system>/system.yaml
+id: <conception>.<system>
+type: system
+name: <SystemName>
+description: <one-sentence>
+status: draft
+owner: <team>
+domains:
+  - <conception>.<system>.<domain>
+platform: <e.g. AWS, GCP, on-prem-k8s>
+language: <primary language>
+deployment: <cloud | on_prem | hybrid | edge>
+policies: []
+
+---
+# domain.yaml — at spec/<system>/<domain>/domain.yaml
+id: <conception>.<system>.<domain>
+type: domain
+name: <DomainName>
+description: <one-sentence>
+status: draft
+owner: <sub-team>
+responsibility: >
+  <what this domain owns and explicitly does not own>
+modules:
+  - <conception>.<system>.<domain>.<module>
+policies: []
+
+---
+# module.yaml — at spec/<system>/<domain>/<module>/module.yaml
+id: <conception>.<system>.<domain>.<module>
+type: module
+name: <ModuleName>
+description: <one-sentence>
+status: draft
+owner: <team>
+version: 0.1.0
+packaging:
+  kind: <service | gateway | job | function | worker | library>
+  runtime: <e.g. node20, python3.12, jvm17>
+  scaling: <none | vertical | horizontal | auto>
+external_dependencies: []
+elements:
+  - <conception>.<system>.<domain>.<module>.<element>
+policies: []
+
+---
+# element.yaml — at spec/<system>/<domain>/<module>/<element>.yaml
+id: <conception>.<system>.<domain>.<module>.<element>
+type: element
+name: <ElementName>
+description: <one-sentence>
+status: draft
+owner: <team>
+kind: <aggregate | entity | value_object | service | projection>
+properties:
+  - id: <conception>.<system>.<domain>.<module>.<element>.<property>
+    type: property
+    name: <property>
+    description: <one-sentence>
+    status: active
+    data_type: <type.id>
+    is_array: false
+    is_nullable: false
+    embedding: <inline | reference | derived | external>
+    visibility: <public | internal | private>
+operations:
+  - id: <conception>.<system>.<domain>.<module>.<element>.<operation>
+    type: operation
+    name: <operation>
+    description: <one-sentence>
+    status: active
+    kind: <command | query | async_command | async_query | event_handler | subscription>
+    inputs: []
+    outputs: []
+    raises: []
+    visibility: <public | internal | private>
+    contract: <contract.id or omit>
+    policies: []
+    steps:                            # required for command/async_command/event_handler with non-trivial logic
+      - order: 1
+        description: <what happens in this step>
+        calls: <operation.id or datastore.id>  # omit if no cross-boundary call
+        raises: []
+        condition: <expression>                # omit if unconditional
+relationships: []
+policies: []
+
+---
+# type — scalar, at spec/<system>/types/<TypeName>.yaml
+id: <conception>.<system>.types.<TypeName>
+type: type
+name: <TypeName>
+description: <what this scalar represents>
+status: active
+kind: scalar
+base: system.types.<String | Integer | Float | Boolean | Timestamp | UUID | Blob>
+constraints:
+  pattern: <regex or omit>
+  min_length: <integer or omit>
+  max_length: <integer or omit>
+  min: <number or omit>
+  max: <number or omit>
+  enum_values: []
+examples: []
+
+---
+# type — composite, at spec/<system>/types/<TypeName>.yaml
+id: <conception>.<system>.types.<TypeName>
+type: type
+name: <TypeName>
+description: <what this composite represents>
+status: active
+kind: composite
+version: 1.0.0
+properties:
+  - name: <field>
+    data_type: <type.id>
+    is_array: false
+    is_nullable: false
+    embedding: inline
+examples: []
+
+---
+# error — at spec/<system>/errors/<ErrorName>.yaml
+id: <conception>.<system>.errors.<ErrorName>
+type: error
+name: <ErrorName>
+description: <when this error is raised>
+status: active
+code: <STABLE_UPPERCASE_CODE>
+http_status: 400
+fields: []
+
+---
+# policy — security, at spec/<system>/policies/<policy>.yaml
+id: <conception>.<system>.policies.<policy>
+type: policy
+name: <PolicyName>
+description: <what this enforces>
+status: active
+owner: <team>
+kind: security
+authentication:
+  required: true
+  mechanism: <jwt | api_key | oauth2 | mtls | hmac | session>
+authorisation:
+  roles: []
+  permissions: []
+  rule: <expression>
+encryption:
+  at_rest: true
+  in_transit: true
+  field_level: false
+
+---
+# policy — business, at spec/<system>/policies/<policy>.yaml
+id: <conception>.<system>.policies.<policy>
+type: policy
+name: <PolicyName>
+description: <what this enforces>
+status: active
+owner: <team>
+kind: business
+rule_kind: <sla | rate_limit | validation | invariant | workflow>
+rule: <expression>
+enforcement: <hard | soft | advisory>
+error: <error.id>
+
+---
+# policy — data, at spec/<system>/policies/<policy>.yaml
+id: <conception>.<system>.policies.<policy>
+type: policy
+name: <PolicyName>
+description: <what this enforces>
+status: active
+owner: <team>
+kind: data
+classification: <public | internal | confidential | restricted>
+persistence: <permanent | transient | ephemeral>
+retention:
+  duration: P30D
+  policy: <delete | archive | anonymise>
+consistency: <strong | eventual | bounded_staleness | session>
+backup:
+  required: true
+  frequency: P1D
+
+---
+# policy — operational, at spec/<system>/policies/<policy>.yaml
+id: <conception>.<system>.policies.<policy>
+type: policy
+name: <PolicyName>
+description: <what this enforces>
+status: active
+owner: <team>
+kind: operational
+logging:
+  level: <debug | info | warn | error | fatal>
+  log_entry: true
+  log_exit: true
+  log_errors: true
+retry: []
+idempotency:
+  key_field: <field name>
+  ttl: PT5M
+  strategy: <key_dedup | natural_key | conditional_insert>
+
+---
+# contract — at spec/<system>/contracts/<contract>.yaml
+id: <conception>.<system>.contracts.<contract>
+type: contract
+name: <ContractName>
+description: <one-sentence>
+status: active
+owner: <team>
+version: 1.0.0
+protocol: <rest | grpc | queue | websocket | graphql | event_bus | cli>
+inputs: []
+outputs: []
+errors: []
+producer: <module.id>
+consumers: []
+versioning:
+  current: 1.0.0
+  deprecated: []
+  strategy: <uri | header | query_param>
+policies: []
+
+---
+# integration — at spec/<system>/integrations/<integration>.yaml
+id: <conception>.<system>.integrations.<integration>
+type: integration
+name: <IntegrationName>
+description: <one-sentence>
+status: active
+provider: <third-party name>
+contract: <contract.id>
+auth_mechanism: <none | jwt | api_key | oauth2 | mtls | hmac | session>
+base_url: <url>
+docs: <url>
+
+---
+# interaction — at spec/<system>/interactions/<interaction>.yaml
+id: <conception>.<system>.interactions.<interaction>
+type: interaction
+name: <InteractionName>
+description: <one-sentence>
+status: active
+caller: <operation.id>
+callee: <operation.id>
+trigger: <technical cause>
+policies: []
+
+---
+# flow — at spec/<system>/flows/<flow>.yaml
+id: <conception>.<system>.flows.<flow>
+type: flow
+name: <FlowName>
+description: <one-sentence>
+status: active
+owner: <team>
+trigger: <business event>
+steps:
+  - order: 1
+    interaction: <interaction.id>
+    depends_on: []
+    on_failure: <abort | retry | skip | compensate | fallback>
+postconditions: []
+policies: []
+
+---
+# datastore — in spec/<system>/implementation/datastores.yaml (multi-doc)
+id: <conception>.<system>.datastores.<datastore>
+type: datastore
+name: <DatastoreName>
+description: <one-sentence>
+status: active
+owner: <team>
+version: 1.0.0
+kind: <relational | document | key_value | timeseries | cache | graph | search | column_family | object_store>
+engine: <e.g. postgres, redis, clickhouse, s3>
+purpose: <primary | cache | projection | archive>
+consumers: []
+schemas:
+  - type: <type.id | element.id>
+    source:
+      kind: <element_state | projection | derived | external>
+      ref: <element, contract, type, datastore, or operation id>
+    storage_name: <table / collection / key prefix>
+    role: <read | write | both>
+schema_version: 1.0.0
+consistency: <strong | eventual | bounded_staleness | session>
+durability: <ephemeral | persistent | replicated>
+policies: []
+
+---
+# environment — in spec/<system>/implementation/environments.yaml (multi-doc)
+id: <conception>.<system>.environments.<environment>
+type: environment
+name: <EnvironmentName>
+description: <one-sentence>
+status: active
+kind: <development | staging | production | test>
+region: <region identifier>
+overlays: []
+datastores: []
+features: []
+
+---
+# test — in spec/<system>/implementation/tests.yaml (multi-doc)
+id: <conception>.<system>.tests.<test>
+type: test
+name: <TestName>
+description: <one-sentence>
+status: active
+kind: <unit | integration | contract | e2e | performance>
+target: <operation.id | flow.id | element.id>
+inputs: []
+expected_output: <type.id>
+preconditions: []
+postconditions: []
+
+---
+# deployment — in spec/<system>/implementation/deployments.yaml (multi-doc, optional)
+id: <conception>.<system>.deployments.<deployment>
+type: deployment
+name: <DeploymentName>
+description: <one-sentence>
+status: <pending | active | rolled_back | failed>
+module: <module.id>
+environment: <environment.id>
+version: <semver>
+deployed_at: <ISO 8601 timestamp>
+deployed_by: <identifier>
+artifact: <image tag, package URL, or commit SHA>

@@ -1,41 +1,110 @@
-# Forge V2
+# Forge
 
-Forge V2 is a schema runtime, workbench CLI, and skill/framework system for building software vertically while preserving a working bootstrap path throughout the build.
+Forge is a Python CLI and framework for vertical-first system design and
+delivery. It helps you define a system clearly, split it into buildable
+verticals, and then deepen and implement one slice at a time with the minimum
+context needed for the task at hand.
 
-## What is in this repo
+Forge is **skills-first**. The skills drive the work. The CLI exists to provide
+scoped context, validation, and audit artifacts to the active skill.
 
-- `docs/forge-v2-schema.md` — the V2 schema contract
-- `docs/forge-v2-architecture.md` — the V2 architecture and workbench model
-- `frameworks/` — stage framework definitions
-- `skills/` — skill source files
-- `.agents/skills/` — installable agent skill folders
-- `src/cli/` — the Forge V2 CLI
+## What This Repository Contains
 
-## Local development
+- `src/cli`: the Forge CLI implementation
+- `skills/`: the Forge skill source used by initialized repositories
+- `FRAMEWORK_V3.md`: the framework process and recommended authoring order
+- `SCHEMA_REFERENCE_V3.md`: the schema contract and field rules
+- `examples/`: example Forge repositories and audit artifacts
+
+## CLI Commands
+
+- `forge init`: scaffold a new Forge workspace and explain how to use it
+- `forge context`: render scoped context for a system, vertical, flow,
+  container, or component
+- `forge audit`: generate a self-contained architecture audit dashboard
+
+## What Forge Is
+
+- a framework for capturing architectural truth before implementation detail
+- a skills-first workflow for moving from broad system design to one thin
+  vertical at a time
+- a scoped context generator for build, review, and security tasks
+- an audit artifact generator for human review
+
+## What Forge Is Not
+
+- a generic project scaffolder for arbitrary app stacks
+- a replacement for implementation skills such as build, review, and security
+- a reason to model every payload, component, or environment detail up front
+- an excuse to widen a vertical beyond what can be built and validated cleanly
+
+## Recommended Workflow
+
+1. Run `forge init` in an empty repository.
+2. Read:
+   - `docs/USING_FORGE.md`
+   - `docs/FRAMEWORK_V3.md`
+   - `docs/SCHEMA_REFERENCE_V3.md`
+3. Use `forge-schema` to define:
+   - `system.yaml`
+   - `high_level_flows/`
+   - `early_state.yaml`
+   - `runtime.yaml`
+4. Derive `verticals/` once the runtime picture is clear.
+5. Pick one vertical and deepen it through:
+   - `runtime_flows/`
+   - `data_shapes/`
+   - `persistent_shapes/`
+   - `containers/`
+   - `deployment.yaml`
+6. Use `forge-review` to check the slice for drift, bloat, and broken references before build starts.
+7. Use `forge-security` to make the slice security posture explicit before build starts.
+8. Use `forge-build` to plan or implement that approved vertical.
+
+The intended operating mode is:
+
+1. choose the active skill first
+2. ask that skill what scope it needs
+3. use `forge context` only for that narrow scope
+4. use `forge audit` when you need a whole-system review artifact
+
+## Golden Path Examples
+
+- `examples/forge_v2_ordering_example`: the compact canonical example for docs,
+  smoke tests, and first-time users
+- `examples/forge_v2_fulfillment_control_example`: the richer example used to
+  pressure-test flows, data, deployment, and audit rendering
+
+## Local Development
+
+Use the project virtual environment:
 
 ```bash
-uv venv --python 3.13 .venv
-uv pip install -e . pytest
-.venv/bin/pytest -q
+.venv/bin/python -m pip install -e .[dev]
 ```
 
-## Install the CLI and skills locally
+## Validation Commands
 
 ```bash
-./scripts/install-skills.sh install
+make lint
+make typecheck
+make test
+make compile
+make build
+make verify-package
+make smoke-init
+make check
 ```
 
-This links the packaged Forge skills into:
+`make verify-package` builds the wheel, installs it into a fresh Python 3.11+
+virtual environment, and confirms that the installed `forge` entrypoint works.
 
-- `~/.claude/skills` for Claude Code
-- `~/.codex/skills` for Codex
-- `~/.agents/skills` for agentskills.io-compatible clients such as VS Code Copilot and Cursor
-- `~/.copilot/skills` as an additional Copilot-local target when `~/.copilot/` already exists
+## Packaging
 
-## Build distributions
+Build artifacts are generated with:
 
 ```bash
-uv build
+.venv/bin/python -m build
 ```
 
 This produces:
@@ -43,30 +112,45 @@ This produces:
 - `dist/*.tar.gz`
 - `dist/*.whl`
 
-## Release model
-
-- CI runs tests and a smoke build on `main` pushes and PRs
-- tagged releases `v*.*.*` build sdist and wheel
-- release workflow publishes artifacts to GitHub Releases and PyPI
-
-## Quick smoke test
+Validate package metadata before release with:
 
 ```bash
-./.venv/bin/forge init --root /tmp/forge-smoke --profile cli-tool --name "Smoke" --id smoke
-./.venv/bin/forge list --forge-dir /tmp/forge-smoke/forge
-./.venv/bin/forge context core --forge-dir /tmp/forge-smoke/forge
-./.venv/bin/forge graph --forge-dir /tmp/forge-smoke/forge --no-open
+make check-dist
 ```
 
-`forge init` vendors the Forge docs, frameworks, and project-local `.agents/skills/` into the initialized directory, then symlinks those project-local skills into the home scan directories above unless you pass `--no-vendor-assets` or `--no-link-skills`.
+## Local Testing
 
-## Public CLI vs workbench
+Run the full local verification path:
 
-The public CLI is intentionally small:
+```bash
+make check
+```
 
-- `forge init`
-- `forge list`
-- `forge context`
-- `forge graph`
+That covers linting, type checking, tests, compile validation, build output,
+distribution metadata checks, clean wheel install, and `forge init` smoke
+validation.
 
-`forge/workbench/` remains part of the framework, but it is an internal artifact model used by the stage skills. It stores build-planning and validation state for agent workflows; it is not a separate public command surface.
+If you want to test the richer example schema directly:
+
+```bash
+EXAMPLE="examples/forge_v2_fulfillment_control_example"
+.venv/bin/forge audit --project-dir "$EXAMPLE" --output /tmp/forge-audit-example.html
+```
+
+That generates the audit artifact and opens it unless `--no-open` is supplied.
+
+## Framework Notes
+
+- Forge is vertical-first: model broadly, then deepen one thin slice.
+- The framework should reduce context, not increase it.
+- Components and exact schemas should only appear when runtime boundaries and
+  vertical intent are already clear.
+- Important decisions should be captured in `decision_notes.md`.
+
+## Maintainer Notes
+
+- Release instructions live in [docs/RELEASING.md](/Users/willdefina/Documents/2026%20-%20Business/dev-tools/forge/docs/RELEASING.md).
+
+## Repository Notes
+
+Previous iteration artifacts have been retained in `old-forge-v2/`.

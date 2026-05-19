@@ -1,0 +1,33 @@
+schema: forge.v2.vertical
+
+verticals:
+  - id: recover_inventory_shortage
+    description: End-to-end implementation slice for staff-driven shortage recovery and fulfillment exception closure.
+    user_value: Warehouse operators can resolve shortages through reroute, partial shipment, or cancellation while preserving a clear customer outcome.
+    high_level_flows:
+      - recover_inventory_shortage
+    runtime_containers:
+      - operations_console
+      - orchestration_api
+      - orchestration_worker
+      - fulfillment_db
+      - carrier_gateway
+      - notification_gateway
+    data_shapes:
+      - shortage_case_record
+      - shipment_plan_record
+      - shortage_resolution_response
+      - fulfillment_order_record
+    persistent_shapes:
+      - shortage_case
+      - shipment_plan
+      - fulfillment_order
+      - inventory_reservation
+    deployment_notes: >
+      Requires the staff console, orchestration API, background worker, and
+      data store to be available, with carrier and notification integrations
+      reachable for rebooking and customer updates.
+    build_notes: >
+      Build this vertical by first surfacing shortage cases in the staff
+      console, then accept operator decisions, then implement worker-driven
+      recovery paths, and finally persist and communicate the final resolution.

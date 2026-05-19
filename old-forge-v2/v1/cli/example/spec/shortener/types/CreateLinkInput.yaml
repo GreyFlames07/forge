@@ -1,0 +1,21 @@
+id: linkhub.shortener.types.CreateLinkInput
+type: type
+name: CreateLinkInput
+description: Input payload for creating a new short link.
+status: active
+kind: composite
+version: 1.0.0
+properties:
+  - name: destination_url
+    data_type: linkhub.shortener.types.URL
+    is_array: false
+    is_nullable: false
+    embedding: inline
+  - name: label
+    data_type: system.types.String
+    is_array: false
+    is_nullable: true
+    embedding: inline
+examples:
+  - destination_url: https://example.com/very/long/url
+    label: My Example Link

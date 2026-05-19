@@ -1,0 +1,10 @@
+id: linkhub.shortener.errors.InvalidUrl
+type: error
+name: InvalidUrl
+description: The provided destination URL is malformed or uses a disallowed scheme.
+status: active
+code: INVALID_URL
+http_status: 422
+fields:
+  - name: url
+    data_type: system.types.String

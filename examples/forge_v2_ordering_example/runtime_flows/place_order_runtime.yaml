@@ -1,0 +1,141 @@
+schema: forge.v2.runtime_flow
+
+runtime_flow:
+  id: place_order_runtime
+  high_level_flow: place_order
+  description: >
+    Realizes the place_order flow by moving checkout data from the storefront
+    through the ordering backend, persistence layer, and payment integration.
+  trigger: >
+    {
+      customer_id: string,
+      cart_id: string,
+      line_items: [
+        {
+          product_id: string,
+          quantity: integer
+        }
+      ],
+      delivery_address: {
+        line_1: string,
+        line_2?: string,
+        city: string,
+        postcode: string,
+        country_code: string
+      },
+      payment_method_token: string
+    }
+  steps:
+    - id: 1
+      container: storefront_web
+      description: Validates the checkout submission shape in the browser and forwards the order request to the backend.
+      next: 2
+      outgoing: >
+        {
+          customer_id: string,
+          cart_id: string,
+          line_items: [
+            {
+              product_id: string,
+              quantity: integer
+            }
+          ],
+          pricing_summary: {
+            subtotal_amount: decimal,
+            currency: string
+          },
+          delivery_address: {
+            line_1: string,
+            line_2?: string,
+            city: string,
+            postcode: string,
+            country_code: string
+          },
+          payment_method_token: string
+        }
+    - id: 2
+      container: ordering_api
+      description: Validates the order request, rejects malformed orders, and prepares a persistable order payload.
+      branches:
+        - condition: Order request is valid and can proceed to persistence.
+          next: 3
+          outgoing: >
+            {
+              customer_id: string,
+              cart_id: string,
+              line_items: [
+                {
+                  product_id: string,
+                  quantity: integer
+                }
+              ],
+              pricing_summary: {
+                subtotal_amount: decimal,
+                currency: string
+              },
+              delivery_address: {
+                line_1: string,
+                line_2?: string,
+                city: string,
+                postcode: string,
+                country_code: string
+              },
+              order_status: pending_payment,
+              payment_method_token: string
+            }
+        - condition: Order request is invalid and cannot proceed.
+          next: 6
+          outgoing: ref[order_rejection_response]
+    - id: 3
+      container: orders_db
+      description: Persists the order and returns the stored order record to the backend.
+      next: 4
+      outgoing: ref[order_record]
+    - id: 4
+      container: ordering_api
+      description: Uses the persisted order to call the payment provider and prepare a payment attempt.
+      next: 5
+      outgoing: >
+        {
+          order_id: string,
+          amount: decimal,
+          currency: string,
+          payment_method_token: string
+        }
+    - id: 5
+      container: payment_gateway
+      description: Authorizes payment and returns the provider outcome to the ordering backend.
+      branches:
+        - condition: Payment provider authorizes the payment successfully.
+          next: 7
+          outgoing: >
+            {
+              provider_payment_id: string,
+              order_id: string,
+              payment_status: authorized
+            }
+        - condition: Payment provider rejects the payment.
+          next: 6
+          outgoing: >
+            {
+              provider_payment_id?: string,
+              order_id: string,
+              payment_status: failed,
+              failure_reason: string
+            }
+    - id: 6
+      container: ordering_api
+      description: Builds a rejection response for the storefront and records any failed payment attempt if applicable.
+      next: 8
+      outgoing: ref[order_rejection_response]
+    - id: 7
+      container: ordering_api
+      description: Records the authorized payment attempt, updates the order status, and builds a confirmation response.
+      next: 8
+      outgoing: ref[order_confirmation_response]
+    - id: 8
+      container: storefront_web
+      description: Displays the final confirmed or rejected outcome to the customer.
+  outcomes:
+    - Customer sees a confirmed order with an order identifier.
+    - Customer sees a rejected outcome with a usable failure message.

@@ -1,0 +1,76 @@
+schema: forge.v2.runtime_flow
+
+runtime_flow:
+  id: process_return_and_refund_runtime
+  high_level_flow: process_return_and_refund
+  description: >
+    Realizes customer returns by validating eligibility, creating the return
+    record, issuing instructions, and completing the refund in background work.
+  trigger: >
+    {
+      order_id: string,
+      customer_id: string,
+      return_items: [
+        {
+          sku: string,
+          quantity: integer @min(1),
+          return_reason: string
+        }
+      ],
+      requested_resolution: enum[refund, exchange, store_credit]
+    }
+  steps:
+    - id: 1
+      container: customer_portal
+      description: Validates the return request shape and sends the request to the orchestration backend.
+      next: 2
+      outgoing: >
+        {
+          order_id: string,
+          customer_id: string,
+          return_items: [
+            {
+              sku: string,
+              quantity: integer @min(1),
+              return_reason: string
+            }
+          ],
+          requested_resolution: enum[refund, exchange, store_credit]
+        }
+    - id: 2
+      container: orchestration_api
+      description: Validates eligibility against delivery state and return policy and creates the return request record.
+      branches:
+        - condition: Return request is eligible.
+          next: 3
+          outgoing: ref[return_request_record]
+        - condition: Return request is not eligible.
+          next: 6
+          outgoing: ref[return_status_response]
+    - id: 3
+      container: orchestration_api
+      description: Generates return instructions, persists the approved status, and dispatches background refund completion work.
+      next: 4
+      outgoing: ref[return_status_response]
+    - id: 4
+      container: orchestration_worker
+      description: Waits for the return completion signal, issues the refund through the payment provider, and prepares the final customer-visible outcome.
+      branches:
+        - condition: Refund is completed successfully.
+          next: 5
+          outgoing: ref[return_status_response]
+        - condition: Refund fails and requires staff follow-up.
+          next: 5
+          outgoing: ref[return_status_response]
+    - id: 5
+      container: orchestration_api
+      description: Persists the final refund state and sends the return outcome notification.
+      next: 6
+      outgoing: ref[return_status_response]
+    - id: 6
+      container: customer_portal
+      description: Displays the approved, denied, refunded, or manual-review return outcome to the customer.
+  outcomes:
+    - Customer sees an approved return that later moves to refunded.
+    - Customer sees a denied return outcome.
+    - Customer sees that refund completion needs manual follow-up.

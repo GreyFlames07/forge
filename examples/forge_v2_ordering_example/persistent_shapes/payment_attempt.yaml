@@ -1,0 +1,30 @@
+schema: forge.v2.persistent_shape
+
+persistent_shapes:
+  - id: payment_attempt
+    description: Persisted payment attempt shape used to record each authorization attempt for an order.
+    data_shape: payment_attempt_record
+    logical_owner_container: ordering_api
+    data_store_container: orders_db
+    storage_model: relational
+    persistence_behavior: >
+      Payment attempts are written whenever the ordering API calls the payment
+      provider and are queried for audit, retries, and failure analysis.
+    lifecycle_status_notes: >
+      Payment attempts move from initiated to authorized or failed depending on
+      the provider response.
+    security: >
+      Must retain an auditable history of payment outcomes without storing raw
+      payment credentials or provider secrets.
+    state_machine:
+      states:
+        - initiated
+        - authorized
+        - failed
+      transitions:
+        - from: initiated
+          to: authorized
+          condition: The payment provider returns a successful authorization result.
+        - from: initiated
+          to: failed
+          condition: The payment provider returns a failure result.

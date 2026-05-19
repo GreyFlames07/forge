@@ -1,0 +1,62 @@
+id: linkhub
+type: conception
+name: LinkHub
+description: A URL shortener service that tracks click analytics.
+status: active
+owner: platform-team
+intent: >
+  Provide a fast, reliable service for shortening URLs, resolving redirects,
+  and recording click analytics. All short codes are globally unique and
+  immutable once created.
+systems:
+  - linkhub.shortener
+actors:
+  - id: linkhub.actors.creator
+    name: Creator
+    description: An authenticated user who creates and manages short links.
+    kind: human
+    auth_mechanism: jwt
+    default_permissions:
+      - read
+      - write
+  - id: linkhub.actors.visitor
+    name: Visitor
+    description: An anonymous user who follows a short link.
+    kind: human
+    auth_mechanism: none
+    default_permissions:
+      - read
+  - id: linkhub.actors.analytics_service
+    name: AnalyticsService
+    description: Internal service that consumes click events.
+    kind: internal_system
+    auth_mechanism: api_key
+    default_permissions:
+      - read
+glossary:
+  - id: linkhub.glossary.short_code
+    term: ShortCode
+    definition: >
+      An 8-character alphanumeric string that uniquely identifies a short link.
+      Short codes are generated at creation time, are globally unique, and never
+      reassigned after a link is deactivated.
+    synonyms:
+      - slug
+      - alias
+    related_terms: []
+    appears_in:
+      - linkhub.shortener.links.link_manager.short_link
+  - id: linkhub.glossary.click
+    term: Click
+    definition: >
+      A single redirect event: one visitor following one short link at one point
+      in time. Clicks are recorded asynchronously after the redirect response is
+      sent.
+    synonyms:
+      - hit
+      - visit
+    related_terms:
+      - linkhub.glossary.short_code
+    appears_in:
+      - linkhub.shortener.traffic.click_recorder.click
+policies: []

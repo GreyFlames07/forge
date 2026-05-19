@@ -1,283 +1,537 @@
 from __future__ import annotations
 
-from argparse import ArgumentParser, Namespace
-from difflib import get_close_matches
+import json
+import re
+from argparse import Namespace
 from pathlib import Path
+from typing import Any
 
-from cli.commands.base import add_forge_dir_arg
-from cli.common import find_forge_root
-from cli.schema import dump_yaml, load_schema
-from cli.workbench import read_yaml
+from cli.commands.base import add_project_dir_arg
+from cli.common import find_project_root
+from cli.schema import ForgeSchema, dump_yaml, load_schema
+
+REF_PATTERN = re.compile(r"ref\[([a-zA-Z0-9_]+)\]")
 
 
 def register_context(subparsers) -> None:
-    parser = subparsers.add_parser("context", help="Render a schema-aware context bundle for an id")
-    add_forge_dir_arg(parser)
-    parser.add_argument("target", help="Schema object id")
-    parser.add_argument("--format", choices=["yaml", "markdown"], default="yaml")
+    parser = subparsers.add_parser(
+        "context",
+        help="Render a scoped Forge V3 context bundle",
+        epilog=(
+            "Skills-first usage: use forge-schema, forge-build, forge-review, or forge-security "
+            "to decide what context you need, then fetch only that scope.\n\n"
+            "Examples:\n"
+            "  forge context --project-dir . --system --format md\n"
+            "  forge context --project-dir . --vertical place_order --format json\n"
+            "  forge context --project-dir . --container ordering_api --format yaml"
+        ),
+    )
+    add_project_dir_arg(parser)
+    target = parser.add_mutually_exclusive_group(required=False)
+    target.add_argument("--system", action="store_true", help="Return system-level context")
+    target.add_argument("--vertical", help="Vertical id")
+    target.add_argument("--flow", help="Runtime flow id")
+    target.add_argument("--container", help="Container id")
+    target.add_argument("--component", help="Component id (requires --container or inferable container)")
+    target.add_argument("--data-shape", dest="data_shape", help="Data shape id")
+    target.add_argument("--persistent-shape", dest="persistent_shape", help="Persistent shape id")
+    parser.add_argument("--mode", choices=["plan", "build", "review"], default="build")
+    parser.add_argument("--format", choices=["json", "yaml", "md"], default="json")
     parser.set_defaults(func=run)
 
 
-def _iter_id_refs(value, valid_ids: set[str]) -> set[str]:
-    refs: set[str] = set()
-    if isinstance(value, str):
-        if value in valid_ids:
-            refs.add(value)
-        return refs
-    if isinstance(value, dict):
-        for inner in value.values():
-            refs.update(_iter_id_refs(inner, valid_ids))
-        return refs
-    if isinstance(value, list):
-        for inner in value:
-            refs.update(_iter_id_refs(inner, valid_ids))
-    return refs
+def run(args: Namespace) -> int:
+    root = find_project_root(Path(args.project_dir).resolve() if args.project_dir else None)
+    schema = load_schema(root)
+    payload = build_context_payload(schema, args)
+    if args.format == "json":
+        print(json.dumps(payload, indent=2))
+    elif args.format == "yaml":
+        print(_yaml_with_header(payload))
+    else:
+        print(_to_markdown(payload))
+    return 0
 
 
-def _object_group(schema, target_id: str) -> str | None:
-    for group_name, items in schema.collections.items():
-        if any(item.get("id") == target_id for item in items):
-            return group_name
-    for group_name, items in schema.verification.items():
-        if any(item.get("id") == target_id for item in items):
-            return f"verification.{group_name}"
-    if schema.system.get("id") == target_id:
+def build_context_payload(schema: ForgeSchema, args: Namespace) -> dict[str, Any]:
+    target_kind = _selected_target(args)
+    if target_kind == "system":
+        return _system_context(schema, args.mode)
+    if target_kind == "vertical":
+        return _vertical_context(schema, args.vertical, args.mode)
+    if target_kind == "flow":
+        return _flow_context(schema, args.flow, args.mode)
+    if target_kind == "container":
+        return _container_context(schema, args.container, args.mode, component_id=args.component)
+    if target_kind == "component":
+        container_id = _find_container_for_component(schema, args.component)
+        if not container_id:
+            raise ValueError(f"Could not infer container for component `{args.component}`. Pass --container.")
+        return _container_context(schema, container_id, args.mode, component_id=args.component)
+    if target_kind == "data_shape":
+        return _data_shape_context(schema, args.data_shape, args.mode)
+    if target_kind == "persistent_shape":
+        return _persistent_shape_context(schema, args.persistent_shape, args.mode)
+    raise ValueError(
+        "No context target selected. Choose one of --system, --vertical, --flow, "
+        "--container, --component, --data-shape, or --persistent-shape. "
+        "Start from the active skill, then request only the narrowest scope you need."
+    )
+
+
+def _selected_target(args: Namespace) -> str | None:
+    if args.system:
         return "system"
-    if schema.bootstrap.get("id") == target_id:
-        return "bootstrap"
-    if schema.build_policy.get("id") == target_id:
-        return "build_policy"
+    if args.vertical:
+        return "vertical"
+    if args.flow:
+        return "flow"
+    if args.container:
+        return "container"
+    if args.component:
+        return "component"
+    if args.data_shape:
+        return "data_shape"
+    if args.persistent_shape:
+        return "persistent_shape"
     return None
 
 
-def _is_bootstrap_related(schema, target_id: str) -> bool:
-    return target_id in _iter_id_refs(schema.bootstrap, set(schema.index_by_id()))
+def _yaml_with_header(payload: dict[str, Any]) -> str:
+    header = f"# Context: {payload['target']['id']}\n# Type: {payload['target']['type']}\n"
+    return header + dump_yaml(payload)
 
 
-def _implementation_hints(schema, target: dict, group: str | None) -> list[str]:
-    root = schema.root.parent
-    hints: list[str] = []
-    target_id = target["id"]
-
-    def add_hint(path: Path) -> None:
-        rel = path.relative_to(root)
-        value = rel.as_posix()
-        if value not in hints:
-            hints.append(value)
-
-    if group == "units":
-        entrypoint = target.get("entrypoint")
-        if entrypoint:
-            add_hint(root / entrypoint)
-    elif group == "operations":
-        unit = next((item for item in schema.collections["units"] if item.get("id") == target.get("unit")), None)
-        entrypoint = unit.get("entrypoint") if unit else None
-        if entrypoint:
-            base = (root / entrypoint).parent
-            add_hint(base / "operations" / f"{target_id}.py")
-            add_hint(base / "operations" / f"{target_id}.ts")
-            add_hint(base / f"{target_id}.py")
-            add_hint(base / f"{target_id}.ts")
-    elif group == "surfaces":
-        unit = next((item for item in schema.collections["units"] if item.get("id") == target.get("unit")), None)
-        entrypoint = unit.get("entrypoint") if unit else None
-        if entrypoint:
-            base = (root / entrypoint).parent
-            add_hint(base / "surfaces" / f"{target_id}.py")
-            add_hint(base / "surfaces" / f"{target_id}.ts")
-            add_hint(base / "routes" / f"{target_id}.py")
-            add_hint(base / "routes" / f"{target_id}.ts")
-    elif group == "types":
-        vertical = target.get("vertical")
-        if vertical:
-            add_hint(root / "packages" / "types" / f"{target_id}.ts")
-            add_hint(root / "packages" / "types" / f"{target_id}.py")
-            add_hint(root / "packages" / "contracts" / f"{target_id}.ts")
-            add_hint(root / "packages" / "contracts" / f"{target_id}.py")
-    return hints
-
-
-def _verification_refs(schema, target_id: str, group: str | None) -> dict:
-    refs = {"startup": [], "surfaces": [], "flows": [], "all": []}
-    if group == "units":
-        refs["startup"] = [item for item in schema.verification["startup"] if item.get("unit") == target_id]
-    if group == "surfaces":
-        refs["surfaces"] = [item for item in schema.verification["surfaces"] if item.get("surface") == target_id]
-    if group == "flows":
-        refs["flows"] = [item for item in schema.verification["flows"] if item.get("flow") == target_id]
-    if group == "operations":
-        refs["surfaces"] = [
-            item for item in schema.verification["surfaces"]
-            if any(surface.get("id") == item.get("surface") for surface in schema.collections["surfaces"] if surface.get("operation") == target_id)
-        ]
-        refs["flows"] = [
-            item for item in schema.verification["flows"]
-            if any(step.get("ref") == target_id for flow in schema.collections["flows"] if flow.get("id") == item.get("flow") for step in flow.get("path", []))
-        ]
-    refs["all"] = refs["startup"] + refs["surfaces"] + refs["flows"]
-    return refs
-
-
-def _related(schema, target: dict) -> dict:
-    idx = schema.index_by_id()
-    target_id = target["id"]
-    valid_ids = set(idx)
-    related = {
-        "references": sorted(_iter_id_refs(target, valid_ids) - {target_id}),
-        "referenced_by": [],
-    }
-    for item_id, item in idx.items():
-        if item_id == target_id:
-            continue
-        if target_id in _iter_id_refs(item, valid_ids):
-            related["referenced_by"].append(item_id)
-    related["referenced_by"] = sorted(set(related["referenced_by"]))
-    return related
-
-
-def _context_bundle(schema, target: dict) -> dict:
-    idx = schema.index_by_id()
-    group = _object_group(schema, target["id"])
-    bundle = {"target": target, "related": _related(schema, target)}
-    plan = read_yaml(schema.root / "workbench" / "plan.yaml")
-    status = read_yaml(schema.root / "workbench" / "status.yaml")
-    validation_report = (schema.root / "workbench" / "validation.md")
-
-    touched_slices = []
-    for slice_item in plan.get("slices", []):
-        touches = slice_item.get("touches", {})
-        refs = set()
-        for values in touches.values():
-            if isinstance(values, list):
-                refs.update(values)
-        if target.get("id") in refs:
-            touched_slices.append(slice_item)
-
-    bundle["workbench"] = {
-        "slices": touched_slices,
-        "status": status,
-        "validation_report_exists": validation_report.exists(),
-        "validation_summary": status.get("validation_summary", {}),
-    }
-    bundle["implementation_hints"] = _implementation_hints(schema, target, group)
-    bundle["verification_refs"] = _verification_refs(schema, target["id"], group)
-
-    if group == "operations":
-        bundle["owning_vertical"] = idx.get(target.get("vertical"))
-        bundle["owning_unit"] = idx.get(target.get("unit"))
-        bundle["input_types"] = [idx[ref] for ref in target.get("inputs", []) if ref in idx]
-        bundle["output_types"] = [idx[ref] for ref in target.get("outputs", []) if ref in idx]
-        bundle["referenced_types"] = [idx[ref] for ref in target.get("referenced_types", []) if ref in idx]
-        bundle["error_types"] = [idx[ref] for ref in target.get("errors", []) if ref in idx]
-        bundle["read_stores"] = [idx[ref] for ref in target.get("reads", {}).get("stores", []) if ref in idx]
-        bundle["write_stores"] = [idx[ref] for ref in target.get("writes", {}).get("stores", []) if ref in idx]
-        bundle["surfaces"] = [item for item in schema.collections["surfaces"] if item.get("operation") == target["id"]]
-        bundle["flows"] = [
-            item
-            for item in schema.collections["flows"]
-            if any(step.get("ref") == target["id"] for step in item.get("path", []))
-        ]
-        bundle["triggered_transitions"] = [
-            type_item
-            for type_item in schema.collections["types"]
-            if any(transition.get("via") == target["id"] for transition in type_item.get("lifecycle", {}).get("transitions", []))
-        ]
-        bundle["bootstrap_relevance"] = _is_bootstrap_related(schema, target["id"])
-        bundle["contract_refs"] = {
-            "inputs": target.get("inputs", []),
-            "outputs": target.get("outputs", []),
-            "referenced_types": target.get("referenced_types", []),
-            "errors": target.get("errors", []),
-            "reads": target.get("reads", {}).get("types", []),
-            "writes": target.get("writes", {}).get("types", []),
-            "emits": target.get("emits", []),
-            "consumes": target.get("consumes", []),
-        }
-        bundle["runtime_refs"] = {
-            "unit": target.get("unit"),
-            "read_stores": target.get("reads", {}).get("stores", []),
-            "write_stores": target.get("writes", {}).get("stores", []),
-            "surfaces": [item["id"] for item in bundle["surfaces"]],
-            "flows": [item["id"] for item in bundle["flows"]],
-        }
-    elif group == "flows":
-        bundle["owning_vertical"] = idx.get(target.get("vertical"))
-        bundle["steps"] = [idx[step["ref"]] for step in target.get("path", []) if step.get("ref") in idx]
-        bundle["bootstrap_relevance"] = _is_bootstrap_related(schema, target["id"])
-    elif group == "units":
-        bundle["verticals"] = [idx[ref] for ref in target.get("serves_verticals", []) if ref in idx]
-        bundle["surfaces"] = [item for item in schema.collections["surfaces"] if item.get("unit") == target["id"]]
-        bundle["operations"] = [item for item in schema.collections["operations"] if item.get("unit") == target["id"]]
-        bundle["startup_checks"] = bundle["verification_refs"]["startup"]
-        bundle["bootstrap_relevance"] = target["id"] in schema.bootstrap.get("required_units", [])
-    elif group == "verticals":
-        bundle["units"] = [item for item in schema.collections["units"] if target["id"] in item.get("serves_verticals", [])]
-        bundle["operations"] = [item for item in schema.collections["operations"] if item.get("vertical") == target["id"]]
-        bundle["surfaces"] = [item for item in schema.collections["surfaces"] if item.get("vertical") == target["id"]]
-        bundle["flows"] = [item for item in schema.collections["flows"] if item.get("vertical") == target["id"]]
-        bundle["bootstrap_overlap"] = any(
-            item.get("id") in schema.bootstrap.get("required_units", [])
-            for item in bundle["units"]
-        )
-    return bundle
-
-
-def _to_markdown(payload: dict) -> str:
+def _to_markdown(payload: dict[str, Any]) -> str:
     target = payload["target"]
-    related = payload["related"]
-    lines = [f"# Context: {target['id']}", "", f"- kind: `{target.get('kind', 'unknown')}`"]
-    if target.get("name"):
-        lines.append(f"- name: `{target['name']}`")
-    if target.get("description"):
-        lines.append(f"- description: {target['description']}")
-    if related["references"]:
-        lines.append(f"- references: {', '.join(f'`{ref}`' for ref in related['references'])}")
-    if related["referenced_by"]:
-        lines.append(f"- referenced by: {', '.join(f'`{ref}`' for ref in related['referenced_by'])}")
-    if payload.get("implementation_hints"):
-        lines.append(f"- likely implementation paths: {', '.join(f'`{path}`' for path in payload['implementation_hints'])}")
-    if payload.get("verification_refs", {}).get("all"):
+    lines = [
+        f"# Context: {target['id']}",
+        "",
+        f"- type: `{target['type']}`",
+        f"- mode: `{payload['target']['mode']}`",
+    ]
+    summary = payload.get("summary", {})
+    if summary.get("description"):
+        lines.append(f"- description: {summary['description']}")
+    if summary.get("user_value"):
+        lines.append(f"- user value: {summary['user_value']}")
+    if payload.get("implementation_scope", {}).get("involved_containers"):
         lines.append(
-            f"- verification refs: {', '.join(f'`{item['id']}`' for item in payload['verification_refs']['all'])}"
+            "- involved containers: "
+            + ", ".join(f"`{item}`" for item in payload["implementation_scope"]["involved_containers"])
         )
-    slices = payload.get("workbench", {}).get("slices", [])
-    if slices:
-        lines.append(f"- workbench slices: {', '.join(f'`{item['id']}`' for item in slices)}")
-    lines.append("")
-    lines.append("```yaml")
-    lines.append(dump_yaml(target).rstrip())
-    lines.append("```")
+    lines.extend(["", "```yaml", dump_yaml(payload).rstrip(), "```"])
     return "\n".join(lines)
 
 
-def _suggest_ids(schema, raw_target: str, limit: int = 5) -> list[str]:
-    idx = schema.index_by_id()
-    ids = sorted(idx)
-    suggestions = get_close_matches(raw_target, ids, n=limit, cutoff=0.45)
-    if suggestions:
-        return suggestions
-    lowered = raw_target.lower()
-    contains = [item_id for item_id in ids if lowered in item_id.lower()]
-    return contains[:limit]
+def _target(type_: str, id_: str, mode: str) -> dict[str, str]:
+    return {"type": type_, "id": id_, "mode": mode}
 
 
-def run(args: Namespace) -> int:
-    forge_root = Path(args.forge_dir).resolve() if args.forge_dir else find_forge_root()
-    schema = load_schema(forge_root)
-    target = schema.index_by_id().get(args.target)
-    if not target:
-        print(f"Unknown id: {args.target}")
-        suggestions = _suggest_ids(schema, args.target)
-        if suggestions:
-            print("Did you mean:")
-            for suggestion in suggestions:
-                print(f"- {suggestion}")
-        return 1
-    payload = _context_bundle(schema, target)
-    if args.format == "markdown":
-        print(_to_markdown(payload))
-    else:
-        print(f"# Context: {target['id']}")
-        print(f"# Kind: {target.get('kind', 'unknown')}")
-        print(dump_yaml(payload))
-    return 0
+def _summary_from_item(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "description": item.get("description"),
+        "user_value": item.get("user_value"),
+    }
+
+
+def _container_index(schema: ForgeSchema) -> dict[str, dict[str, Any]]:
+    return {item["id"]: item for item in schema.runtime.get("containers", []) if item.get("id")}
+
+
+def _high_level_flow_index(schema: ForgeSchema) -> dict[str, dict[str, Any]]:
+    return schema.index("high_level_flows")
+
+
+def _runtime_flow_index(schema: ForgeSchema) -> dict[str, dict[str, Any]]:
+    return schema.index("runtime_flows")
+
+
+def _data_shape_index(schema: ForgeSchema) -> dict[str, dict[str, Any]]:
+    return schema.index("data_shapes")
+
+
+def _persistent_shape_index(schema: ForgeSchema) -> dict[str, dict[str, Any]]:
+    return schema.index("persistent_shapes")
+
+
+def _vertical_index(schema: ForgeSchema) -> dict[str, dict[str, Any]]:
+    return schema.index("verticals")
+
+
+def _container_artifact_index(schema: ForgeSchema) -> dict[str, dict[str, Any]]:
+    return schema.index("containers")
+
+
+def _extract_refs(value: Any) -> set[str]:
+    refs: set[str] = set()
+    if isinstance(value, str):
+        refs.update(REF_PATTERN.findall(value))
+        return refs
+    if isinstance(value, list):
+        for item in value:
+            refs.update(_extract_refs(item))
+        return refs
+    if isinstance(value, dict):
+        for item in value.values():
+            refs.update(_extract_refs(item))
+    return refs
+
+
+def _deployment_nodes_for_containers(schema: ForgeSchema, container_ids: set[str]) -> list[dict[str, Any]]:
+    nodes: list[dict[str, Any]] = []
+    for environment in schema.deployment.get("environments", []):
+        if not isinstance(environment, dict):
+            continue
+        for node in environment.get("nodes", []):
+            if not isinstance(node, dict):
+                continue
+            node_containers = set(node.get("containers", []))
+            if node_containers & container_ids:
+                nodes.append({"environment": environment.get("id"), **node})
+    return nodes
+
+
+def _security_constraints(system: dict[str, Any], containers: list[dict[str, Any]], persistent_shapes: list[dict[str, Any]]) -> list[str]:
+    constraints: list[str] = []
+    if system.get("security"):
+        constraints.append(system["security"])
+    constraints.extend(item["security"] for item in containers if item.get("security"))
+    constraints.extend(item["security"] for item in persistent_shapes if item.get("security"))
+    return constraints
+
+
+def _testing_expectations(mode: str) -> dict[str, Any]:
+    return {
+        "mode": mode,
+        "required_levels": ["unit", "integration", "full_system"],
+        "environment": "current_target_environment",
+    }
+
+
+def _vertical_context(schema: ForgeSchema, vertical_id: str, mode: str) -> dict[str, Any]:
+    vertical = _vertical_index(schema).get(vertical_id)
+    if not vertical:
+        raise FileNotFoundError(f"Unknown vertical: {vertical_id}")
+    high_level_flows = [
+        _high_level_flow_index(schema)[flow_id]
+        for flow_id in vertical.get("high_level_flows", [])
+        if flow_id in _high_level_flow_index(schema)
+    ]
+    runtime_flows = [
+        flow
+        for flow in schema.runtime_flows
+        if flow.get("high_level_flow") in vertical.get("high_level_flows", [])
+    ]
+    runtime_container_index = _container_index(schema)
+    runtime_containers = [
+        runtime_container_index[item_id]
+        for item_id in vertical.get("runtime_containers", [])
+        if item_id in runtime_container_index
+    ]
+    data_shape_index = _data_shape_index(schema)
+    data_shapes = [
+        data_shape_index[item_id]
+        for item_id in vertical.get("data_shapes", [])
+        if item_id in data_shape_index
+    ]
+    persistent_shape_index = _persistent_shape_index(schema)
+    persistent_shapes = [
+        persistent_shape_index[item_id]
+        for item_id in vertical.get("persistent_shapes", [])
+        if item_id in persistent_shape_index
+    ]
+    container_artifact_index = _container_artifact_index(schema)
+    containers = [
+        container_artifact_index[item_id]
+        for item_id in vertical.get("runtime_containers", [])
+        if item_id in container_artifact_index
+    ]
+    container_ids = {item["id"] for item in runtime_containers}
+    return {
+        "target": _target("vertical", vertical_id, mode),
+        "summary": _summary_from_item(vertical),
+        "artifacts": {
+            "vertical": vertical,
+            "high_level_flows": high_level_flows,
+            "runtime_flows": runtime_flows,
+            "runtime": schema.runtime,
+            "containers": containers,
+            "data_shapes": data_shapes,
+            "persistent_shapes": persistent_shapes,
+            "deployment_nodes": _deployment_nodes_for_containers(schema, container_ids),
+        },
+        "implementation_scope": {
+            "involved_containers": sorted(container_ids),
+            "involved_components": sorted(
+                {
+                    component["id"]
+                    for container in containers
+                    for component in container.get("components", [])
+                    if isinstance(component, dict) and component.get("id")
+                }
+            ),
+            "relevant_shapes": [item["id"] for item in data_shapes],
+            "relevant_persistent_shapes": [item["id"] for item in persistent_shapes],
+        },
+        "constraints": {
+            "security": _security_constraints(schema.system, runtime_containers, persistent_shapes),
+            "build_notes": vertical.get("build_notes"),
+            "deployment_notes": vertical.get("deployment_notes"),
+            "anti_bloat_rules": [
+                "Default to inline one-off payloads.",
+                "Promote only reused, persisted, or important shapes.",
+                "Do not broaden scope beyond the current vertical slice.",
+            ],
+        },
+        "testing": _testing_expectations(mode),
+    }
+
+
+def _flow_context(schema: ForgeSchema, flow_id: str, mode: str) -> dict[str, Any]:
+    flow = _runtime_flow_index(schema).get(flow_id)
+    if not flow:
+        raise FileNotFoundError(f"Unknown runtime flow: {flow_id}")
+    high_level_flow = _high_level_flow_index(schema).get(flow.get("high_level_flow"))
+    container_ids = {
+        step["container"]
+        for step in flow.get("steps", [])
+        if isinstance(step, dict) and step.get("container")
+    }
+    runtime_containers = [
+        _container_index(schema)[container_id]
+        for container_id in sorted(container_ids)
+        if container_id in _container_index(schema)
+    ]
+    container_artifacts = [
+        _container_artifact_index(schema)[container_id]
+        for container_id in sorted(container_ids)
+        if container_id in _container_artifact_index(schema)
+    ]
+    refs = _extract_refs(flow)
+    data_shape_index = _data_shape_index(schema)
+    data_shapes = [data_shape_index[ref] for ref in sorted(refs) if ref in data_shape_index]
+    persistent_shapes = [
+        item
+        for item in schema.persistent_shapes
+        if item.get("data_shape") in refs or item.get("logical_owner_container") in container_ids or item.get("data_store_container") in container_ids
+    ]
+    related_verticals = [
+        vertical
+        for vertical in schema.verticals
+        if flow.get("high_level_flow") in vertical.get("high_level_flows", [])
+    ]
+    return {
+        "target": _target("runtime_flow", flow_id, mode),
+        "summary": _summary_from_item(flow),
+        "artifacts": {
+            "runtime_flow": flow,
+            "high_level_flow": high_level_flow,
+            "runtime_containers": runtime_containers,
+            "containers": container_artifacts,
+            "data_shapes": data_shapes,
+            "persistent_shapes": persistent_shapes,
+            "related_verticals": related_verticals,
+            "deployment_nodes": _deployment_nodes_for_containers(schema, container_ids),
+        },
+        "implementation_scope": {
+            "involved_containers": sorted(container_ids),
+            "relevant_shapes": [item["id"] for item in data_shapes],
+            "relevant_persistent_shapes": [item["id"] for item in persistent_shapes],
+        },
+        "constraints": {
+            "security": _security_constraints(schema.system, runtime_containers, persistent_shapes),
+            "anti_bloat_rules": [
+                "Keep runtime steps container-level only.",
+                "Keep one-off payloads inline unless promoted.",
+            ],
+        },
+        "testing": _testing_expectations(mode),
+    }
+
+
+def _container_context(schema: ForgeSchema, container_id: str, mode: str, component_id: str | None = None) -> dict[str, Any]:
+    runtime_container = _container_index(schema).get(container_id)
+    if not runtime_container:
+        raise FileNotFoundError(f"Unknown runtime container: {container_id}")
+    container_artifact = _container_artifact_index(schema).get(container_id)
+    runtime_flows = []
+    refs: set[str] = set()
+    for flow in schema.runtime_flows:
+        if any(step.get("container") == container_id for step in flow.get("steps", []) if isinstance(step, dict)):
+            runtime_flows.append(flow)
+            refs.update(_extract_refs(flow))
+    verticals = [
+        vertical for vertical in schema.verticals if container_id in vertical.get("runtime_containers", [])
+    ]
+    data_shape_index = _data_shape_index(schema)
+    data_shapes = [data_shape_index[ref] for ref in sorted(refs) if ref in data_shape_index]
+    persistent_shapes = [
+        item
+        for item in schema.persistent_shapes
+        if item.get("logical_owner_container") == container_id or item.get("data_store_container") == container_id
+    ]
+    component = None
+    component_flows: list[dict[str, Any]] = []
+    if container_artifact:
+        if component_id:
+            for candidate in container_artifact.get("components", []):
+                if candidate.get("id") == component_id:
+                    component = candidate
+                    break
+            if not component:
+                raise FileNotFoundError(f"Unknown component `{component_id}` in container `{container_id}`")
+        component_flows = _filter_component_flows(container_artifact, component_id)
+    return {
+        "target": _target("component" if component_id else "container", component_id or container_id, mode),
+        "summary": {
+            "description": component.get("description") if component else runtime_container.get("description"),
+        },
+        "artifacts": {
+            "runtime_container": runtime_container,
+            "container": container_artifact,
+            "component": component,
+            "component_flows": component_flows,
+            "runtime_flows": runtime_flows,
+            "verticals": verticals,
+            "data_shapes": data_shapes,
+            "persistent_shapes": persistent_shapes,
+            "deployment_nodes": _deployment_nodes_for_containers(schema, {container_id}),
+        },
+        "implementation_scope": {
+            "involved_containers": [container_id],
+            "involved_components": [component_id] if component_id else [
+                item["id"] for item in container_artifact.get("components", [])
+            ] if container_artifact else [],
+            "relevant_shapes": [item["id"] for item in data_shapes],
+            "relevant_persistent_shapes": [item["id"] for item in persistent_shapes],
+        },
+        "constraints": {
+            "security": _security_constraints(schema.system, [runtime_container], persistent_shapes),
+            "anti_bloat_rules": [
+                "Do not model classes or files as components.",
+                "Keep component flows as inter-component handoffs only.",
+            ],
+        },
+        "testing": _testing_expectations(mode),
+    }
+
+
+def _filter_component_flows(container_artifact: dict[str, Any], component_id: str | None) -> list[dict[str, Any]]:
+    if not component_id:
+        return container_artifact.get("component_flows", [])
+    flows: list[dict[str, Any]] = []
+    for flow in container_artifact.get("component_flows", []):
+        steps = [
+            step
+            for step in flow.get("steps", [])
+            if isinstance(step, dict) and step.get("component") == component_id
+        ]
+        if steps:
+            narrowed = dict(flow)
+            narrowed["steps"] = steps
+            flows.append(narrowed)
+    return flows
+
+
+def _find_container_for_component(schema: ForgeSchema, component_id: str) -> str | None:
+    for container in schema.containers:
+        for component in container.get("components", []):
+            if isinstance(component, dict) and component.get("id") == component_id:
+                return container.get("id")
+    return None
+
+
+def _system_context(schema: ForgeSchema, mode: str) -> dict[str, Any]:
+    runtime_containers = list(_container_index(schema).values())
+    return {
+        "target": _target("system", schema.system["id"], mode),
+        "summary": {
+            "description": schema.system.get("description"),
+        },
+        "artifacts": {
+            "system": schema.system,
+            "runtime": schema.runtime,
+            "early_state": schema.early_state,
+            "deployment": schema.deployment,
+            "verticals": schema.verticals,
+        },
+        "implementation_scope": {
+            "involved_containers": [item["id"] for item in runtime_containers],
+        },
+        "constraints": {
+            "security": _security_constraints(schema.system, runtime_containers, schema.persistent_shapes),
+        },
+        "testing": _testing_expectations(mode),
+    }
+
+
+def _data_shape_context(schema: ForgeSchema, data_shape_id: str, mode: str) -> dict[str, Any]:
+    data_shape = _data_shape_index(schema).get(data_shape_id)
+    if not data_shape:
+        raise FileNotFoundError(f"Unknown data shape: {data_shape_id}")
+    runtime_flows = [flow for flow in schema.runtime_flows if data_shape_id in _extract_refs(flow)]
+    containers = [
+        _container_artifact_index(schema)[container_id]
+        for flow in runtime_flows
+        for container_id in {
+            step.get("container")
+            for step in flow.get("steps", [])
+            if isinstance(step, dict) and step.get("container") in _container_artifact_index(schema)
+        }
+    ]
+    persistent_shapes = [item for item in schema.persistent_shapes if item.get("data_shape") == data_shape_id]
+    return {
+        "target": _target("data_shape", data_shape_id, mode),
+        "summary": _summary_from_item(data_shape),
+        "artifacts": {
+            "data_shape": data_shape,
+            "runtime_flows": runtime_flows,
+            "containers": containers,
+            "persistent_shapes": persistent_shapes,
+        },
+        "implementation_scope": {
+            "relevant_shapes": [data_shape_id],
+            "relevant_persistent_shapes": [item["id"] for item in persistent_shapes],
+        },
+        "constraints": {
+            "security": [item["security"] for item in persistent_shapes if item.get("security")],
+        },
+        "testing": _testing_expectations(mode),
+    }
+
+
+def _persistent_shape_context(schema: ForgeSchema, persistent_shape_id: str, mode: str) -> dict[str, Any]:
+    persistent_shape = _persistent_shape_index(schema).get(persistent_shape_id)
+    if not persistent_shape:
+        raise FileNotFoundError(f"Unknown persistent shape: {persistent_shape_id}")
+    data_shape = _data_shape_index(schema).get(persistent_shape.get("data_shape"))
+    container_ids = {
+        persistent_shape.get("logical_owner_container"),
+        persistent_shape.get("data_store_container"),
+    } - {None}
+    runtime_containers = [
+        _container_index(schema)[container_id]
+        for container_id in sorted(container_ids)
+        if container_id in _container_index(schema)
+    ]
+    deployment_nodes = _deployment_nodes_for_containers(schema, container_ids)
+    return {
+        "target": _target("persistent_shape", persistent_shape_id, mode),
+        "summary": _summary_from_item(persistent_shape),
+        "artifacts": {
+            "persistent_shape": persistent_shape,
+            "data_shape": data_shape,
+            "runtime_containers": runtime_containers,
+            "deployment_nodes": deployment_nodes,
+        },
+        "implementation_scope": {
+            "involved_containers": sorted(container_ids),
+            "relevant_shapes": [data_shape["id"]] if data_shape else [],
+            "relevant_persistent_shapes": [persistent_shape_id],
+        },
+        "constraints": {
+            "security": _security_constraints(schema.system, runtime_containers, [persistent_shape]),
+        },
+        "testing": _testing_expectations(mode),
+    }

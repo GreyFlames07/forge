@@ -1,0 +1,17 @@
+id: linkhub.shortener.flows.user_redirect
+type: flow
+name: UserRedirect
+description: End-to-end flow for resolving a short code and recording the visit.
+status: active
+owner: platform-team
+trigger: Visitor makes HTTP GET /<code>
+steps:
+  - order: 1
+    interaction: linkhub.shortener.interactions.redirector_resolves_link
+    on_failure: abort
+  - order: 2
+    interaction: linkhub.shortener.interactions.redirector_records_click
+    on_failure: skip
+postconditions: []
+policies:
+  - linkhub.shortener.policies.redirect_sla

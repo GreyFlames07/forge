@@ -1,0 +1,16 @@
+schema: forge.v2.data_shape
+
+data_shapes:
+  - id: inventory_reservation_record
+    description: Persisted reservation state for stock committed to a fulfillment order.
+    kind: state
+    shape:
+      reservation_id: string
+      order_id: string
+      warehouse_id: string
+      reservation_status: enum[pending, reserved, partial, released]
+      reserved_items:
+        - sku: string
+          quantity: integer @min(1)
+      created_at: datetime
+      updated_at: datetime

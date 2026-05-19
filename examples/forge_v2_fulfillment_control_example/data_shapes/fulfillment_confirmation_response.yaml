@@ -1,0 +1,13 @@
+schema: forge.v2.data_shape
+
+data_shapes:
+  - id: fulfillment_confirmation_response
+    description: Customer-facing success response returned when fulfillment is confirmed and shipment is booked.
+    kind: payload
+    shape:
+      order_id: string
+      status: enum[confirmed]
+      shipment_status: enum[booked]
+      tracking_number: string
+      estimated_delivery_at: datetime
+      confirmation_message: string

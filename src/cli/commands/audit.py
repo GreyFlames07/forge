@@ -70,6 +70,7 @@ def _asset_data_url(filename: str, mime_type: str = "image/svg+xml") -> str:
 def render_audit_html(schema: ForgeSchema) -> str:
     data_entries = _build_data_entries(schema)
     sections: list[dict[str, str]] = [
+        {"id": "overview", "group": "Overview", "label": "Overview"},
         {"id": "system-overview", "group": "System", "label": "System"},
         {"id": "runtime-overview", "group": "Runtime", "label": "Runtime Overview"},
         {"id": "data-overview", "group": "Data", "label": "Data Overview"},
@@ -150,6 +151,7 @@ def render_audit_html(schema: ForgeSchema) -> str:
         "__DYNAMIC_ITEM_BUTTONS_HTML__": item_buttons,
         "__SYSTEM_ID__": escape(str(schema.system.get("id", "forge"))),
         "__AUDIT_DATA__": data_payload,
+        "__OVERVIEW_BODY__": _render_overview_section(schema, data_entries),
         "__SYSTEM_BODY__": _render_system_section(schema),
         "__RUNTIME_BODY__": _render_runtime_section(schema),
         "__DATA_BODY__": _render_data_section(data_entries),
@@ -172,6 +174,46 @@ def _interaction_payload(schema: ForgeSchema) -> dict[str, object]:
         "containers": [item.get("id") for item in schema.containers],
         "graph_targets": _graph_targets(schema),
     }
+
+
+def _render_overview_section(schema: ForgeSchema, data_entries: list[dict[str, object]]) -> str:
+    summary_cards = [
+        ("System", str(schema.system.get("id", "forge")), None),
+        ("High-Level Flows", str(len(schema.high_level_flows)), "flow"),
+        ("Runtime Containers", str(len(schema.runtime.get("containers", []))), "runtime"),
+        ("Verticals", str(len(schema.verticals)), "vertical"),
+    ]
+    summary_html = "".join(
+        '<div class="card">'
+        f"<h3>{escape(title)}</h3>"
+        f"<p>{escape(value)}</p>"
+        "</div>"
+        for title, value, _kind in summary_cards
+    )
+    jump_cards = [
+        ("Jump To System", "Open the system boundary and external dependency view.", "Open System", "system-overview"),
+        ("Jump To Runtime", "Inspect the container graph and runtime boundaries.", "Open Runtime", "runtime-overview"),
+        ("Jump To Data", "Review promoted data shapes and persistent storage.", "Open Data", "data-overview"),
+        ("Jump To Deployment", "Review environment and node placement.", "Open Deployment", "deployment-overview"),
+    ]
+    jump_html = "".join(
+        '<div class="card">'
+        f"<h3>{escape(title)}</h3>"
+        f"<p>{escape(description)}</p>"
+        f'<button class="pill action-pill" type="button" data-target="{escape(target)}">{escape(label)}</button>'
+        "</div>"
+        for title, description, label, target in jump_cards
+    )
+    return (
+        _section_header(
+            "overview",
+            f"{schema.system.get('id', 'forge')} / Overview",
+            "Overview",
+            "System-wide audit summary and quick links into the architecture.",
+        )
+        + f'<div class="grid grid-4">{summary_html}</div>'
+        + f'<div class="grid grid-4">{jump_html}</div>'
+    )
 
 
 def _item_button(label: str, target: str, group: str) -> str:
@@ -216,7 +258,24 @@ def _toolbar_section_priority(section: dict[str, str]) -> int:
 
 
 def _section(section_id: str, group: str, title: str, description: str, body: str, system_id: str) -> str:
-    return f'<section class="section" id="{escape(section_id)}" data-group="{escape(group)}">{body}</section>'
+    breadcrumb = f"{system_id} / {title}"
+    return (
+        f'<section class="section" id="{escape(section_id)}" data-group="{escape(group)}">'
+        f"{_section_header(section_id, breadcrumb, title, description)}"
+        f"{body}"
+        "</section>"
+    )
+
+
+def _section_header(section_id: str, breadcrumb: str, title: str, description: str) -> str:
+    del section_id
+    return (
+        '<div class="section-header">'
+        f'<p class="section-eyebrow">{escape(breadcrumb)}</p>'
+        f'<h2 class="section-title">{escape(title)}</h2>'
+        f'<p class="section-description">{escape(description)}</p>'
+        "</div>"
+    )
 
 
 def _render_system_section(schema: ForgeSchema) -> str:

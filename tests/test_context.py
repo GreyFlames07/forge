@@ -100,9 +100,17 @@ def test_init_scaffolds_traversable_repo(tmp_path: Path, capsys) -> None:
     assert (forge_root / "skills" / "forge-schema" / "SKILL.md").exists()
     assert "dist/" in (root / ".gitignore").read_text(encoding="utf-8")
     assert "*.egg-info/" in (root / ".gitignore").read_text(encoding="utf-8")
-    assert (root / ".claude" / "skills" / "forge-schema").is_symlink()
-    assert (root / ".codex" / "skills" / "forge-build").is_symlink()
-    assert (root / ".agents" / "skills" / "forge-review").is_symlink()
+    codex_skill = root / ".codex" / "skills" / "forge-build"
+    assert codex_skill.is_dir()
+    assert not codex_skill.is_symlink()
+    assert (codex_skill / "SKILL.md").exists()
+    assert (codex_skill / "coding_agent_skills_reference").is_symlink()
+    surfaced_skill = (codex_skill / "SKILL.md").read_text(encoding="utf-8")
+    assert "../../../forge/SCHEMA_REFERENCE_V3.md" in surfaced_skill
+    assert "../../../forge/USING_FORGE.md" in surfaced_skill
+    assert "../forge-schema/SKILL.md" in surfaced_skill
+    assert (root / ".claude" / "skills" / "forge-schema" / "SKILL.md").exists()
+    assert (root / ".agents" / "skills" / "forge-review" / "SKILL.md").exists()
     rewritten_skill = (forge_root / "skills" / "forge-schema" / "SKILL.md").read_text(encoding="utf-8")
     assert "../../SCHEMA_REFERENCE_V3.md" in rewritten_skill
     assert "../../USING_FORGE.md" in rewritten_skill
@@ -140,11 +148,15 @@ def test_audit_generates_html(tmp_path: Path, capsys) -> None:
     text = output.read_text(encoding="utf-8")
     assert "Forge Audit" in text
     assert "class=\"subnav\"" in text
+    assert 'id="overview"' in text
+    assert '>Overview<' in text
     assert "system-overview" in text
     assert "runtime-overview" in text
     assert "data-overview" in text
     assert "deployment-overview" in text
     assert "container-ordering_api" in text
+    assert "artisan_goods_marketplace / Flow: place_order" in text
+    assert "High-level flow with nested runtime and component realization." in text
     assert "place_order_runtime" in text
     assert "&quot;order_id&quot;: &quot;string&quot;" in text
     assert "&quot;payment_status&quot;: &quot;enum[initiated, authorized, failed]&quot;" in text

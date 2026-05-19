@@ -1,6 +1,13 @@
 ---
 name: forge-schema
-description: Build and refine the Forge V2 schema framework through a guided workshop. Use when defining or updating the canonical Forge V2 architecture artifacts: system, high-level flows, early state, runtime, verticals, runtime flows, data shapes, persistent shapes, containers, and deployment. Use when the user wants consultation rather than blind drafting, when artifact bloat must be controlled, or when a whole-system model must be turned into one vertical at a time.
+description: >-
+  Build and refine the Forge V2 schema framework through a guided workshop.
+  Use when defining or updating the canonical Forge V2 architecture artifacts:
+  system, high-level flows, early state, runtime, verticals, runtime flows,
+  data shapes, persistent shapes, containers, and deployment. Use when the
+  user wants consultation rather than blind drafting, when artifact bloat must
+  be controlled, or when a whole-system model must be turned into one vertical
+  at a time.
 ---
 
 # forge-schema

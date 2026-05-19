@@ -133,6 +133,17 @@ def test_packaged_init_docs_exist() -> None:
     assert package_resources.joinpath("skills", "forge-build", "SKILL.md").is_file()
 
 
+def test_packaged_skill_frontmatter_is_valid_yaml() -> None:
+    package_skills = importlib.resources.files("cli").joinpath("resources", "skills")
+    for skill_file in package_skills.glob("forge-*/SKILL.md"):
+        text = skill_file.read_text(encoding="utf-8")
+        _, frontmatter, _ = text.split("---", 2)
+        payload = yaml.safe_load(frontmatter)
+        assert isinstance(payload, dict), f"{skill_file} frontmatter must parse to a mapping"
+        assert payload.get("name"), f"{skill_file} frontmatter must include a name"
+        assert payload.get("description"), f"{skill_file} frontmatter must include a description"
+
+
 def test_audit_generates_html(tmp_path: Path, capsys) -> None:
     output = tmp_path / "forge-audit.html"
     assert main(

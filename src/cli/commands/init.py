@@ -172,10 +172,6 @@ def _scaffold_repository(target_root: Path, system_name: str, system_id: str) ->
     _create_skill_symlinks(target_root, forge_root)
 
 
-def _source_root() -> Path:
-    return Path(__file__).resolve().parents[3]
-
-
 def _copy_docs(forge_root: Path) -> None:
     forge_root.mkdir(parents=True, exist_ok=True)
     for filename in DOC_FILES:
@@ -185,16 +181,11 @@ def _copy_docs(forge_root: Path) -> None:
 
 
 def _copy_skills(forge_root: Path) -> None:
-    source_skills = _source_root() / "skills"
     target_skills = forge_root / "skills"
     target_skills.mkdir(parents=True, exist_ok=True)
-    for skill_name in SKILL_DIRS:
-        shutil.copytree(
-            source_skills / skill_name,
-            target_skills / skill_name,
-            dirs_exist_ok=True,
-            ignore=shutil.ignore_patterns(".DS_Store", "__pycache__"),
-        )
+    with as_file(files("cli").joinpath("resources", "skills")) as source_skills:
+        for skill_name in SKILL_DIRS:
+            shutil.copytree(source_skills / skill_name, target_skills / skill_name, dirs_exist_ok=True)
 
 
 def _rewrite_skill_references(forge_root: Path) -> None:

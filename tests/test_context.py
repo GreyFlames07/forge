@@ -121,6 +121,8 @@ def test_packaged_init_docs_exist() -> None:
     package_resources = importlib.resources.files("cli").joinpath("resources")
     assert package_resources.joinpath("SCHEMA_REFERENCE_V3.md").is_file()
     assert package_resources.joinpath("FRAMEWORK_V3.md").is_file()
+    assert package_resources.joinpath("skills", "forge-schema", "SKILL.md").is_file()
+    assert package_resources.joinpath("skills", "forge-build", "SKILL.md").is_file()
 
 
 def test_audit_generates_html(tmp_path: Path, capsys) -> None:

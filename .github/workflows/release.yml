@@ -44,10 +44,31 @@ jobs:
           PY
 
       - name: Build distributions
-        run: python -m build
+        run: |
+          rm -rf build dist
+          find src/cli/resources/skills -type d -name '__pycache__' -prune -exec rm -rf {} +
+          find src/cli/resources/skills -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete
+          python -m build
 
       - name: Check distribution metadata
         run: python -m twine check dist/*
+
+      - name: Smoke test installed wheel
+        run: |
+          python -m venv /tmp/forge-release-venv
+          /tmp/forge-release-venv/bin/python -m ensurepip --upgrade >/dev/null
+          /tmp/forge-release-venv/bin/python -m pip install dist/*.whl
+          /tmp/forge-release-venv/bin/forge --help >/dev/null
+
+      - name: Smoke test init onboarding
+        run: |
+          tmpdir="$(mktemp -d)"
+          /tmp/forge-release-venv/bin/forge init --root "$tmpdir" --name "Release Project" --id release_project --no-animation >/tmp/forge-release-init.log
+          test -f "$tmpdir/forge/USING_FORGE.md"
+          test -f "$tmpdir/forge/SCHEMA_REFERENCE_V3.md"
+          test -f "$tmpdir/forge/skills/forge-schema/SKILL.md"
+          test -f "$tmpdir/forge/skills/forge-security/SKILL.md"
+          grep -q "Start With Skills" "$tmpdir/forge/USING_FORGE.md"
 
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

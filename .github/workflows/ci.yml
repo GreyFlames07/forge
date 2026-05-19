@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
 
     steps:
       - name: Check out repository
@@ -36,10 +36,14 @@ jobs:
         run: pytest -q
 
       - name: Compile source
-        run: python -m compileall -q src
+        run: python -m compileall -q src/cli/__init__.py src/cli/__main__.py src/cli/common.py src/cli/forge.py src/cli/schema.py src/cli/commands
 
       - name: Build distributions
-        run: python -m build
+        run: |
+          rm -rf build dist
+          find src/cli/resources/skills -type d -name '__pycache__' -prune -exec rm -rf {} +
+          find src/cli/resources/skills -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete
+          python -m build
 
       - name: Check distribution metadata
         run: python -m twine check dist/*
@@ -49,11 +53,14 @@ jobs:
           python -m venv /tmp/forge-wheel-venv
           /tmp/forge-wheel-venv/bin/python -m ensurepip --upgrade >/dev/null
           /tmp/forge-wheel-venv/bin/python -m pip install dist/*.whl
-          /tmp/forge-wheel-venv/bin/forge --help
+          /tmp/forge-wheel-venv/bin/forge --help >/dev/null
 
       - name: Smoke test init onboarding
         run: |
           tmpdir="$(mktemp -d)"
           /tmp/forge-wheel-venv/bin/forge init --root "$tmpdir" --name "CI Project" --id ci_project --no-animation >/tmp/forge-init.log
-          test -f "$tmpdir/docs/USING_FORGE.md"
-          grep -q "Start With Skills" "$tmpdir/docs/USING_FORGE.md"
+          test -f "$tmpdir/forge/USING_FORGE.md"
+          test -f "$tmpdir/forge/SCHEMA_REFERENCE_V3.md"
+          test -f "$tmpdir/forge/skills/forge-schema/SKILL.md"
+          test -f "$tmpdir/forge/skills/forge-build/SKILL.md"
+          grep -q "Start With Skills" "$tmpdir/forge/USING_FORGE.md"

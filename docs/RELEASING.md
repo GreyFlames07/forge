@@ -44,7 +44,7 @@ make verify-package
 ```
 
 7. Create a GitHub release with tag `v<project.version>`.
-8. Let `.github/workflows/publish.yml` publish to PyPI through trusted publishing.
+8. Let `.github/workflows/release.yml` publish to PyPI through trusted publishing.
 9. Treat the release as valid only if the skills, CLI, and audit artifact still align.
 
 ## PyPI Trusted Publishing
@@ -55,8 +55,8 @@ On the PyPI project settings page, add a trusted publisher for:
 
 - owner: this GitHub repository owner
 - repository: `forge`
-- workflow: `.github/workflows/publish.yml`
+- workflow: `.github/workflows/release.yml`
 - environment: `pypi`
 
-Until that is configured in PyPI, the GitHub publish workflow will build and
+Until that is configured in PyPI, the GitHub release workflow will build and
 verify artifacts correctly but PyPI will reject the final publish step.

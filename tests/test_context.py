@@ -3,15 +3,22 @@ from __future__ import annotations
 import importlib.resources
 import json
 import shutil
+import tomllib
 from pathlib import Path
 
 import yaml
 
+from cli import __version__
 from cli.forge import main
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE_ROOT = REPO_ROOT / "examples" / "forge_v2_ordering_example"
 COMPLEX_EXAMPLE_ROOT = REPO_ROOT / "examples" / "forge_v2_fulfillment_control_example"
+
+
+def test_package_version_matches_pyproject() -> None:
+    pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    assert __version__ == pyproject["project"]["version"]
 
 
 def test_vertical_context_json(capsys) -> None:

@@ -27,6 +27,10 @@ SKILL_DIRS = [
     "forge-build",
 ]
 
+SKILL_ALIASES = {
+    "forge-spec": "forge-schema",
+}
+
 SKILL_SURFACES = [
     ".claude/skills",
     ".codex/skills",
@@ -192,6 +196,8 @@ def _copy_skills(forge_root: Path) -> None:
     with as_file(files("cli").joinpath("resources", "skills")) as source_skills:
         for skill_name in SKILL_DIRS:
             shutil.copytree(source_skills / skill_name, target_skills / skill_name, dirs_exist_ok=True)
+    for alias, target in SKILL_ALIASES.items():
+        _write_text(target_skills / alias / "SKILL.md", _alias_skill_text(alias, f"../{target}/SKILL.md"))
 
 
 def _rewrite_skill_references(forge_root: Path) -> None:
@@ -215,6 +221,8 @@ def _create_surface_skills(target_root: Path, forge_root: Path) -> None:
         surface_root.mkdir(parents=True, exist_ok=True)
         for skill_name in SKILL_DIRS:
             _create_surface_skill(surface_root, forge_root, skill_name)
+        for alias, target in SKILL_ALIASES.items():
+            _create_surface_alias_skill(surface_root, alias, target)
 
 
 def _create_surface_skill(surface_root: Path, forge_root: Path, skill_name: str) -> None:
@@ -252,8 +260,35 @@ def _surface_skill_text(skill_path: Path) -> str:
     )
 
 
+def _create_surface_alias_skill(surface_root: Path, alias: str, target: str) -> None:
+    alias_root = surface_root / alias
+    if alias_root.exists() or alias_root.is_symlink():
+        if alias_root.is_symlink() or alias_root.is_file():
+            alias_root.unlink()
+        else:
+            shutil.rmtree(alias_root)
+    alias_root.mkdir(parents=True, exist_ok=True)
+    _write_text(alias_root / "SKILL.md", _alias_skill_text(alias, f"../{target}/SKILL.md"))
+
+
 def _relative_symlink_target(link_parent: Path, destination: Path) -> Path:
     return Path(os.path.relpath(destination, start=link_parent))
+
+
+def _alias_skill_text(alias: str, target_path: str) -> str:
+    return f"""---
+name: {alias}
+description: Backwards-compat alias for `forge-schema`
+---
+
+# {alias}
+
+This skill name is kept for backwards compatibility.
+
+Continue with:
+
+- `{target_path}`
+"""
 
 
 def _project_readme(system_name: str) -> str:

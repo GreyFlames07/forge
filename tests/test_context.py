@@ -9,6 +9,7 @@ from pathlib import Path
 import yaml
 
 from cli import __version__
+from cli.commands.audit import _edge_label, render_live_audit_html
 from cli.forge import main
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -158,6 +159,7 @@ def test_audit_generates_html(tmp_path: Path, capsys) -> None:
             "audit",
             "--project-dir",
             str(EXAMPLE_ROOT),
+            "--artifact",
             "--output",
             str(output),
             "--no-open",
@@ -211,6 +213,7 @@ def test_complex_audit_generates_html(tmp_path: Path, capsys) -> None:
             "audit",
             "--project-dir",
             str(COMPLEX_EXAMPLE_ROOT),
+            "--artifact",
             "--output",
             str(output),
             "--no-open",
@@ -245,3 +248,32 @@ def test_schema_validation_reports_broken_references(tmp_path: Path, capsys) -> 
     output = capsys.readouterr().out
     assert "Schema validation failed" in output
     assert "vertical `place_order` runtime_containers references unknown id `missing_orders_db`." in output
+
+
+def test_live_audit_rerenders_from_current_schema(tmp_path: Path) -> None:
+    copied_root = tmp_path / "example"
+    shutil.copytree(EXAMPLE_ROOT, copied_root)
+
+    initial_html = render_live_audit_html(copied_root)
+    assert "purchase through its lifecycle." in initial_html
+
+    persistent_shape = copied_root / "persistent_shapes" / "order.yaml"
+    persistent_shape.write_text(
+        persistent_shape.read_text(encoding="utf-8").replace(
+            "Persisted order shape representing a customer's purchase through its lifecycle.",
+            "Updated live schema description for audit refresh.",
+            1,
+        ),
+        encoding="utf-8",
+    )
+
+    updated_html = render_live_audit_html(copied_root)
+    assert "Updated live schema description for audit refresh." in updated_html
+    assert "purchase through its lifecycle." not in updated_html
+
+
+def test_edge_label_caps_descriptions_to_five_words() -> None:
+    assert _edge_label("Order record persisted for reconciliation and downstream fulfillment workflows.") == (
+        "Order record persisted for reconciliation"
+    )
+    assert _edge_label("depends on") == "depends on"

@@ -6,6 +6,8 @@ import platform
 import subprocess
 from argparse import Namespace
 from html import escape
+from http import HTTPStatus
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from cli.commands.base import add_project_dir_arg
@@ -14,33 +16,90 @@ from cli.schema import ForgeSchema, load_schema
 
 
 def register_audit(subparsers) -> None:
-    parser = subparsers.add_parser("audit", help="Generate a self-contained Forge audit dashboard HTML file")
+    parser = subparsers.add_parser("audit", help="Launch a live Forge audit dashboard webserver")
     add_project_dir_arg(parser)
     parser.add_argument("--output", "-o", default="./forge-audit.html", help="Output HTML path")
-    parser.add_argument("--no-open", action="store_true", help="Do not automatically open the generated audit artifact")
+    parser.add_argument(
+        "--artifact",
+        action="store_true",
+        help="Write the static audit HTML artifact instead of launching the live webserver",
+    )
+    parser.add_argument("--no-open", action="store_true", help="Do not automatically open the browser or generated audit artifact")
     parser.set_defaults(func=run)
 
 
 def run(args: Namespace) -> int:
     root = find_project_root(Path(args.project_dir).resolve() if args.project_dir else None)
-    schema = load_schema(root)
-    output = Path(args.output).expanduser().resolve()
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(render_audit_html(schema), encoding="utf-8")
-    if not args.no_open:
-        _open_file(output)
-    print(f"Forge audit written to {output}")
+    if args.artifact:
+        schema = load_schema(root)
+        output = Path(args.output).expanduser().resolve()
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(render_audit_html(schema), encoding="utf-8")
+        if not args.no_open:
+            _open_file(output)
+        print(f"Forge audit written to {output}")
+        return 0
+
+    _serve_audit(root, open_browser=not args.no_open)
     return 0
 
 
-def _open_file(path: Path) -> None:
+def _serve_audit(root: Path, *, open_browser: bool) -> None:
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _audit_handler(root))
+    host, port = server.server_address
+    url = f"http://{host}:{port}"
+    if open_browser:
+        _open_file(url)
+    print(f"Forge audit live server running at {url}")
+    print("Press Ctrl+C to stop.")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nForge audit server stopped.")
+    finally:
+        server.server_close()
+
+
+def _audit_handler(root: Path) -> type[BaseHTTPRequestHandler]:
+    class AuditHandler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:  # noqa: N802
+            if self.path not in {"/", "/index.html"}:
+                self.send_error(HTTPStatus.NOT_FOUND, "Not found")
+                return
+            try:
+                html = render_audit_html(load_schema(root))
+            except Exception as exc:  # pragma: no cover - exercised via direct helper test
+                body = f"<html><body><h1>Forge audit error</h1><pre>{escape(str(exc))}</pre></body></html>"
+                payload = body.encode("utf-8")
+                self.send_response(HTTPStatus.INTERNAL_SERVER_ERROR)
+            else:
+                payload = html.encode("utf-8")
+                self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+        def log_message(self, format: str, *args: object) -> None:  # noqa: A003
+            del format, args
+
+    return AuditHandler
+
+
+def render_live_audit_html(root: Path) -> str:
+    """Render the live audit dashboard from the current on-disk schema."""
+    return render_audit_html(load_schema(root))
+
+
+def _open_file(path: str | Path) -> None:
+    target = str(path)
     system = platform.system()
     if system == "Darwin":
-        subprocess.run(["open", str(path)], check=False)
+        subprocess.run(["open", target], check=False)
     elif system == "Windows":
-        subprocess.run(["cmd", "/c", "start", "", str(path)], check=False)
+        subprocess.run(["cmd", "/c", "start", "", target], check=False)
     else:
-        subprocess.run(["xdg-open", str(path)], check=False)
+        subprocess.run(["xdg-open", target], check=False)
 
 
 def _template_text(filename: str) -> str:
@@ -1080,18 +1139,26 @@ def _elk_edge(
     label_lane: int = 0,
     label_wrap: int = 18,
 ) -> dict[str, object]:
+    display_label = _edge_label(label)
     return {
-        "id": f'{_elk_id(source)}__{_elk_id(target)}__{len(label)}',
+        "id": f'{_elk_id(source)}__{_elk_id(target)}__{len(display_label)}',
         "sources": [_elk_id(source)],
         "targets": [_elk_id(target)],
         "forge": {
-            "label": label,
+            "label": display_label,
             "style": style,
             "showLabel": show_label,
             "labelLane": label_lane,
             "labelWrap": label_wrap,
         },
     }
+
+
+def _edge_label(label: str, max_words: int = 5) -> str:
+    words = str(label).split()
+    if len(words) <= max_words:
+        return str(label).strip()
+    return " ".join(words[:max_words])
 
 
 def _elk_graph(nodes: list[dict[str, object]], edges: list[dict[str, object]]) -> dict[str, object]:

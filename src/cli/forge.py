@@ -27,3 +27,7 @@ def main(argv: list[str] | None = None) -> int:
     except FileNotFoundError as exc:
         print(f"Error: {exc}")
         return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

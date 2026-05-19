@@ -6,6 +6,7 @@ import sys
 import threading
 import time
 from argparse import Namespace
+from importlib.resources import as_file, files
 from pathlib import Path
 
 from cli.schema import dump_yaml
@@ -152,40 +153,40 @@ def _step(number: int, title: str, detail: str) -> str:
 
 
 def _scaffold_repository(target_root: Path, system_name: str, system_id: str) -> None:
+    forge_root = target_root / "forge"
     _write_text(target_root / "README.md", _project_readme(system_name))
-    _write_text(target_root / "decision_notes.md", "# Decision Notes\n\nRecord meaningful Forge decisions here.\n")
     _write_text(target_root / ".gitignore", _scaffold_gitignore())
+    _write_text(forge_root / "decision_notes.md", "# Decision Notes\n\nRecord meaningful Forge decisions here.\n")
 
-    _write_yaml(target_root / "system.yaml", _system_seed(system_name, system_id))
-    _write_yaml(target_root / "runtime.yaml", {"schema": "forge.v2.runtime", "runtime": {"containers": [], "relationships": []}})
-    _write_yaml(target_root / "early_state.yaml", {"schema": "forge.v2.early_state", "early_state": []})
-    _write_yaml(target_root / "deployment.yaml", {"schema": "forge.v2.deployment", "deployment": {"environments": []}})
+    _write_yaml(forge_root / "system.yaml", _system_seed(system_name, system_id))
+    _write_yaml(forge_root / "runtime.yaml", {"schema": "forge.v2.runtime", "runtime": {"containers": [], "relationships": []}})
+    _write_yaml(forge_root / "early_state.yaml", {"schema": "forge.v2.early_state", "early_state": []})
+    _write_yaml(forge_root / "deployment.yaml", {"schema": "forge.v2.deployment", "deployment": {"environments": []}})
 
     for directory in COLLECTION_DIRS:
-        (target_root / directory).mkdir(parents=True, exist_ok=True)
+        (forge_root / directory).mkdir(parents=True, exist_ok=True)
 
-    _copy_docs(target_root)
-    _copy_skills(target_root)
-    _rewrite_skill_references(target_root)
-    _create_skill_symlinks(target_root)
+    _copy_docs(forge_root)
+    _copy_skills(forge_root)
+    _rewrite_skill_references(forge_root)
+    _create_skill_symlinks(target_root, forge_root)
 
 
 def _source_root() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
-def _copy_docs(target_root: Path) -> None:
-    docs_root = target_root / "docs"
-    docs_root.mkdir(parents=True, exist_ok=True)
-    source_root = _source_root()
+def _copy_docs(forge_root: Path) -> None:
+    forge_root.mkdir(parents=True, exist_ok=True)
     for filename in DOC_FILES:
-        shutil.copy2(source_root / filename, docs_root / filename)
-    _write_text(docs_root / "USING_FORGE.md", _using_forge_doc())
+        with as_file(files("cli").joinpath("resources", filename)) as source_path:
+            shutil.copy2(source_path, forge_root / filename)
+    _write_text(forge_root / "USING_FORGE.md", _using_forge_doc())
 
 
-def _copy_skills(target_root: Path) -> None:
+def _copy_skills(forge_root: Path) -> None:
     source_skills = _source_root() / "skills"
-    target_skills = target_root / "skills"
+    target_skills = forge_root / "skills"
     target_skills.mkdir(parents=True, exist_ok=True)
     for skill_name in SKILL_DIRS:
         shutil.copytree(
@@ -196,22 +197,22 @@ def _copy_skills(target_root: Path) -> None:
         )
 
 
-def _rewrite_skill_references(target_root: Path) -> None:
+def _rewrite_skill_references(forge_root: Path) -> None:
     for skill_name in SKILL_DIRS:
-        skill_path = target_root / "skills" / skill_name / "SKILL.md"
+        skill_path = forge_root / "skills" / skill_name / "SKILL.md"
         text = skill_path.read_text(encoding="utf-8")
-        text = text.replace("../../SCHEMA_REFERENCE_V3.md", "../../docs/SCHEMA_REFERENCE_V3.md")
-        text = text.replace("../../FRAMEWORK_V3.md", "../../docs/FRAMEWORK_V3.md")
-        if "Read before starting:" in text and "../../docs/USING_FORGE.md" not in text:
+        text = text.replace("../../SCHEMA_REFERENCE_V3.md", "../../SCHEMA_REFERENCE_V3.md")
+        text = text.replace("../../FRAMEWORK_V3.md", "../../FRAMEWORK_V3.md")
+        if "Read before starting:" in text and "../../USING_FORGE.md" not in text:
             text = text.replace(
                 "Read before starting:\n",
-                "Read before starting:\n\n- `../../docs/USING_FORGE.md`\n",
+                "Read before starting:\n\n- `../../USING_FORGE.md`\n",
                 1,
             )
         skill_path.write_text(text, encoding="utf-8")
 
 
-def _create_skill_symlinks(target_root: Path) -> None:
+def _create_skill_symlinks(target_root: Path, forge_root: Path) -> None:
     for surface in (".claude/skills", ".codex/skills", ".agents/skills"):
         surface_root = target_root / surface
         surface_root.mkdir(parents=True, exist_ok=True)
@@ -219,7 +220,7 @@ def _create_skill_symlinks(target_root: Path) -> None:
             target = surface_root / skill_name
             if target.exists() or target.is_symlink():
                 target.unlink()
-            target.symlink_to(_relative_symlink_target(surface_root, target_root / "skills" / skill_name))
+            target.symlink_to(_relative_symlink_target(surface_root, forge_root / "skills" / skill_name))
 
 
 def _relative_symlink_target(link_parent: Path, destination: Path) -> Path:
@@ -230,9 +231,9 @@ def _project_readme(system_name: str) -> str:
     return (
         f"# {system_name}\n\n"
         "Initialized with Forge.\n\n"
-        "Start with `docs/USING_FORGE.md`. Forge is skills-first: the skills drive "
-        "the workflow, and the CLI supplies only the scoped context or artifacts "
-        "the active skill needs.\n"
+        "Forge scaffolds a dedicated `forge/` workspace for the schema, docs, and skills.\n\n"
+        "Start with `forge/USING_FORGE.md`. Forge is skills-first: the skills drive "
+        "the workflow, and the CLI supplies only the scoped context or artifacts the active skill needs.\n"
     )
 
 
@@ -268,28 +269,40 @@ def _scaffold_gitignore() -> str:
 
 
 def _print_init_summary(target_root: Path, system_name: str, system_id: str) -> None:
-    docs_root = target_root / "docs"
+    forge_root = target_root / "forge"
     print(_banner("FORGE INITIALIZED"))
     print(f"Forge initialized at {target_root}")
     print(f"{_color('Location:', YELLOW, bold=True)} {target_root}")
     print("")
     print(_section("Framework"))
     print(_bullet(f"system: {system_name} (`{system_id}`)"))
-    print(_bullet(f"schema root: {target_root}"))
-    print(_bullet(f"docs: {docs_root}"))
-    print(_bullet(f"skills: {target_root / 'skills'}"))
+    print(_bullet(f"repository root: {target_root}"))
+    print(_bullet(f"forge workspace: {forge_root}"))
+    print(_bullet(f"skills: {forge_root / 'skills'}"))
     print("")
     print(_section("Start With Skills"))
-    print(_bullet("primary driver: `skills/forge-schema/SKILL.md`"))
-    print(_bullet("pre-build architecture review: `skills/forge-review/SKILL.md`"))
-    print(_bullet("pre-build security review: `skills/forge-security/SKILL.md`"))
-    print(_bullet("plan and build only after those passes: `skills/forge-build/SKILL.md`"))
+    print(_bullet("primary driver: `forge/skills/forge-schema/SKILL.md`"))
+    print(_bullet("pre-build architecture review: `forge/skills/forge-review/SKILL.md`"))
+    print(_bullet("pre-build security review: `forge/skills/forge-security/SKILL.md`"))
+    print(_bullet("plan and build only after those passes: `forge/skills/forge-build/SKILL.md`"))
     print(_bullet("the CLI supports the active skill; it is not the main workflow", accent=ORANGE))
     print("")
     print(_section("Use Forge In This Order"))
-    print(_step(1, "Define the broad truth with `forge-schema`.", "Author `system.yaml`, `high_level_flows/`, `early_state.yaml`, and `runtime.yaml` first."))
+    print(
+        _step(
+            1,
+            "Define the broad truth with `forge-schema`.",
+            "Author `forge/system.yaml`, `forge/high_level_flows/`, `forge/early_state.yaml`, and `forge/runtime.yaml` first.",
+        )
+    )
     print(_step(2, "Split the system into development slices in `verticals/`.", "Keep each vertical thin, buildable, and tied to clear user value."))
-    print(_step(3, "Deepen one vertical only.", "Add `runtime_flows/`, `data_shapes/`, `persistent_shapes/`, `containers/`, and `deployment.yaml` as needed."))
+    print(
+        _step(
+            3,
+            "Deepen one vertical only.",
+            "Add `forge/runtime_flows/`, `forge/data_shapes/`, `forge/persistent_shapes/`, `forge/containers/`, and `forge/deployment.yaml` as needed.",
+        )
+    )
     print(
         _step(
             4,
@@ -306,15 +319,15 @@ def _print_init_summary(target_root: Path, system_name: str, system_id: str) -> 
     print(_bullet("capture meaningful tradeoffs in `decision_notes.md`"))
     print("")
     print(_section("Read Next"))
-    print(_bullet(f"`{docs_root / 'USING_FORGE.md'}`"))
-    print(_bullet(f"`{docs_root / 'FRAMEWORK_V3.md'}`"))
-    print(_bullet(f"`{docs_root / 'SCHEMA_REFERENCE_V3.md'}`"))
+    print(_bullet(f"`{forge_root / 'USING_FORGE.md'}`"))
+    print(_bullet(f"`{forge_root / 'FRAMEWORK_V3.md'}`"))
+    print(_bullet(f"`{forge_root / 'SCHEMA_REFERENCE_V3.md'}`"))
     print("")
     print(_section("CLI Support Workflow"))
     print(_bullet("ask the active skill what scope it needs first", accent=ORANGE))
-    print(_bullet(f"broad context: `forge context --project-dir {target_root} --system --format md`"))
-    print(_bullet(f"vertical context: `forge context --project-dir {target_root} --vertical <id> --format json`"))
-    print(_bullet(f"audit dashboard: `forge audit --project-dir {target_root} --output forge-audit.html`"))
+    print(_bullet(f"broad context: `forge context --project-dir {forge_root} --system --format md`"))
+    print(_bullet(f"vertical context: `forge context --project-dir {forge_root} --vertical <id> --format json`"))
+    print(_bullet(f"audit dashboard: `forge audit --project-dir {forge_root} --output forge-audit.html`"))
 
 
 def _using_forge_doc() -> str:
@@ -323,14 +336,16 @@ def _using_forge_doc() -> str:
 Forge works best when you move from broad architectural truth to one thin,
 buildable vertical at a time.
 
+The Forge-owned schema workspace lives under `forge/`.
+
 ## Start With Skills
 
 Forge is **skills-first**. The skills are the main operating surface:
 
-- `skills/forge-schema/SKILL.md`
-- `skills/forge-review/SKILL.md`
-- `skills/forge-security/SKILL.md`
-- `skills/forge-build/SKILL.md`
+- `forge/skills/forge-schema/SKILL.md`
+- `forge/skills/forge-review/SKILL.md`
+- `forge/skills/forge-security/SKILL.md`
+- `forge/skills/forge-build/SKILL.md`
 
 Use the CLI only to support the active skill:
 
@@ -343,32 +358,32 @@ for only the narrowest context that skill needs next.
 ## Use Forge In This Order
 
 1. Define the system:
-   - `system.yaml`
-   - `high_level_flows/`
-   - `early_state.yaml`
-   - `runtime.yaml`
-2. Derive `verticals/` once the runtime picture is stable.
+   - `forge/system.yaml`
+   - `forge/high_level_flows/`
+   - `forge/early_state.yaml`
+   - `forge/runtime.yaml`
+2. Derive `forge/verticals/` once the runtime picture is stable.
 3. Pick one vertical and deepen only that slice:
-   - `runtime_flows/`
-   - `data_shapes/`
-   - `persistent_shapes/`
-   - `containers/`
-   - `deployment.yaml`
+   - `forge/runtime_flows/`
+   - `forge/data_shapes/`
+   - `forge/persistent_shapes/`
+   - `forge/containers/`
+   - `forge/deployment.yaml`
 4. Review and secure that slice before build starts.
 5. Build and validate the approved slice before moving on.
 
 ## Core Artifacts
 
-- `system.yaml`: purpose, boundary, actors, dependencies, and global security posture
-- `runtime.yaml`: the real runtime containers and their relationships
-- `early_state.yaml`: the important business things that matter before exact typing
-- `high_level_flows/`: business and system flows
-- `verticals/`: thin development slices derived from the system
-- `runtime_flows/`: how a vertical moves through containers
-- `data_shapes/`: promoted reusable payload/state shapes
-- `persistent_shapes/`: the persisted subset of data shapes
-- `containers/`: internal component structure for important containers
-- `deployment.yaml`: environments, nodes, trust boundaries, and operational placement
+- `forge/system.yaml`: purpose, boundary, actors, dependencies, and global security posture
+- `forge/runtime.yaml`: the real runtime containers and their relationships
+- `forge/early_state.yaml`: the important business things that matter before exact typing
+- `forge/high_level_flows/`: business and system flows
+- `forge/verticals/`: thin development slices derived from the system
+- `forge/runtime_flows/`: how a vertical moves through containers
+- `forge/data_shapes/`: promoted reusable payload/state shapes
+- `forge/persistent_shapes/`: the persisted subset of data shapes
+- `forge/containers/`: internal component structure for important containers
+- `forge/deployment.yaml`: environments, nodes, trust boundaries, and operational placement
 
 ## Skill Roles
 
@@ -394,7 +409,7 @@ for only the narrowest context that skill needs next.
 - Stay broad until the current layer is genuinely clear.
 - Use `forge context` only after the active skill asks for a specific scope.
 - Keep `forge audit` as the main artifact for human review and sign-off.
-- Record meaningful tradeoffs and scope choices in `decision_notes.md`.
+- Record meaningful tradeoffs and scope choices in `forge/decision_notes.md`.
 
 ## CLI Usage
 

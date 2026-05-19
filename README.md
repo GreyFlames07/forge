@@ -12,8 +12,8 @@ scoped context, validation, and audit artifacts to the active skill.
 
 - `src/cli`: the Forge CLI implementation
 - `skills/`: the Forge skill source used by initialized repositories
-- `FRAMEWORK_V3.md`: the framework process and recommended authoring order
-- `SCHEMA_REFERENCE_V3.md`: the schema contract and field rules
+- `FRAMEWORK_V3.md`: the framework process and recommended authoring order used to seed `forge/FRAMEWORK_V3.md`
+- `SCHEMA_REFERENCE_V3.md`: the schema contract and field rules used to seed `forge/SCHEMA_REFERENCE_V3.md`
 - `examples/`: example Forge repositories and audit artifacts
 
 ## CLI Commands
@@ -42,21 +42,21 @@ scoped context, validation, and audit artifacts to the active skill.
 
 1. Run `forge init` in an empty repository.
 2. Read:
-   - `docs/USING_FORGE.md`
-   - `docs/FRAMEWORK_V3.md`
-   - `docs/SCHEMA_REFERENCE_V3.md`
+   - `forge/USING_FORGE.md`
+   - `forge/FRAMEWORK_V3.md`
+   - `forge/SCHEMA_REFERENCE_V3.md`
 3. Use `forge-schema` to define:
-   - `system.yaml`
-   - `high_level_flows/`
-   - `early_state.yaml`
-   - `runtime.yaml`
-4. Derive `verticals/` once the runtime picture is clear.
+   - `forge/system.yaml`
+   - `forge/high_level_flows/`
+   - `forge/early_state.yaml`
+   - `forge/runtime.yaml`
+4. Derive `forge/verticals/` once the runtime picture is clear.
 5. Pick one vertical and deepen it through:
-   - `runtime_flows/`
-   - `data_shapes/`
-   - `persistent_shapes/`
-   - `containers/`
-   - `deployment.yaml`
+   - `forge/runtime_flows/`
+   - `forge/data_shapes/`
+   - `forge/persistent_shapes/`
+   - `forge/containers/`
+   - `forge/deployment.yaml`
 6. Use `forge-review` to check the slice for drift, bloat, and broken references before build starts.
 7. Use `forge-security` to make the slice security posture explicit before build starts.
 8. Use `forge-build` to plan or implement that approved vertical.
@@ -67,6 +67,8 @@ The intended operating mode is:
 2. ask that skill what scope it needs
 3. use `forge context` only for that narrow scope
 4. use `forge audit` when you need a whole-system review artifact
+
+An initialized repository keeps the Forge-owned schema workspace under `./forge/`. The repo root stays available for product code, app docs, and non-Forge tooling.
 
 ## Golden Path Examples
 

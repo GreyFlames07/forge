@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.resources
 import json
 import shutil
 from pathlib import Path
@@ -77,33 +78,35 @@ def test_flow_context_markdown(capsys) -> None:
 def test_init_scaffolds_traversable_repo(tmp_path: Path, capsys) -> None:
     root = tmp_path / "demo"
     assert main(["init", "--root", str(root), "--name", "Demo System", "--id", "demo_system", "--no-animation"]) == 0
+    forge_root = root / "forge"
     output = capsys.readouterr().out
     assert "Forge initialized at" in output
+    assert "forge workspace:" in output
     assert "Start With Skills" in output
     assert "Use Forge In This Order" in output
     assert "How To Get The Most Out Of The Framework" in output
-    assert "skills/forge-schema/SKILL.md" in output
-    assert "skills/forge-review/SKILL.md" in output
-    assert "skills/forge-security/SKILL.md" in output
+    assert "forge/skills/forge-schema/SKILL.md" in output
+    assert "forge/skills/forge-review/SKILL.md" in output
+    assert "forge/skills/forge-security/SKILL.md" in output
     assert "Run `forge-review` and `forge-security` before building." in output
     assert "the CLI supports the active skill" in output
     assert "CLI Support Workflow" in output
     assert "forge audit --project-dir" in output
-    assert (root / "system.yaml").exists()
-    assert (root / "runtime.yaml").exists()
-    assert (root / "docs" / "SCHEMA_REFERENCE_V3.md").exists()
-    assert (root / "docs" / "FRAMEWORK_V3.md").exists()
-    assert (root / "docs" / "USING_FORGE.md").exists()
-    assert (root / "skills" / "forge-schema" / "SKILL.md").exists()
+    assert (forge_root / "system.yaml").exists()
+    assert (forge_root / "runtime.yaml").exists()
+    assert (forge_root / "SCHEMA_REFERENCE_V3.md").exists()
+    assert (forge_root / "FRAMEWORK_V3.md").exists()
+    assert (forge_root / "USING_FORGE.md").exists()
+    assert (forge_root / "skills" / "forge-schema" / "SKILL.md").exists()
     assert "dist/" in (root / ".gitignore").read_text(encoding="utf-8")
     assert "*.egg-info/" in (root / ".gitignore").read_text(encoding="utf-8")
     assert (root / ".claude" / "skills" / "forge-schema").is_symlink()
     assert (root / ".codex" / "skills" / "forge-build").is_symlink()
     assert (root / ".agents" / "skills" / "forge-review").is_symlink()
-    rewritten_skill = (root / "skills" / "forge-schema" / "SKILL.md").read_text(encoding="utf-8")
-    assert "../../docs/SCHEMA_REFERENCE_V3.md" in rewritten_skill
-    assert "../../docs/USING_FORGE.md" in rewritten_skill
-    usage_doc = (root / "docs" / "USING_FORGE.md").read_text(encoding="utf-8")
+    rewritten_skill = (forge_root / "skills" / "forge-schema" / "SKILL.md").read_text(encoding="utf-8")
+    assert "../../SCHEMA_REFERENCE_V3.md" in rewritten_skill
+    assert "../../USING_FORGE.md" in rewritten_skill
+    usage_doc = (forge_root / "USING_FORGE.md").read_text(encoding="utf-8")
     assert "Forge is **skills-first**." in usage_doc
     assert "Use Forge In This Order" in usage_doc
     assert "Skill Roles" in usage_doc
@@ -112,6 +115,12 @@ def test_init_scaffolds_traversable_repo(tmp_path: Path, capsys) -> None:
     payload = json.loads(context_output)
     assert payload["target"]["type"] == "system"
     assert payload["target"]["id"] == "demo_system"
+
+
+def test_packaged_init_docs_exist() -> None:
+    package_resources = importlib.resources.files("cli").joinpath("resources")
+    assert package_resources.joinpath("SCHEMA_REFERENCE_V3.md").is_file()
+    assert package_resources.joinpath("FRAMEWORK_V3.md").is_file()
 
 
 def test_audit_generates_html(tmp_path: Path, capsys) -> None:

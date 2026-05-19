@@ -202,6 +202,25 @@
     .grid.grid-4 {
       grid-template-columns: repeat(4, minmax(0, 1fr));
     }
+    .section-header {
+      margin-bottom: 20px;
+    }
+    .section-eyebrow {
+      margin: 0 0 6px;
+      font-size: 13px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: var(--muted);
+    }
+    .section-title {
+      margin: 0 0 6px;
+      font-size: 22px;
+      line-height: 1.2;
+    }
+    .section-description {
+      margin: 0 0 18px;
+      color: var(--muted);
+      max-width: 720px;
+    }
     .horizontal-cards {
       display: grid;
       grid-auto-flow: column;
@@ -677,6 +696,9 @@
       font-size: 0.82rem;
       cursor: pointer;
     }
+    .action-pill {
+      margin-top: 8px;
+    }
     .flow-steps {
       display: grid;
       gap: 18px;
@@ -947,6 +969,7 @@
       </div>
     </div>
     <div class="brand-sep-v"></div>
+    <button class="tab" data-group="Overview">Overview</button>
     <button class="tab" data-group="System">System</button>
     <button class="tab" data-group="Flows">Flows</button>
     <button class="tab" data-group="Runtime">Runtime</button>
@@ -960,6 +983,9 @@
         __DYNAMIC_ITEM_BUTTONS_HTML__
       </div>
       <div class="artifact">
+        <section class="section" id="overview" data-group="Overview">
+          <div data-slot="overview-body">__OVERVIEW_BODY__</div>
+        </section>
         <section class="section" id="system-overview" data-group="System">
           <div data-slot="system-body">__SYSTEM_BODY__</div>
         </section>
@@ -1020,6 +1046,7 @@
     const tabs = Array.from(document.querySelectorAll('.tab'));
     const scrollRoot = document.querySelector('.artifact');
     const GROUP_OVERVIEW_TARGETS = {
+      Overview: 'overview',
       System: 'system-overview',
       Runtime: 'runtime-overview',
       Data: 'data-overview',
@@ -1654,7 +1681,7 @@
       });
     }
     bindNavigation();
-    const initial = window.location.hash.replace('#', '') || 'system-overview';
+    const initial = window.location.hash.replace('#', '') || 'overview';
     void activateSection(initial);
   </script>
 </body>

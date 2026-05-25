@@ -572,7 +572,9 @@ def _state_machine_partitions(states: list[str], transitions: list[object]) -> d
         state = queue.pop(0)
         next_partition = partitions[state] + 1
         for target in outgoing.get(state, []):
-            if target not in partitions or partitions[target] < next_partition:
+            # Cyclic state machines are valid. Keep the first discovered layer
+            # so layout terminates instead of increasing forever on back-edges.
+            if target not in partitions:
                 partitions[target] = next_partition
                 queue.append(target)
     for state in states:

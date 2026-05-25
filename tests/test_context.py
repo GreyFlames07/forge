@@ -9,7 +9,7 @@ from pathlib import Path
 import yaml
 
 from cli import __version__
-from cli.commands.audit import _edge_label, render_live_audit_html
+from cli.commands.audit import _edge_label, _state_machine_partitions, render_live_audit_html
 from cli.forge import main
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -270,6 +270,40 @@ def test_live_audit_rerenders_from_current_schema(tmp_path: Path) -> None:
     updated_html = render_live_audit_html(copied_root)
     assert "Updated live schema description for audit refresh." in updated_html
     assert "purchase through its lifecycle." not in updated_html
+
+
+def test_live_audit_renders_cyclic_persistent_state_machine(tmp_path: Path) -> None:
+    copied_root = tmp_path / "cyclic-example"
+    shutil.copytree(EXAMPLE_ROOT, copied_root)
+
+    persistent_shape = copied_root / "persistent_shapes" / "order.yaml"
+    persistent_shape.write_text(
+        persistent_shape.read_text(encoding="utf-8").replace(
+            "        - from: confirmed\n          to: cancelled\n          condition: The order is cancelled before fulfillment completes.\n",
+            "        - from: confirmed\n          to: cancelled\n          condition: The order is cancelled before fulfillment completes.\n"
+            "        - from: cancelled\n          to: confirmed\n          condition: The cancellation is reversed before fulfillment resumes.\n",
+            1,
+        ),
+        encoding="utf-8",
+    )
+
+    partitions = _state_machine_partitions(
+        ["pending_payment", "confirmed", "fulfilled", "cancelled", "failed"],
+        [
+            {"from": "pending_payment", "to": "confirmed", "condition": "Payment is authorized successfully."},
+            {"from": "pending_payment", "to": "failed", "condition": "Payment authorization fails."},
+            {"from": "confirmed", "to": "fulfilled", "condition": "Fulfillment is completed successfully."},
+            {"from": "confirmed", "to": "cancelled", "condition": "The order is cancelled before fulfillment completes."},
+            {"from": "cancelled", "to": "confirmed", "condition": "The cancellation is reversed before fulfillment resumes."},
+        ],
+    )
+    assert partitions["pending_payment"] == 0
+    assert partitions["confirmed"] == 1
+    assert partitions["cancelled"] == 2
+
+    html = render_live_audit_html(copied_root)
+    assert "Forge Audit" in html
+    assert "Persistent lifecycle states and transition conditions." in html
 
 
 def test_edge_label_caps_descriptions_to_five_words() -> None:

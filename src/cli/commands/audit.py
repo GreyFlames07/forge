@@ -832,7 +832,7 @@ def _flow_panel(
         branches = step.get("branches", [])
         branch_html = ""
         if branches:
-            branch_html = _branch_list(branches)
+            branch_html = _branch_list(branches, expand_outgoing=not include_component)
         subject = ""
         if include_container and step.get("container"):
             subject = (
@@ -843,7 +843,7 @@ def _flow_panel(
             subject = f"<p class='flow-step-meta'>Component: {escape(step['component'])}</p>"
         description = _flow_description(step.get("description", ""))
         outgoing = str(step.get("outgoing", "")).strip()
-        outgoing_html = _outgoing_html(outgoing)
+        outgoing_html = _outgoing_html(outgoing, expand=not include_component)
         steps_html.append(
             f"<div class='flow-step'><h4>Step {step.get('id')}</h4>{subject}{description}"
             f"{outgoing_html}{branch_html}</div>"
@@ -874,13 +874,13 @@ def _flow_description(value: object) -> str:
     return f"<p>{escape(str(value))}</p>"
 
 
-def _branch_list(branches: object) -> str:
+def _branch_list(branches: object, *, expand_outgoing: bool = True) -> str:
     branch_items = []
     for branch in branches:
         if not isinstance(branch, dict):
             continue
         outgoing = str(branch.get("outgoing", "")).strip()
-        outgoing_html = _outgoing_html(outgoing)
+        outgoing_html = _outgoing_html(outgoing, expand=expand_outgoing)
         branch_items.append(
             f"<li><strong>{escape(str(branch.get('condition', 'Condition')))}</strong>"
             f"{outgoing_html}</li>"
@@ -888,9 +888,14 @@ def _branch_list(branches: object) -> str:
     return "<ul class='branch-list'>" + "".join(branch_items) + "</ul>"
 
 
-def _outgoing_html(value: str) -> str:
+def _outgoing_html(value: str, *, expand: bool = True) -> str:
     if not value:
         return ""
+    if not expand and _is_shape_like_text(value):
+        return (
+            "<div class='footer-note'>Outgoing</div>"
+            f'<div class="schema-viewer"><pre>{escape(_format_shape_like_text(value))}</pre></div>'
+        )
     if _is_shape_like_text(value):
         return _payload_details("Outgoing Payload", value)
     return f"<div class='footer-note'>Outgoing: {escape(value)}</div>"

@@ -250,6 +250,20 @@ def test_schema_validation_reports_broken_references(tmp_path: Path, capsys) -> 
     assert "vertical `place_order` runtime_containers references unknown id `missing_orders_db`." in output
 
 
+def test_component_flow_terminal_outgoing_is_valid_and_rendered(tmp_path: Path) -> None:
+    copied_root = tmp_path / "terminal-outgoing-example"
+    shutil.copytree(EXAMPLE_ROOT, copied_root)
+
+    container_path = copied_root / "containers" / "ordering_api.yaml"
+    container_payload = yaml.safe_load(container_path.read_text(encoding="utf-8"))
+    terminal_step = container_payload["container"]["component_flows"][0]["steps"][-1]
+    terminal_step["outgoing"] = "ref[order_confirmation_response]"
+    container_path.write_text(yaml.safe_dump(container_payload, sort_keys=False), encoding="utf-8")
+
+    html = render_live_audit_html(copied_root)
+    assert "Outgoing: ref[order_confirmation_response]" in html
+
+
 def test_live_audit_rerenders_from_current_schema(tmp_path: Path) -> None:
     copied_root = tmp_path / "example"
     shutil.copytree(EXAMPLE_ROOT, copied_root)

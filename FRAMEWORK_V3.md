@@ -21,6 +21,17 @@ The framework should move from broad truth to narrow implementation:
 7. review and secure that vertical before implementation starts
 8. build and validate that vertical end to end
 
+## LLM Work Discipline
+
+When an LLM is authoring, reviewing, or building with Forge:
+
+- State assumptions and tradeoffs before making material changes.
+- Prefer the minimum artifact, field, or code change that solves the problem.
+- Touch only the files and lines required by the current goal.
+- Do not add speculative flexibility, abstractions, or cleanup.
+- Define how success will be verified before executing multi-step work.
+- If the request or schema intent is ambiguous, stop and name the ambiguity.
+
 ## Recommended Authoring Order
 
 ### 1. System

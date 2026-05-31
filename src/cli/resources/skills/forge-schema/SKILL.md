@@ -49,6 +49,17 @@ Follow these rules throughout:
 8. Ask follow-up questions only when ambiguity blocks the next drafting step.
 9. Log every meaningful decision as soon as it is made.
 
+## LLM Guardrails
+
+Apply these safeguards before changing schema artifacts:
+
+1. State assumptions and unresolved ambiguity before drafting.
+2. Choose the simplest valid schema representation; do not add optional fields, artifacts, or promotion just for neatness.
+3. Make surgical edits to the current stage or vertical only.
+4. Every changed line should trace to a user decision, a schema rule, or a validation finding.
+5. For non-trivial changes, define the review check that will prove the schema is better.
+6. If two schema interpretations are plausible, present the tradeoff instead of silently choosing.
+
 ## Decision Notes Rule
 
 Maintain a markdown file named:
@@ -364,10 +375,11 @@ Run these checks before leaving each stage and again at the end of the skill.
 2. `runtime_flow` uses container-level steps only.
 3. `container` uses component-level steps only.
 4. A flow step is either:
-   - linear: `next` plus `outgoing`
+   - linear: `next` with optional `outgoing`
    - decision: `branches`
-   - terminal: neither
+   - terminal: neither, or terminal `outgoing` for component-flow boundary output
 5. Reject steps that mix linear and branch forms.
+6. Allow `next` or branch targets to point to earlier steps when the loop is intentional.
 
 ### Promotion Checks
 

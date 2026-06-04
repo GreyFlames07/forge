@@ -1,0 +1,311 @@
+schema: forge.containers
+
+containers:
+  - id: frontend_ui
+    kind: client_side_web_application
+    technology: React
+    description: Browser UI for account access and shared notes.
+    source_root: apps/frontend
+    responsibilities:
+      - Render registration, sign-in, and notes screens.
+      - Collect user input and call the backend API.
+      - Present success and failure states to users.
+    security: >
+      Must avoid storing passwords and must keep session tokens in approved
+      browser storage only.
+    deployment:
+      - environment: development
+        platform: local
+        node: vite_dev_server
+        endpoint: http://localhost:5173
+        notes: Local frontend development server.
+      - environment: production
+        platform: static_hosting
+        node: cdn_site
+        endpoint: https://notes.example.com
+        notes: Static assets served through a managed CDN.
+
+  - id: backend_api
+    kind: server_side_web_application
+    technology: FastAPI
+    description: Backend API that owns account and note workflows.
+    source_root: apps/backend/src
+    responsibilities:
+      - Validate account and note requests.
+      - Enforce authentication and authorization.
+      - Coordinate persistence.
+      - Return API responses to the frontend.
+    security: >
+      Must hash passwords, issue authenticated sessions, enforce note access,
+      and avoid logging credentials.
+    deployment:
+      - environment: development
+        platform: local
+        node: uvicorn_process
+        endpoint: http://localhost:8000
+        notes: Local API process.
+      - environment: production
+        platform: container_platform
+        node: backend_service
+        endpoint: https://api.notes.example.com
+        notes: Hosted backend API service.
+
+  - id: notes_db
+    kind: database
+    technology: PostgreSQL
+    description: Primary datastore for users, sessions, and notes.
+    source_root: apps/backend/src/db
+    responsibilities:
+      - Store user records.
+      - Store session records.
+      - Store note records.
+    security: >
+      Must be accessible only from the backend API and must protect user and
+      note data at rest.
+    deployment:
+      - environment: development
+        platform: local
+        node: docker_postgres
+        endpoint: localhost:5432
+        notes: Local PostgreSQL database.
+      - environment: production
+        platform: managed_database
+        node: postgres_cluster
+        endpoint: notes-db.internal
+        notes: Managed PostgreSQL database with backups.
+
+container_flows:
+  - id: register_user
+    business_action: register_user
+    description: Registers a visitor as a Team Notes user.
+    trigger:
+      actor: visitor
+      container: frontend_ui
+      input: ref[registration_form_state]
+    steps:
+      - id: 1
+        from: frontend_ui
+        to: backend_api
+        input: ref[registration_form_state]
+        output: ref[register_user_request]
+        logic:
+          - Validate required registration fields.
+          - Submit registration data to the backend.
+        next: 2
+      - id: 2
+        from: backend_api
+        to: notes_db
+        input: ref[register_user_request]
+        logic:
+          - Check whether the email is already registered.
+          - Hash the password.
+          - Store the new user record when valid.
+        branches:
+          - condition: Email is available and request is valid.
+            next: 3
+            output: ref[user_record]
+          - condition: Email is already registered or request is invalid.
+            next: 4
+            output: ref[registration_error_response]
+      - id: 3
+        from: backend_api
+        to: frontend_ui
+        input: ref[user_record]
+        output: ref[registration_success_response]
+        logic:
+          - Map the stored user to a registration success response.
+      - id: 4
+        from: backend_api
+        to: frontend_ui
+        input: ref[registration_error_response]
+        output: ref[registration_error_response]
+        logic:
+          - Return a user-facing registration error.
+    outcomes:
+      - user_registered
+      - registration_rejected
+
+  - id: sign_in_user
+    business_action: sign_in_user
+    description: Starts a session for a registered user.
+    trigger:
+      actor: visitor
+      container: frontend_ui
+      input: ref[sign_in_form_state]
+    steps:
+      - id: 1
+        from: frontend_ui
+        to: backend_api
+        input: ref[sign_in_form_state]
+        output: ref[sign_in_request]
+        logic:
+          - Validate sign-in form fields.
+          - Submit credentials to the backend.
+        next: 2
+      - id: 2
+        from: backend_api
+        to: notes_db
+        input: ref[sign_in_request]
+        logic:
+          - Load the user by email.
+          - Verify the submitted password against the stored password hash.
+          - Create a session when credentials are valid.
+        branches:
+          - condition: Credentials are valid.
+            next: 3
+            output: ref[session_record]
+          - condition: Credentials are invalid.
+            next: 4
+            output: ref[sign_in_error_response]
+      - id: 3
+        from: backend_api
+        to: frontend_ui
+        input: ref[session_record]
+        output: ref[sign_in_success_response]
+        logic:
+          - Return session data to the frontend.
+      - id: 4
+        from: backend_api
+        to: frontend_ui
+        input: ref[sign_in_error_response]
+        output: ref[sign_in_error_response]
+        logic:
+          - Return a user-facing sign-in error.
+    outcomes:
+      - session_started
+      - sign_in_rejected
+
+  - id: create_note
+    business_action: create_note
+    description: Creates a shared note for an authenticated team member.
+    trigger:
+      actor: team_member
+      container: frontend_ui
+      input: ref[note_editor_state]
+    steps:
+      - id: 1
+        from: frontend_ui
+        to: backend_api
+        input: ref[note_editor_state]
+        output: ref[create_note_request]
+        logic:
+          - Validate note title and body.
+          - Submit the note creation request with session context.
+        next: 2
+      - id: 2
+        from: backend_api
+        to: notes_db
+        input: ref[create_note_request]
+        logic:
+          - Authenticate the session.
+          - Build a new active note record.
+          - Persist the note.
+        branches:
+          - condition: Session is valid and note content is accepted.
+            next: 3
+            output: ref[note_record]
+          - condition: Session is invalid or note content is rejected.
+            next: 4
+            output: ref[note_error_response]
+      - id: 3
+        from: backend_api
+        to: frontend_ui
+        input: ref[note_record]
+        output: ref[note_detail_response]
+        logic:
+          - Return the created note to the frontend.
+      - id: 4
+        from: backend_api
+        to: frontend_ui
+        input: ref[note_error_response]
+        output: ref[note_error_response]
+        logic:
+          - Return a user-facing note creation error.
+    outcomes:
+      - note_created
+      - note_creation_rejected
+
+  - id: list_notes
+    business_action: list_notes
+    description: Lists active shared notes for an authenticated team member.
+    trigger:
+      actor: team_member
+      container: frontend_ui
+      input: ref[list_notes_view_request]
+    steps:
+      - id: 1
+        from: frontend_ui
+        to: backend_api
+        input: ref[list_notes_view_request]
+        output: ref[list_notes_request]
+        logic:
+          - Request active notes using the current session.
+        next: 2
+      - id: 2
+        from: backend_api
+        to: notes_db
+        input: ref[list_notes_request]
+        output: ref[note_list_response]
+        logic:
+          - Authenticate the session.
+          - Load active notes ordered by last update time.
+        next: 3
+      - id: 3
+        from: backend_api
+        to: frontend_ui
+        input: ref[note_list_response]
+        output: ref[note_list_response]
+        logic:
+          - Return active notes to the frontend.
+    outcomes:
+      - notes_listed
+
+  - id: archive_note
+    business_action: archive_note
+    description: Archives an active note.
+    trigger:
+      actor: team_member
+      container: frontend_ui
+      input: ref[archive_note_ui_command]
+    steps:
+      - id: 1
+        from: frontend_ui
+        to: backend_api
+        input: ref[archive_note_ui_command]
+        output: ref[archive_note_request]
+        logic:
+          - Confirm the archive action.
+          - Submit the archive request with session context.
+        next: 2
+      - id: 2
+        from: backend_api
+        to: notes_db
+        input: ref[archive_note_request]
+        logic:
+          - Authenticate the session.
+          - Confirm the note exists and is active.
+          - Mark the note as archived.
+        branches:
+          - condition: Note exists and can be archived.
+            next: 3
+            output: ref[note_record]
+          - condition: Note does not exist or cannot be archived.
+            next: 4
+            output: ref[note_error_response]
+      - id: 3
+        from: backend_api
+        to: frontend_ui
+        input: ref[note_record]
+        output: ref[note_detail_response]
+        logic:
+          - Return the archived note state to the frontend.
+      - id: 4
+        from: backend_api
+        to: frontend_ui
+        input: ref[note_error_response]
+        output: ref[note_error_response]
+        logic:
+          - Return a user-facing archive error.
+    outcomes:
+      - note_archived
+      - archive_rejected

@@ -91,6 +91,18 @@ Review only one artifact class when the user asks for a narrower pass.
 
 If a fix would require inventing new architecture rather than correcting drift, route back to `forge-schema` instead of improvising in review.
 
+## LLM Review Guardrails
+
+Apply these safeguards during every review:
+
+1. Findings must be grounded in a schema rule, artifact line, broken reference, or concrete behavioral risk.
+2. Do not invent fixes that require new architecture; identify the smallest correction direction.
+3. Do not flag personal style preferences as findings.
+4. Do not broaden review scope unless the current artifact cannot be evaluated without it.
+5. If evidence is ambiguous, state the assumption or ask for clarification instead of declaring a defect.
+6. Do not propose speculative flexibility or future-facing artifacts as review fixes.
+7. Every recommendation should be verifiable by a schema edit, review pass, or test.
+
 ## Review Passes
 
 Run these passes in order.
@@ -129,14 +141,15 @@ Check:
    - decision step: `branches`
    - terminal step: neither
 2. A runtime-aware or component flow uses only:
-   - linear step: `next` plus `outgoing`
+   - linear step: `next` with optional `outgoing`
    - decision step: `branches`
-   - terminal step: neither
+   - terminal step: neither, or terminal `outgoing` for component-flow boundary output
 3. No flow step mixes linear and branch forms.
 4. Runtime-aware steps represent one container participation each.
 5. Component-flow steps represent one component participation each.
-6. A container may retain in-flight workflow-scoped state across its own runtime steps when it is clearly the orchestrator of the slice.
-7. Do not assume that a later step only knows the immediately preceding boundary payload when the same container is plausibly coordinating the broader workflow.
+6. `next` or branch targets may point to earlier steps when the loop is intentional.
+7. A container may retain in-flight workflow-scoped state across its own runtime steps when it is clearly the orchestrator of the slice.
+8. Do not assume that a later step only knows the immediately preceding boundary payload when the same container is plausibly coordinating the broader workflow.
 
 For orchestrated runtime flows:
 

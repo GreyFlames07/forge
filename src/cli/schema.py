@@ -129,6 +129,7 @@ def _validate_schema(schema: ForgeSchema) -> None:
     _check_unique_ids(schema, errors)
     _check_cross_references(schema, errors)
     _check_container_components(schema, errors)
+    _check_component_flow_step_shapes(schema, errors)
     if errors:
         joined = "\n".join(f"- {error}" for error in errors)
         raise ValueError(f"Schema validation failed for {schema.root}:\n{joined}")
@@ -313,4 +314,23 @@ def _check_container_components(schema: ForgeSchema, errors: list[str]) -> None:
                     errors.append(
                         f"container `{container_id}` component flow `{flow_id}` step "
                         f"`{step.get('id', '?')}` references unknown component `{component_id}`."
+                    )
+
+
+def _check_component_flow_step_shapes(schema: ForgeSchema, errors: list[str]) -> None:
+    for container in schema.containers:
+        container_id = container.get("id", "<unknown container>")
+        for component_flow in container.get("component_flows", []):
+            if not isinstance(component_flow, dict):
+                continue
+            flow_id = component_flow.get("id", "?")
+            for step in component_flow.get("steps", []):
+                if not isinstance(step, dict):
+                    continue
+                has_next = step.get("next") is not None
+                has_branches = bool(step.get("branches"))
+                if has_next and has_branches:
+                    errors.append(
+                        f"container `{container_id}` component flow `{flow_id}` step "
+                        f"`{step.get('id', '?')}` must not define both `next` and `branches`."
                     )

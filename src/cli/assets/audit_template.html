@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Forge Audit</title>
   <link rel="icon" href="./forge_white_small.drawio.svg" />
-  <script src="https://cdn.jsdelivr.net/npm/elkjs@0.9.3/lib/elk.bundled.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
   <style>
     :root {
       --bg: #ffffff;
@@ -23,13 +23,13 @@
     body {
       margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
       background: var(--bg);
       color: var(--text);
-      height: 100vh;
       min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow-y: hidden;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      overflow-y: auto;
       overflow-x: hidden;
     }
     button {
@@ -41,7 +41,8 @@
       cursor: pointer;
     }
     .subnav {
-      flex: 0 0 auto;
+      position: sticky;
+      top: 0;
       z-index: 40;
       display: flex;
       align-items: center;
@@ -97,7 +98,7 @@
       align-items: center;
       gap: 8px;
       padding: 12px 14px;
-      font-size: 14px;
+      font-size: 13px;
       color: var(--text);
       height: 100%;
       white-space: nowrap;
@@ -118,22 +119,19 @@
       background: var(--accent);
     }
     .main {
-      flex: 1 1 auto;
       width: 100%;
       max-width: 1280px;
       margin: 0 auto;
       padding: 12px 32px;
-      min-height: 0;
+      align-self: start;
     }
     .dashboard-shell {
-      height: 100%;
-      min-height: 0;
       display: flex;
       flex-direction: column;
       border: 1px solid var(--border);
       border-radius: 6px;
       background: var(--bg);
-      overflow: hidden;
+      overflow: visible;
     }
     .toolbar {
       flex: 0 0 auto;
@@ -147,7 +145,7 @@
       border-bottom: 1px solid var(--border);
       border-radius: 0;
       background: var(--panel-alt);
-      font-size: 13px;
+      font-size: 12px;
       color: var(--text);
       overflow-x: auto;
     }
@@ -169,13 +167,10 @@
       border: 1px solid var(--border);
     }
     .artifact {
-      flex: 1 1 auto;
-      min-height: 0;
       border: none;
       border-radius: 0;
       background: var(--bg);
-      overflow-x: hidden;
-      overflow-y: auto;
+      overflow: visible;
     }
     .section {
       display: none;
@@ -207,19 +202,26 @@
     }
     .section-eyebrow {
       margin: 0 0 6px;
-      font-size: 13px;
+      font-size: 12px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       color: var(--muted);
     }
     .section-title {
       margin: 0 0 6px;
-      font-size: 22px;
+      font-size: 20px;
       line-height: 1.2;
     }
     .section-description {
       margin: 0 0 18px;
       color: var(--muted);
+      font-size: 14px;
       max-width: 720px;
+    }
+    .section[id^="flow-"] > .section-header,
+    .section[id^="container-"] > .section-header,
+    .section[id^="entity-"] > .section-header,
+    .section[id^="doc-"] > .section-header {
+      display: none;
     }
     .horizontal-cards {
       display: grid;
@@ -236,6 +238,61 @@
       gap: 16px;
       margin-top: 16px;
     }
+    #system-overview > [data-slot="system-body"] > .vertical-cards {
+      display: grid;
+      gap: 0;
+      margin-top: 18px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      overflow: hidden;
+    }
+    #system-overview > [data-slot="system-body"] > .vertical-cards::before {
+      content: "Business Actions";
+      display: block;
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel-alt);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    #system-overview > [data-slot="system-body"] > .vertical-cards > .card {
+      display: grid;
+      grid-template-columns: minmax(190px, 220px) minmax(0, 1fr) minmax(140px, auto);
+      column-gap: 18px;
+      align-items: center;
+      margin: 0;
+      padding: 11px 14px;
+      border: 0;
+      border-bottom: 1px solid var(--border);
+      border-radius: 0;
+      box-shadow: none;
+      background: var(--bg);
+    }
+    #system-overview > [data-slot="system-body"] > .vertical-cards > .card:last-child {
+      border-bottom: 0;
+    }
+    #system-overview > [data-slot="system-body"] > .vertical-cards > .card h3,
+    #system-overview > [data-slot="system-body"] > .vertical-cards > .card p {
+      margin: 0;
+    }
+    #system-overview > [data-slot="system-body"] > .vertical-cards > .card h3 {
+      font-size: 13px;
+      line-height: 1.3;
+      text-align: left;
+    }
+    #system-overview > [data-slot="system-body"] > .vertical-cards > .card p {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      text-align: left;
+    }
+    #system-overview > [data-slot="system-body"] > .vertical-cards > .card .pill-list {
+      justify-content: flex-end;
+      margin: 0;
+      justify-self: end;
+    }
     .deployment-stack {
       display: grid;
       grid-template-columns: minmax(0, 1fr);
@@ -243,6 +300,36 @@
     }
     .deployment-stack .vertical-cards {
       margin-top: 0;
+    }
+    .runtime-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin: 22px 0 16px;
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--panel-alt);
+    }
+    .runtime-controls h3,
+    .runtime-controls p {
+      margin: 0;
+    }
+    .runtime-controls p {
+      margin-top: 4px;
+      color: var(--muted);
+      line-height: 1.3;
+    }
+    .environment-select {
+      min-width: 180px;
+      height: 36px;
+      padding: 0 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+      font: inherit;
     }
     .container-stack {
       display: grid;
@@ -254,8 +341,149 @@
       grid-template-columns: minmax(0, 1fr);
       gap: 16px;
     }
+    .component-table {
+      display: grid;
+      gap: 0;
+      margin-top: 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--bg);
+    }
+    .component-table-row {
+      display: grid;
+      gap: 8px;
+      padding: 8px 14px;
+      border-top: 1px solid var(--border);
+    }
+    .component-table-row:first-child {
+      border-top: none;
+    }
+    .component-expandable-row {
+      padding: 0;
+      overflow: hidden;
+    }
+    .component-row-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto 18px;
+      gap: 12px;
+      align-items: center;
+      padding: 8px 14px;
+      cursor: pointer;
+      list-style: none;
+    }
+    .component-row-head::-webkit-details-marker {
+      display: none;
+    }
+    .component-row-head .kind-chip {
+      align-self: center;
+    }
+    .component-row-head .entity-shape-chevron {
+      grid-column: 3;
+      align-self: center;
+    }
+    .component-row-body {
+      display: grid;
+      gap: 8px;
+      padding: 0 14px 10px;
+    }
+    .operation-row-body {
+      display: grid;
+      gap: 10px;
+      padding: 0 14px 12px;
+    }
+    .operation-row-body .metadata-table-wrap {
+      margin-top: 0;
+    }
+    .operation-row-body .metadata-table th {
+      width: 120px;
+    }
+    .operation-row-body .operation-io-table .metadata-table th,
+    .operation-row-body .operation-io-table .metadata-table td {
+      padding: 7px 12px;
+      line-height: 1.25;
+    }
+    .operation-participation-table th:nth-child(3),
+    .operation-participation-table td:nth-child(3) {
+      width: 72px;
+      white-space: nowrap;
+    }
+    .component-row-head h5 {
+      margin: 0;
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.15;
+      overflow-wrap: anywhere;
+    }
+    .component-source,
+    .component-row-label {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.2;
+    }
+    .component-table-row p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .component-responsibilities ul {
+      margin: 4px 0 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .component-responsibilities li + li {
+      margin-top: 2px;
+    }
+    .data-shape-row {
+      min-height: 40px;
+      align-content: center;
+      padding: 0;
+    }
+    .data-shape-row .component-row-head {
+      align-items: center;
+    }
+    .data-shape-row .kind-chip {
+      align-self: center;
+    }
     .container-stack .grid {
       margin-bottom: 0;
+    }
+    #system-overview .system-summary-grid,
+    #system-overview > [data-slot="system-body"] > .grid.grid-1:first-child {
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    #system-overview .system-summary-grid > .card,
+    #system-overview > [data-slot="system-body"] > .grid.grid-1:first-child > .card {
+      display: grid;
+      grid-template-columns: 120px minmax(0, 1fr);
+      gap: 14px;
+      align-items: baseline;
+      padding: 9px 12px;
+      border-radius: 8px;
+    }
+    #system-overview .system-summary-grid h3,
+    #system-overview > [data-slot="system-body"] > .grid.grid-1:first-child > .card h3 {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.2;
+    }
+    #system-overview .system-summary-grid p,
+    #system-overview > [data-slot="system-body"] > .grid.grid-1:first-child > .card p {
+      margin: 0;
+      font-size: 12px;
+      line-height: 1.3;
+    }
+    #system-overview .diagram-card:first-of-type .diagram-wrap {
+      min-height: 170px;
+      padding: 12px;
+    }
+    #system-overview .diagram-card:first-of-type .diagram-header {
+      padding: 12px 16px;
     }
     .card {
       background: var(--panel);
@@ -290,7 +518,7 @@
     }
     .card-header {
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       justify-content: space-between;
       gap: 12px;
       margin-bottom: 10px;
@@ -299,16 +527,143 @@
     .card-header h4 {
       margin-bottom: 0;
     }
+    .card-header .pill-list {
+      align-items: center;
+      margin-top: 0;
+    }
     .card h3, .card h4 {
       margin: 0 0 8px;
       overflow-wrap: anywhere;
       word-break: break-word;
     }
+    .card-header h3,
+    .card-header h4 {
+      margin: 0;
+    }
+    .card h3 {
+      font-size: 17px;
+      line-height: 1.25;
+    }
+    .card h4 {
+      font-size: 15px;
+      line-height: 1.25;
+    }
     .card p {
       margin: 0;
       color: var(--muted);
+      font-size: 13px;
       line-height: 1.45;
       white-space: pre-line;
+    }
+    .runtime-container-card {
+      display: grid;
+      gap: 10px;
+      padding: 14px 16px;
+    }
+    .runtime-container-header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: start;
+    }
+    .runtime-container-header h3 {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.25;
+    }
+    .runtime-container-meta {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 6px;
+      max-width: 520px;
+    }
+    .runtime-container-description {
+      max-width: 760px;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+    .runtime-component-dropdown {
+      max-width: 760px;
+    }
+    .runtime-component-dropdown summary {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 0 9px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      cursor: pointer;
+      color: var(--text);
+      font-size: 13px;
+    }
+    .runtime-component-dropdown ul {
+      margin: 10px 0 0;
+      padding-left: 20px;
+      color: var(--muted);
+      columns: 2;
+    }
+    .runtime-component-dropdown li {
+      break-inside: avoid;
+      margin-bottom: 4px;
+    }
+    .runtime-deployment-panel {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) minmax(280px, 1.4fr);
+      gap: 14px;
+      align-items: start;
+      max-width: 920px;
+      margin-top: 2px;
+      padding: 10px 0 0 12px;
+      border-top: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      background: transparent;
+    }
+    .runtime-deployment-panel[hidden] {
+      display: none;
+    }
+    .runtime-deployment-label {
+      margin-bottom: 3px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+    .runtime-deployment-copy p {
+      max-width: 420px;
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.32;
+    }
+    .runtime-deployment-fields {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 7px 14px;
+      min-width: 0;
+    }
+    .runtime-deployment-fields div {
+      min-width: 0;
+    }
+    .runtime-deployment-fields span,
+    .runtime-deployment-fields strong {
+      display: block;
+    }
+    .runtime-deployment-fields span {
+      margin-bottom: 2px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.2;
+    }
+    .runtime-deployment-fields strong {
+      overflow-wrap: anywhere;
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.28;
+    }
+    .runtime-deployment-endpoint {
+      grid-column: 1 / -1;
     }
     .record-list {
       display: grid;
@@ -317,7 +672,7 @@
     .record-row {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
-      gap: 16px;
+      gap: 8px 16px;
       align-items: start;
       width: 100%;
       text-align: left;
@@ -329,14 +684,25 @@
     .record-row:hover {
       background: var(--hover);
     }
+    .record-main {
+      display: contents;
+    }
     .record-main h3 {
-      margin: 0 0 8px;
+      grid-column: 1;
+      grid-row: 1;
+      margin: 0;
     }
     .record-main p {
+      grid-column: 1 / -1;
+      grid-row: 2;
       margin: 0;
+      font-size: 13px;
+      max-width: none;
     }
     .record-side {
       display: grid;
+      grid-column: 2;
+      grid-row: 1;
       gap: 8px;
       justify-items: end;
       min-width: 140px;
@@ -352,7 +718,8 @@
       align-items: center;
       border-radius: 999px;
       padding: 5px 10px;
-      font-size: 12px;
+      font-size: 11px;
+      line-height: 1.1;
       font-weight: 600;
       border: 1px solid var(--border);
       background: var(--bg);
@@ -379,6 +746,21 @@
       border-color: #c7d2fe;
       color: #3730a3;
     }
+    .chip-storage {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+      color: #334155;
+    }
+    .chip-table {
+      background: #f5f3ff;
+      border-color: #ddd6fe;
+      color: #5b21b6;
+    }
+    .chip-lifecycle {
+      background: #f0fdfa;
+      border-color: #5eead4;
+      color: #0f766e;
+    }
     .chip-boundary {
       background: #fff7ed;
       border-color: #fdba74;
@@ -394,7 +776,7 @@
     .schema-viewer pre {
       margin: 0;
       padding: 16px;
-      font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+      font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
       color: var(--text);
       white-space: pre;
     }
@@ -410,6 +792,155 @@
       grid-template-columns: minmax(0, 1fr);
       gap: 22px;
       margin-top: 22px;
+    }
+    .entity-detail-stack {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 18px;
+    }
+    .entity-summary-card > .card-header {
+      min-height: 28px;
+    }
+    .entity-state-diagram {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--panel-alt);
+    }
+    .entity-state-diagram-flat {
+      display: flex;
+      flex-wrap: wrap;
+    }
+    .entity-state-transition {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .entity-state-node {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 0 12px;
+      border: 1px solid #5eead4;
+      border-radius: 999px;
+      background: #f0fdfa;
+      color: #0f766e;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .entity-state-arrow {
+      position: relative;
+      min-width: 36px;
+      color: var(--muted);
+      text-align: center;
+      font-weight: 700;
+    }
+    .lifecycle-transition-details .metadata-table-wrap {
+      margin-top: 0;
+      border: 0;
+      border-radius: 0;
+    }
+    .lifecycle-transition-table {
+      table-layout: fixed;
+    }
+    .lifecycle-transition-table .lifecycle-col-state {
+      width: 16%;
+    }
+    .lifecycle-transition-table .lifecycle-col-condition {
+      width: 68%;
+    }
+    .lifecycle-transition-table th:first-child,
+    .lifecycle-transition-table th:nth-child(2),
+    .lifecycle-transition-table td:first-child,
+    .lifecycle-transition-table td:nth-child(2) {
+      width: 16%;
+      white-space: nowrap;
+    }
+    .lifecycle-transition-table th:nth-child(3),
+    .lifecycle-transition-table td:nth-child(3) {
+      width: 68%;
+    }
+    .entity-shape-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .entity-shape-row {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      overflow: hidden;
+    }
+    .entity-shape-row summary {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto 18px;
+      gap: 16px;
+      align-items: center;
+      padding: 10px 12px;
+      cursor: pointer;
+      list-style: none;
+    }
+    .entity-shape-row summary::-webkit-details-marker {
+      display: none;
+    }
+    .entity-shape-name {
+      color: var(--text);
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+    .entity-shape-row .kind-chip {
+      grid-column: 2;
+      grid-row: 1;
+      justify-self: end;
+      align-self: center;
+    }
+    .entity-shape-chevron {
+      grid-column: 3;
+      width: 18px;
+      height: 18px;
+      justify-self: end;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 18px;
+      text-align: center;
+    }
+    .entity-shape-chevron::before {
+      content: "▼";
+    }
+    .entity-shape-row[open] .entity-shape-chevron::before,
+    .component-expandable-row[open] .entity-shape-chevron::before,
+    .flow-step-row[open] .entity-shape-chevron::before,
+    .flow-operation-row[open] .entity-shape-chevron::before {
+      content: "▲";
+    }
+    .entity-shape-row .schema-viewer {
+      margin-top: 0;
+      border: 0;
+      border-top: 1px solid var(--border);
+      border-radius: 0;
+    }
+    .entity-summary-card .metadata-summary,
+    .entity-persistence-block .metadata-summary {
+      margin-top: 16px;
+    }
+    .entity-shapes-card .metadata-table-wrap,
+    .entity-persistence-card .metadata-table-wrap,
+    .entity-lifecycle-card .metadata-table-wrap {
+      margin-top: 14px;
+    }
+    .entity-persistence-block + .entity-persistence-block {
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+    }
+    .entity-persistence-card ul {
+      margin: 0;
+      padding-left: 18px;
     }
     .early-state-card,
     .persistent-shape-card,
@@ -444,13 +975,47 @@
       display: block;
       margin-bottom: 4px;
       color: var(--subtle);
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
     }
     .metadata-summary-value {
       color: var(--text);
+      font-size: 13px;
       font-weight: 600;
       overflow-wrap: anywhere;
+    }
+    .metadata-summary-compact {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      overflow: hidden;
+    }
+    .metadata-summary-compact .metadata-summary-item {
+      display: grid;
+      grid-template-columns: 140px minmax(0, 1fr);
+      gap: 16px;
+      align-items: baseline;
+      padding: 8px 12px;
+      border: none;
+      border-top: 1px solid var(--border);
+      border-radius: 0;
+      background: transparent;
+    }
+    .metadata-summary-compact .metadata-summary-item:first-child {
+      border-top: none;
+    }
+    .metadata-summary-compact .metadata-summary-label {
+      margin: 0;
+      font-size: 11px;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+    .metadata-summary-compact .metadata-summary-value {
+      font-size: 13px;
+      line-height: 1.35;
     }
     .metadata-table {
       width: 100%;
@@ -462,6 +1027,7 @@
       border-top: 1px solid var(--border);
       text-align: left;
       vertical-align: top;
+      font-size: 13px;
       line-height: 1.45;
     }
     .metadata-table tr:first-child th,
@@ -471,7 +1037,7 @@
     .metadata-table th {
       width: 240px;
       background: var(--panel-alt);
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       color: var(--text);
     }
@@ -516,16 +1082,45 @@
       background: var(--hover);
     }
     .diagram-wrap {
+      display: grid;
+      place-items: center;
+      min-height: 240px;
       padding: 18px;
       overflow-x: auto;
       overflow-y: auto;
       overscroll-behavior: contain;
       touch-action: pan-x pan-y;
     }
+    .diagram-card-compact .diagram-wrap {
+      min-height: 128px;
+      padding: 12px;
+    }
+    .diagram-card-compact .diagram-header {
+      padding: 12px 16px;
+    }
+    .section[id^="flow-"] .diagram-wrap {
+      min-height: 168px;
+      padding: 12px;
+    }
+    .section[id^="flow-"] .diagram-header {
+      padding: 12px 16px;
+    }
     .diagram-wrap .diagram-surface,
-    .diagram-wrap .elk-graph {
-      display: block;
+    .diagram-wrap .elk-graph,
+    .diagram-wrap .mermaid-graph {
+      display: grid;
+      place-items: center;
       width: max-content;
+      min-width: 100%;
+      margin: auto;
+    }
+    .mermaid-graph {
+      background: #ffffff;
+    }
+    .mermaid-graph pre {
+      display: grid;
+      place-items: center;
+      margin: 0;
       min-width: 100%;
     }
     .diagram-wrap svg {
@@ -686,6 +1281,10 @@
       flex-wrap: wrap;
       margin-top: 12px;
     }
+    .record-side > .pill-list {
+      justify-content: flex-end;
+      margin-top: 0;
+    }
     .pill {
       display: inline-flex;
       border-radius: 999px;
@@ -820,6 +1419,200 @@
       color: var(--muted);
       white-space: pre-line;
     }
+    .flow-step-list {
+      display: grid;
+      gap: 0;
+      margin-top: 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      overflow: hidden;
+    }
+    .flow-step-row {
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .flow-step-row:first-child {
+      border-top: 0;
+    }
+    .flow-step-summary {
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr) 18px;
+      gap: 9px;
+      align-items: center;
+      min-height: 38px;
+      padding: 6px 10px;
+      cursor: pointer;
+      list-style: none;
+    }
+    .flow-step-summary::-webkit-details-marker {
+      display: none;
+    }
+    .flow-step-index {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .flow-step-visible {
+      display: grid;
+      align-items: center;
+      min-width: 0;
+    }
+    .flow-step-visible strong {
+      color: var(--text);
+      font-size: 12px;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+    .flow-step-content {
+      display: grid;
+      gap: 7px;
+      min-width: 0;
+      padding: 0 10px 9px 47px;
+    }
+    .flow-step-io {
+      display: grid;
+      gap: 3px;
+      margin: 0;
+      padding: 0 0 0 16px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.3;
+    }
+    .flow-step-io li {
+      margin: 0;
+      padding: 0;
+    }
+    .flow-step-io span,
+    .flow-step-logic span {
+      color: var(--subtle);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .flow-step-io strong {
+      margin-left: 6px;
+      min-width: 0;
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+    .flow-step-logic {
+      display: grid;
+      gap: 4px;
+    }
+    .flow-step-logic ul {
+      margin: 0;
+      padding-left: 16px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.3;
+    }
+    .flow-step-logic li {
+      margin: 0;
+    }
+    .flow-step-local {
+      display: grid;
+      gap: 6px;
+      padding-top: 2px;
+    }
+    .flow-local-group {
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--panel-alt);
+      overflow: hidden;
+    }
+    .flow-local-group summary,
+    .flow-operation-row summary {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      min-height: 32px;
+      padding: 5px 8px;
+      cursor: pointer;
+      list-style: none;
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .flow-local-group summary::-webkit-details-marker,
+    .flow-operation-row summary::-webkit-details-marker {
+      display: none;
+    }
+    .flow-local-group summary span:last-child,
+    .flow-operation-row summary > span:nth-child(2) {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .flow-local-group summary strong,
+    .flow-local-group summary em {
+      display: block;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+    .flow-local-group summary strong {
+      color: var(--text);
+      font-size: 12px;
+      line-height: 1.15;
+    }
+    .flow-local-group summary em {
+      color: var(--muted);
+      font-size: 10.5px;
+      font-style: normal;
+      font-weight: 500;
+      line-height: 1.15;
+    }
+    .flow-operation-list {
+      display: grid;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .flow-operation-row {
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .flow-operation-row:first-child {
+      border-top: 0;
+    }
+    .flow-operation-row summary {
+      grid-template-columns: minmax(180px, 260px) minmax(0, 1fr) 18px;
+      font-weight: 600;
+    }
+    .flow-operation-row summary strong,
+    .flow-operation-row summary em {
+      display: block;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+    .flow-operation-row summary em {
+      color: var(--muted);
+      font-size: 10.5px;
+      font-style: normal;
+      font-weight: 400;
+      line-height: 1.15;
+    }
+    .flow-operation-row .flow-step-logic {
+      padding: 0 8px 8px;
+    }
+    .flow-operation-io {
+      padding: 0 8px 6px 24px;
+    }
     .flow-outcomes {
       margin-top: 24px;
       padding-top: 16px;
@@ -909,12 +1702,85 @@
     .flow-expandable summary::-webkit-details-marker {
       display: none;
     }
+    .component-table-row {
+      gap: 6px;
+      padding: 6px 12px;
+    }
+    .component-expandable-row,
+    .data-shape-row {
+      padding: 0;
+    }
+    .component-row-head {
+      gap: 10px;
+      padding: 6px 12px;
+    }
+    .component-row-body,
+    .operation-row-body {
+      gap: 7px;
+      padding: 0 12px 8px;
+    }
+    .data-shape-row {
+      min-height: 34px;
+    }
+    .component-row-head h5 {
+      font-size: 13px;
+      line-height: 1.1;
+    }
+    .component-source,
+    .component-row-label,
+    .record-meta {
+      font-size: 10.5px;
+      line-height: 1.15;
+    }
+    .component-table-row p,
+    .component-responsibilities ul,
+    .record-main p {
+      font-size: 12px;
+      line-height: 1.3;
+    }
+    .component-responsibilities ul {
+      margin-top: 2px;
+    }
+    .kind-chip {
+      padding: 4px 9px;
+      line-height: 1;
+    }
+    .metadata-table th,
+    .metadata-table td {
+      padding: 8px 12px;
+      line-height: 1.3;
+    }
+    .operation-row-body .operation-io-table .metadata-table th,
+    .operation-row-body .operation-io-table .metadata-table td,
+    .lifecycle-transition-table th,
+    .lifecycle-transition-table td {
+      padding: 6px 10px;
+      line-height: 1.2;
+    }
+    .payload-expandable summary {
+      padding: 7px 10px;
+    }
+    .record-row {
+      padding: 12px 14px;
+    }
+    #system-overview > [data-slot="system-body"] > .vertical-cards > .card {
+      padding: 8px 12px;
+    }
+    .entity-shape-row summary {
+      padding: 7px 10px;
+    }
+    .runtime-container-card {
+      gap: 8px;
+      padding: 11px 14px;
+    }
+    .runtime-deployment-panel {
+      padding-top: 8px;
+    }
     .footer-note, .footer {
       color: var(--muted);
       font-size: 0.84rem;
     }
     .footer {
-      flex: 0 0 auto;
       width: 100%;
       max-width: 1280px;
       margin: 0 auto;
@@ -942,6 +1808,12 @@
       .record-row {
         grid-template-columns: 1fr;
       }
+      #system-overview > [data-slot="system-body"] > .vertical-cards > .card {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      #system-overview > [data-slot="system-body"] > .vertical-cards > .card .pill-list {
+        justify-content: flex-start;
+      }
       .grid.grid-3 {
         grid-template-columns: 1fr;
       }
@@ -951,12 +1823,33 @@
       .metadata-summary {
         grid-template-columns: 1fr;
       }
+      .metadata-summary-compact .metadata-summary-item {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 3px;
+      }
       .record-side {
         justify-items: start;
         min-width: 0;
       }
       .record-meta {
         text-align: left;
+      }
+      .runtime-container-header {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .runtime-container-meta {
+        justify-content: flex-start;
+      }
+      .runtime-component-dropdown ul {
+        columns: 1;
+      }
+      .runtime-deployment-panel,
+      .runtime-deployment-fields {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .runtime-controls {
+        align-items: flex-start;
+        flex-direction: column;
       }
     }
   </style>
@@ -969,13 +1862,11 @@
       </div>
     </div>
     <div class="brand-sep-v"></div>
-    <button class="tab" data-group="Overview">Overview</button>
     <button class="tab" data-group="System">System</button>
     <button class="tab" data-group="Flows">Flows</button>
     <button class="tab" data-group="Runtime">Runtime</button>
     <button class="tab" data-group="Data">Data</button>
     <button class="tab" data-group="Verticals">Verticals</button>
-    <button class="tab" data-group="Deployment">Deployment</button>
   </nav>
   <main class="main">
     <div class="dashboard-shell">
@@ -983,9 +1874,6 @@
         __DYNAMIC_ITEM_BUTTONS_HTML__
       </div>
       <div class="artifact">
-        <section class="section" id="overview" data-group="Overview">
-          <div data-slot="overview-body">__OVERVIEW_BODY__</div>
-        </section>
         <section class="section" id="system-overview" data-group="System">
           <div data-slot="system-body">__SYSTEM_BODY__</div>
         </section>
@@ -993,13 +1881,15 @@
           <div data-slot="runtime-body">__RUNTIME_BODY__</div>
         </section>
         <section class="section" id="data-overview" data-group="Data">
+          <div class="section-header">
+            <p class="section-eyebrow">__SYSTEM_ID__ / Data</p>
+            <h1 class="section-title">Entities & Data</h1>
+            <p class="section-description">Business entities extracted from the Forge system model.</p>
+          </div>
           <div data-slot="data-body">__DATA_BODY__</div>
         </section>
         <section class="section" id="verticals-overview" data-group="Verticals">
           <div data-slot="verticals-body">__VERTICALS_BODY__</div>
-        </section>
-        <section class="section" id="deployment-overview" data-group="Deployment">
-          <div data-slot="deployment-body">__DEPLOYMENT_BODY__</div>
         </section>
         __DYNAMIC_SECTIONS_HTML__
       </div>
@@ -1044,14 +1934,11 @@
     const sections = Array.from(document.querySelectorAll('.section'));
     const itemButtons = Array.from(document.querySelectorAll('.toolbar-btn'));
     const tabs = Array.from(document.querySelectorAll('.tab'));
-    const scrollRoot = document.querySelector('.artifact');
     const GROUP_OVERVIEW_TARGETS = {
-      Overview: 'overview',
       System: 'system-overview',
       Runtime: 'runtime-overview',
       Data: 'data-overview',
       Verticals: 'verticals-overview',
-      Deployment: 'deployment-overview',
     };
 
     function setActiveGroup(group, activeSectionId = '') {
@@ -1116,16 +2003,52 @@
       const wrap = surfaceNode.closest('.diagram-wrap');
       surfaceNode._naturalSize = natural;
       surfaceNode.dataset.scale = scale.toFixed(2);
-      svg.style.width = `${natural.width}px`;
-      svg.style.height = `${natural.height}px`;
-      svg.style.transform = `scale(${scale})`;
-      svg.style.transformOrigin = 'top left';
+      const compact = Boolean(surfaceNode.closest('.diagram-card-compact'));
+      const flowDiagram = Boolean(surfaceNode.closest('.section[id^="flow-"]'));
+      const systemDiagram = Boolean(surfaceNode.closest('#system-overview'));
+      if (compact) {
+        svg.style.width = `${natural.width * scale}px`;
+        svg.style.height = `${natural.height * scale}px`;
+        svg.style.transform = 'none';
+        svg.style.transformOrigin = 'center center';
+      } else {
+        svg.style.width = `${natural.width}px`;
+        svg.style.height = `${natural.height}px`;
+        svg.style.transform = `scale(${scale})`;
+        svg.style.transformOrigin = 'top left';
+      }
       surfaceNode.style.width = `${natural.width * scale}px`;
       surfaceNode.style.height = `${natural.height * scale}px`;
       if (wrap && !wrap.dataset.fixedHeight) {
-        wrap.style.height = `${Math.ceil(natural.height + 36)}px`;
+        const compactMinimum = compact ? 128 : (flowDiagram ? 168 : (systemDiagram ? 170 : 240));
+        const verticalPadding = compact || flowDiagram || systemDiagram ? 24 : 36;
+        wrap.style.height = `${Math.max(compactMinimum, Math.ceil(natural.height * scale + verticalPadding))}px`;
         wrap.dataset.fixedHeight = 'true';
       }
+      centerCompactDiagram(surfaceNode);
+    }
+
+    function centerCompactDiagram(surfaceNode) {
+      if (!surfaceNode.closest('.diagram-card-compact')) return;
+      const wrap = surfaceNode.closest('.diagram-wrap');
+      const svg = surfaceNode.querySelector('svg');
+      if (!wrap || !svg) return;
+      surfaceNode.style.transform = '';
+      const nodes = Array.from(svg.querySelectorAll('g.node'));
+      if (!nodes.length) return;
+      const bounds = nodes.reduce((acc, node) => {
+        const rect = node.getBoundingClientRect();
+        return {
+          left: Math.min(acc.left, rect.left),
+          right: Math.max(acc.right, rect.right),
+        };
+      }, { left: Infinity, right: -Infinity });
+      if (!Number.isFinite(bounds.left) || !Number.isFinite(bounds.right)) return;
+      const wrapRect = wrap.getBoundingClientRect();
+      const nodeCenter = (bounds.left + bounds.right) / 2;
+      const wrapCenter = wrapRect.left + wrapRect.width / 2;
+      const offset = wrapCenter - nodeCenter;
+      surfaceNode.style.transform = `translateX(${offset.toFixed(1)}px)`;
     }
 
     function getInitialDiagramScale(surfaceNode) {
@@ -1133,7 +2056,46 @@
       const natural = surfaceNode._naturalSize;
       if (!wrap || !natural || !natural.width) return 1;
       const available = Math.max(320, wrap.clientWidth - 12);
-      return Math.max(0.55, Math.min(1, available / natural.width));
+      const systemDiagram = Boolean(surfaceNode.closest('#system-overview'));
+      const maxScale = systemDiagram ? 0.72 : 1;
+      return Math.max(0.55, Math.min(maxScale, available / natural.width));
+    }
+
+    function normalizeSystemContextGraph(container) {
+      const title = container.closest('.diagram-card')?.querySelector('.diagram-header h3')?.textContent.trim();
+      if (title !== 'System Context') return;
+      const svg = container.querySelector('svg');
+      if (!svg) return;
+
+      svg.querySelectorAll('.edgeLabel, g.label, foreignObject').forEach(node => {
+        if (node.textContent && node.textContent.trim() === 'interacts') {
+          node.remove();
+        }
+      });
+
+      const actorLabels = new Set(['visitor', 'team_member']);
+      const actorShapes = Array.from(svg.querySelectorAll('g.node')).flatMap(node => {
+        const label = node.querySelector('.nodeLabel, span, p, text')?.textContent.trim();
+        if (!actorLabels.has(label)) return [];
+        const shape = node.querySelector('ellipse, circle');
+        return shape ? [shape] : [];
+      });
+      if (actorShapes.length < 2) return;
+
+      const maxRx = Math.max(...actorShapes.map(shape => Number(shape.getAttribute('rx') || shape.getAttribute('r') || 0)));
+      const maxRy = Math.max(...actorShapes.map(shape => Number(shape.getAttribute('ry') || shape.getAttribute('r') || 0)));
+      const maxWidth = Math.max(...actorShapes.map(shape => Number(shape.getAttribute('width') || 0)));
+      const maxHeight = Math.max(...actorShapes.map(shape => Number(shape.getAttribute('height') || 0)));
+      actorShapes.forEach(shape => {
+        if (maxWidth) shape.setAttribute('width', String(maxWidth));
+        if (maxHeight) shape.setAttribute('height', String(maxHeight));
+        if (shape.tagName.toLowerCase() === 'circle') {
+          shape.setAttribute('r', String(Math.max(maxRx, maxRy, maxWidth / 2, maxHeight / 2)));
+        } else {
+          shape.setAttribute('rx', String(maxRx || maxWidth / 2));
+          shape.setAttribute('ry', String(maxRy || maxHeight / 2));
+        }
+      });
     }
 
     function wrapLabelText(label, maxChars = 20) {
@@ -1402,14 +2364,112 @@
           x: (section.startPoint.x + section.endPoint.x) / 2,
           y: (section.startPoint.y + section.endPoint.y) / 2,
         };
-        return { ...mid, horizontal: true };
+        return {
+          ...mid,
+          horizontal: true,
+          a: section.startPoint,
+          b: section.endPoint,
+          length: Math.abs(section.endPoint.x - section.startPoint.x),
+        };
       }
 
       return {
         x: (chosen.a.x + chosen.b.x) / 2,
         y: (chosen.a.y + chosen.b.y) / 2,
         horizontal: chosen.horizontal,
+        a: chosen.a,
+        b: chosen.b,
+        length: chosen.length,
       };
+    }
+
+    function boxesIntersect(a, b, padding = 0) {
+      return !(
+        (a.x + a.width + padding) < b.x ||
+        (b.x + b.width + padding) < a.x ||
+        (a.y + a.height + padding) < b.y ||
+        (b.y + b.height + padding) < a.y
+      );
+    }
+
+    function svgBoxForNode(node, pad) {
+      return {
+        x: Number(node.x || 0) + pad,
+        y: Number(node.y || 0) + pad,
+        width: Number(node.width || 0),
+        height: Number(node.height || 0),
+      };
+    }
+
+    function translatedBox(box, dx, dy) {
+      return {
+        x: box.x + dx,
+        y: box.y + dy,
+        width: box.width,
+        height: box.height,
+      };
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function applyLabelOffset(labelGroup, text, dx, dy) {
+      labelGroup.setAttribute('transform', `translate(${dx}, ${dy})`);
+      Array.from(text.querySelectorAll('tspan')).forEach(tspan => {
+        tspan.setAttribute('x', String(Number(tspan.dataset.baseX || '0') + dx));
+      });
+    }
+
+    function resolveEdgeLabelOffset(baseBox, anchor, lane, occupiedBoxes) {
+      const perpendicularStep = anchor.horizontal ? 18 : 22;
+      const alongStep = anchor.horizontal ? 36 : 30;
+      const preferredDirection = lane < 0 ? -1 : 1;
+      const candidates = [{ dx: 0, dy: 0 }];
+      const usableSpan = Math.max(0, Number(anchor.length || 0) - (anchor.horizontal ? baseBox.width : baseBox.height) - 24);
+      const maxAlong = Math.max(0, usableSpan / 2);
+
+      for (let distance = 1; distance <= 5; distance += 1) {
+        const along = Math.min(maxAlong, alongStep * distance);
+        if (along <= 0) {
+          continue;
+        }
+        if (anchor.horizontal) {
+          candidates.push({ dx: along, dy: 0 });
+          candidates.push({ dx: -along, dy: 0 });
+          candidates.push({ dx: along, dy: preferredDirection * perpendicularStep });
+          candidates.push({ dx: -along, dy: preferredDirection * perpendicularStep });
+        } else {
+          candidates.push({ dx: 0, dy: along });
+          candidates.push({ dx: 0, dy: -along });
+          candidates.push({ dx: preferredDirection * perpendicularStep, dy: along });
+          candidates.push({ dx: preferredDirection * perpendicularStep, dy: -along });
+        }
+      }
+
+      for (let distance = 1; distance <= 4; distance += 1) {
+        const perpendicular = preferredDirection * perpendicularStep * distance;
+        if (anchor.horizontal) {
+          candidates.push({ dx: 0, dy: perpendicular });
+          candidates.push({ dx: clamp(alongStep * distance, -maxAlong, maxAlong), dy: perpendicular });
+          candidates.push({ dx: clamp(-alongStep * distance, -maxAlong, maxAlong), dy: perpendicular });
+          candidates.push({ dx: 0, dy: -perpendicular });
+        } else {
+          candidates.push({ dx: perpendicular, dy: 0 });
+          candidates.push({ dx: perpendicular, dy: clamp(alongStep * distance, -maxAlong, maxAlong) });
+          candidates.push({ dx: perpendicular, dy: clamp(-alongStep * distance, -maxAlong, maxAlong) });
+          candidates.push({ dx: -perpendicular, dy: 0 });
+        }
+      }
+
+      for (const candidate of candidates) {
+        const shifted = translatedBox(baseBox, candidate.dx, candidate.dy);
+        if (!occupiedBoxes.some(box => boxesIntersect(shifted, box, 8))) {
+          return candidate;
+        }
+      }
+
+      return { dx: 0, dy: 0 };
     }
 
     function bindDiagramControls(section) {
@@ -1417,7 +2477,7 @@
         if (card.dataset.controlsBound === 'true') return;
         card.dataset.controlsBound = 'true';
         const wrap = card.querySelector('.diagram-wrap');
-        const surfaceNode = wrap && (wrap.querySelector('.elk-graph') || wrap.querySelector('.diagram-surface'));
+        const surfaceNode = wrap && (wrap.querySelector('.mermaid-graph') || wrap.querySelector('.elk-graph') || wrap.querySelector('.diagram-surface'));
         const buttons = card.querySelectorAll('[data-diagram-zoom]');
         if (!wrap || !surfaceNode) return;
         buttons.forEach(button => {
@@ -1471,7 +2531,9 @@
       svg.appendChild(defs);
 
       const edgeLayer = document.createElementNS(svgNs, 'g');
+      const labelLayer = document.createElementNS(svgNs, 'g');
       const nodeLayer = document.createElementNS(svgNs, 'g');
+      const pendingLabels = [];
 
       const edges = layout.edges || [];
       edges.forEach(edge => {
@@ -1501,12 +2563,16 @@
           const lines = wrapLabelText(label, Number(forge.labelWrap || 18));
           lines.forEach((line, index) => {
             const tspan = document.createElementNS(svgNs, 'tspan');
-            tspan.setAttribute('x', String(anchor.x + pad + offsetX));
+            const baseX = anchor.x + pad + offsetX;
+            tspan.dataset.baseX = String(baseX);
+            tspan.setAttribute('x', String(baseX));
             tspan.setAttribute('dy', index === 0 ? '0' : '14');
             tspan.textContent = line;
             text.appendChild(tspan);
           });
-          edgeLayer.appendChild(text);
+          const labelGroup = document.createElementNS(svgNs, 'g');
+          labelGroup.appendChild(text);
+          labelLayer.appendChild(labelGroup);
           const bbox = text.getBBox();
           const bg = document.createElementNS(svgNs, 'rect');
           bg.setAttribute('class', 'elk-edge-label-bg');
@@ -1515,7 +2581,19 @@
           bg.setAttribute('width', String(bbox.width + 12));
           bg.setAttribute('height', String(bbox.height + 4));
           bg.setAttribute('rx', '4');
-          edgeLayer.insertBefore(bg, text);
+          labelGroup.insertBefore(bg, text);
+          pendingLabels.push({
+            labelGroup,
+            text,
+            anchor,
+            lane,
+            box: {
+              x: bbox.x - 6,
+              y: bbox.y - 2,
+              width: bbox.width + 12,
+              height: bbox.height + 4,
+            },
+          });
         }
       });
 
@@ -1603,6 +2681,13 @@
 
       svg.appendChild(edgeLayer);
       svg.appendChild(nodeLayer);
+      const occupiedBoxes = (layout.children || []).map(node => svgBoxForNode(node, pad));
+      pendingLabels.forEach(({ labelGroup, text, anchor, lane, box }) => {
+        const { dx, dy } = resolveEdgeLabelOffset(box, anchor, lane, occupiedBoxes);
+        applyLabelOffset(labelGroup, text, dx, dy);
+        occupiedBoxes.push(translatedBox(box, dx, dy));
+      });
+      svg.appendChild(labelLayer);
       container.innerHTML = '';
       container.appendChild(svg);
       container.classList.add('diagram-surface');
@@ -1613,9 +2698,14 @@
 
     async function renderSectionGraphs(section) {
       if (!section) return;
+      const mermaidGraphs = Array.from(section.querySelectorAll('.mermaid-graph'));
+      const pendingMermaid = mermaidGraphs.filter(node => node.dataset.mermaidRendered !== 'true');
       const graphs = Array.from(section.querySelectorAll('.elk-graph'));
       const pending = graphs.filter(node => !node.dataset.elkRendered);
       if (!pending.length) {
+        for (const node of pendingMermaid) {
+          await renderMermaidGraph(node);
+        }
         bindDiagramControls(section);
         return;
       }
@@ -1623,23 +2713,47 @@
         for (const node of pending) {
           await renderElkGraph(node);
         }
+        for (const node of pendingMermaid) {
+          await renderMermaidGraph(node);
+        }
         bindDiagramControls(section);
       } catch (error) {
         console.error(error);
       }
     }
 
+    async function renderMermaidGraph(container) {
+      if (!window.mermaid || container.dataset.mermaidRendered === 'true') return;
+      const source = container.querySelector('.mermaid');
+      if (!source) return;
+      await window.mermaid.run({ nodes: [source] });
+      container.dataset.mermaidRendered = 'true';
+      normalizeSystemContextGraph(container);
+      normalizeSvgBounds(container);
+      applyDiagramScale(container, parseFloat(container.dataset.scale || String(getInitialDiagramScale(container))));
+    }
+
+    function normalizeSectionId(id) {
+      return !id || id === 'overview' ? 'system-overview' : id;
+    }
+
     async function activateSection(id, updateHash = true) {
-      const targetSection = sections.find(section => section.id === id);
+      const normalizedId = normalizeSectionId(id);
+      const targetSection = sections.find(section => section.id === normalizedId);
       if (!targetSection) return;
       const group = targetSection.dataset.group;
-      sections.forEach(section => section.classList.toggle('active', section.id === id));
-      itemButtons.forEach(button => button.classList.toggle('active', button.dataset.target === id));
-      setActiveGroup(group, id);
+      sections.forEach(section => section.classList.toggle('active', section.id === normalizedId));
+      itemButtons.forEach(button => button.classList.toggle('active', button.dataset.target === normalizedId));
+      setActiveGroup(group, normalizedId);
+      enhanceDataOverviewPersistenceChips();
+      enhanceContainerDetailSections();
+      enhanceComponentDiagrams();
+      enhanceEntityDetailSections();
+      enhanceFlowDetailSections();
       if (updateHash) {
-        window.location.hash = id;
+        window.location.hash = normalizedId;
       }
-      scrollRoot.scrollTo({ top: 0, behavior: 'auto' });
+      window.scrollTo({ top: 0, behavior: 'auto' });
       await renderSectionGraphs(targetSection);
     }
 
@@ -1680,9 +2794,688 @@
         tab.addEventListener('click', () => activateGroup(tab.dataset.group));
       });
     }
+
+    function bindEnvironmentSelectors() {
+      document.querySelectorAll('[data-environment-select]').forEach(select => {
+        if (select.dataset.bound === 'true') return;
+        select.dataset.bound = 'true';
+        select.addEventListener('change', () => {
+          const section = select.closest('.section') || document;
+          section.querySelectorAll('[data-environment-panel]').forEach(panel => {
+            panel.hidden = panel.dataset.environmentPanel !== select.value;
+          });
+        });
+      });
+    }
+
+    function enhanceDataOverviewPersistenceChips() {
+      document.querySelectorAll('#data-overview .record-row[data-target^="entity-"]').forEach(row => {
+        if (row.dataset.persistenceEnhanced === 'true') return;
+        row.dataset.persistenceEnhanced = 'true';
+        const entityId = row.dataset.target.replace(/^entity-/, '');
+        const targetSection = document.getElementById(row.dataset.target);
+        if (!targetSection) return;
+
+        const persistence = Array.from(targetSection.querySelectorAll('pre'))
+          .map(pre => {
+            try {
+              return JSON.parse(pre.textContent);
+            } catch {
+              return null;
+            }
+          })
+          .find(payload => (
+            payload
+            && payload.entity === entityId
+            && (payload.storage_model || payload.physical_store || payload.table || payload.lifecycle)
+          ));
+        if (!persistence) return;
+
+        let chipList = row.querySelector('.record-side .pill-list');
+        if (!chipList) {
+          const side = row.querySelector('.record-side');
+          if (!side) return;
+          chipList = document.createElement('div');
+          chipList.className = 'pill-list';
+          Array.from(side.querySelectorAll('.kind-chip')).forEach(chip => chipList.appendChild(chip));
+          side.appendChild(chipList);
+        }
+
+        const existing = new Set(Array.from(chipList.querySelectorAll('.kind-chip')).map(chip => chip.textContent.trim()));
+        const chipSpecs = [
+          ['chip-storage', persistence.storage_model],
+          ['chip-deploy', persistence.physical_store],
+          ['chip-table', persistence.table],
+        ];
+        if (persistence.lifecycle && Array.isArray(persistence.lifecycle.states) && persistence.lifecycle.states.length) {
+          chipSpecs.push(['chip-lifecycle', `${persistence.lifecycle.states.length} states`]);
+        }
+
+        chipSpecs.forEach(([cssClass, label]) => {
+          if (!label || existing.has(label)) return;
+          const chip = document.createElement('span');
+          chip.className = `kind-chip ${cssClass}`;
+          chip.textContent = label;
+          chipList.appendChild(chip);
+        });
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, character => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      }[character]));
+    }
+
+    function refText(value) {
+      if (!value || typeof value !== 'object') return String(value || '');
+      return ['container', 'component', 'ref']
+        .map(key => value[key])
+        .filter(Boolean)
+        .join(' / ');
+    }
+
+    function rawPayloadDetails(label, payload) {
+      return (
+        '<details class="payload-expandable">'
+        + `<summary>${escapeHtml(label)}</summary>`
+        + `<div class="schema-viewer"><pre>${escapeHtml(JSON.stringify(payload, null, 2))}</pre></div>`
+        + '</details>'
+      );
+    }
+
+    function metadataSummary(items) {
+      return items
+        .filter(([, value]) => String(value || '').trim())
+        .map(([label, value]) => (
+          '<div class="metadata-summary-item">'
+          + `<span class="metadata-summary-label">${escapeHtml(label)}</span>`
+          + `<span class="metadata-summary-value">${escapeHtml(value)}</span>`
+          + '</div>'
+        ))
+        .join('');
+    }
+
+    function componentRowsHtml(components) {
+      const rows = components.map(component => {
+        const payload = component.payload && typeof component.payload === 'object' ? component.payload : component;
+        const id = component.id || payload.id || '';
+        const role = payload.role || component.role || '';
+        const description = payload.description || component.description || '';
+        const source = [component.source, component.line].filter(Boolean).join(':');
+        const responsibilities = Array.isArray(payload.responsibilities || component.responsibilities)
+          ? (payload.responsibilities || component.responsibilities)
+          : [];
+        const responsibilityItems = responsibilities
+          .filter(item => String(item || '').trim())
+          .map(item => `<li>${escapeHtml(item)}</li>`)
+          .join('');
+        return (
+          '<details class="component-table-row component-expandable-row">'
+          + '<summary class="component-row-head">'
+          + '<div>'
+          + `<h5>${escapeHtml(id)}</h5>`
+          + (source ? `<span class="component-source">${escapeHtml(source)}</span>` : '')
+          + '</div>'
+          + (role ? `<span class="kind-chip chip-storage">${escapeHtml(role)}</span>` : '')
+          + '<span class="entity-shape-chevron" aria-hidden="true"></span>'
+          + '</summary>'
+          + '<div class="component-row-body">'
+          + (description ? `<p>${escapeHtml(description)}</p>` : '')
+          + (responsibilityItems
+            ? '<div class="component-responsibilities">'
+              + '<span class="component-row-label">Responsibilities</span>'
+              + `<ul>${responsibilityItems}</ul>`
+              + '</div>'
+            : '')
+          + '</div>'
+          + '</details>'
+        );
+      }).join('');
+      return rows ? `<div class="component-table">${rows}</div>` : '';
+    }
+
+    function dataShapeRowsHtml(shapes) {
+      const rows = shapes.map(shape => {
+        const payload = shape.payload && typeof shape.payload === 'object' ? shape.payload : shape;
+        const id = shape.id || payload.id || '';
+        const kind = payload.type_kind || payload.kind || '';
+        const source = [shape.source, shape.line].filter(Boolean).join(':');
+        return (
+          '<div class="component-table-row data-shape-row">'
+          + '<div class="component-row-head">'
+          + '<div>'
+          + `<h5>${escapeHtml(id)}</h5>`
+          + (source ? `<span class="component-source">${escapeHtml(source)}</span>` : '')
+          + '</div>'
+          + (kind ? `<span class="kind-chip chip-shape">${escapeHtml(kind)}</span>` : '')
+          + '</div>'
+          + '</div>'
+        );
+      }).join('');
+      return rows ? `<div class="component-table data-shape-table">${rows}</div>` : '';
+    }
+
+    function operationRowsHtml(operations) {
+      const rows = operations.map(operation => {
+        const payload = operation.payload && typeof operation.payload === 'object' ? operation.payload : operation;
+        const id = operation.id || payload.id || '';
+        const source = [operation.source, operation.line].filter(Boolean).join(':');
+        const chip = payload.component || payload.local_flow || payload.container_flow || 'operation';
+        const ioRows = [
+          ['Input', payload.input],
+          ['Returns', payload.returns],
+        ].filter(([, value]) => String(value || '').trim()).map(([label, value]) => (
+          `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`
+        )).join('');
+        const logicItems = Array.isArray(payload.logic)
+          ? payload.logic.filter(item => String(item || '').trim()).map(item => `<li>${escapeHtml(item)}</li>`).join('')
+          : '';
+        const participation = Array.isArray(payload.participates_in) ? payload.participates_in : [];
+        const participationRows = participation.map(item => (
+          '<tr>'
+          + `<td>${escapeHtml(item.container_flow)}</td>`
+          + `<td>${escapeHtml(item.local_flow)}</td>`
+          + `<td>${escapeHtml(item.step)}</td>`
+          + `<td>${escapeHtml(item.passes)}</td>`
+          + '</tr>'
+        )).join('');
+        return (
+          '<details class="component-table-row component-expandable-row operation-row">'
+          + '<summary class="component-row-head">'
+          + '<div>'
+          + `<h5>${escapeHtml(id)}</h5>`
+          + (source ? `<span class="component-source">${escapeHtml(source)}</span>` : '')
+          + '</div>'
+          + `<span class="kind-chip chip-deploy">${escapeHtml(chip)}</span>`
+          + '<span class="entity-shape-chevron" aria-hidden="true"></span>'
+          + '</summary>'
+          + '<div class="operation-row-body">'
+          + (ioRows
+            ? '<div class="metadata-table-wrap operation-io-table"><table class="metadata-table">'
+              + ioRows
+              + '</table></div>'
+            : '')
+          + (logicItems
+            ? '<div class="component-responsibilities">'
+              + '<span class="component-row-label">Logic</span>'
+              + `<ul>${logicItems}</ul>`
+              + '</div>'
+            : '')
+          + (participationRows
+            ? '<details class="payload-expandable operation-participation-details">'
+              + `<summary>Participation (${participation.length})</summary>`
+              + '<div class="metadata-table-wrap"><table class="metadata-table operation-participation-table">'
+              + '<tr><th>Flow</th><th>Local Flow</th><th>Step</th><th>Passes</th></tr>'
+              + participationRows
+              + '</table></div>'
+              + '</details>'
+            : '')
+          + '</div>'
+          + '</details>'
+        );
+      }).join('');
+      return rows ? `<div class="component-table operation-table">${rows}</div>` : '';
+    }
+
+    function readableCellText(cell) {
+      if (!cell) return '';
+      return Array.from(cell.childNodes).map(node => {
+        if (node.nodeName === 'BR') return '\n';
+        return node.textContent || '';
+      }).join('').replace(/\n{2,}/g, '\n').trim();
+    }
+
+    function flowOperationRowsHtml(operations, stepNumber) {
+      const groups = new Map();
+      const containerLabelForLocalFlow = (operation, payload, localFlow) => {
+        if (operation.container || payload.container) return operation.container || payload.container;
+        if (String(localFlow || '').endsWith('_frontend')) return 'frontend_ui';
+        if (String(localFlow || '').endsWith('_backend')) return 'backend_api';
+        return 'container';
+      };
+      operations.forEach(operation => {
+        const payload = operation.payload && typeof operation.payload === 'object' ? operation.payload : {};
+        const entries = [];
+        if (String(payload.step || '') === stepNumber) entries.push(payload);
+        if (Array.isArray(payload.participates_in)) {
+          payload.participates_in.forEach(item => {
+            if (item && typeof item === 'object' && String(item.step || '') === stepNumber) entries.push(item);
+          });
+        }
+        entries.forEach(entry => {
+          const localFlow = entry.local_flow || payload.local_flow || 'local_flow';
+          const container = containerLabelForLocalFlow(operation, payload, localFlow);
+          const groupKey = `${container}::${localFlow}`;
+          if (!groups.has(groupKey)) groups.set(groupKey, []);
+          groups.get(groupKey).push(operation);
+        });
+      });
+      return Array.from(groups.entries()).map(([groupKey, groupOperations]) => {
+        const [container, localFlow] = groupKey.split('::');
+        return (
+        '<details class="flow-local-group">'
+        + '<summary>'
+        + '<span>'
+        + `<strong>${escapeHtml(container || 'container')}</strong>`
+        + `<em>${escapeHtml(localFlow || 'local_flow')}</em>`
+        + '</span>'
+        + `<span>${groupOperations.length} operations</span>`
+        + '</summary>'
+        + '<div class="flow-operation-list">'
+        + groupOperations.map(operation => {
+          const payload = operation.payload && typeof operation.payload === 'object' ? operation.payload : {};
+          const source = [operation.source, operation.line].filter(Boolean).join(':');
+          const ioItems = [
+            ['Input', payload.input],
+            ['Returns', payload.returns],
+          ].filter(([, value]) => String(value || '').trim()).map(([label, value]) => (
+            `<li><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></li>`
+          )).join('');
+          const logicItems = Array.isArray(payload.logic)
+            ? payload.logic.filter(item => String(item || '').trim()).map(item => `<li>${escapeHtml(item)}</li>`).join('')
+            : '';
+          return (
+            '<details class="flow-operation-row">'
+            + '<summary>'
+            + '<span>'
+            + `<strong>${escapeHtml(operation.id || payload.id || '')}</strong>`
+            + (source ? `<em>${escapeHtml(source)}</em>` : '')
+            + '</span>'
+            + '<span></span>'
+            + '<span class="entity-shape-chevron" aria-hidden="true"></span>'
+            + '</summary>'
+            + (ioItems ? `<ul class="flow-step-io flow-operation-io">${ioItems}</ul>` : '')
+            + (logicItems
+              ? '<div class="flow-step-logic"><span>Logic</span><ul>' + logicItems + '</ul></div>'
+              : '')
+            + '</details>'
+          );
+        }).join('')
+        + '</div>'
+        + '</details>'
+        );
+      }).join('');
+    }
+
+    function flowStepRowHtml({ number, edge, input, output, logic }, operations = []) {
+      const logicItems = String(logic || '')
+        .split(/\n+/)
+        .map(item => item.trim())
+        .filter(Boolean)
+        .map(item => `<li>${escapeHtml(item)}</li>`)
+        .join('');
+      const operationGroups = flowOperationRowsHtml(operations, String(number || ''));
+      return (
+        '<details class="flow-step-row">'
+        + '<summary class="flow-step-summary">'
+        + `<span class="flow-step-index">${escapeHtml(number)}</span>`
+        + '<span class="flow-step-visible">'
+        + `<strong>${escapeHtml(edge)}</strong>`
+        + '</span>'
+        + '<span class="entity-shape-chevron" aria-hidden="true"></span>'
+        + '</summary>'
+        + '<div class="flow-step-content">'
+        + '<ul class="flow-step-io">'
+        + `<li><span>Input</span><strong>${escapeHtml(input)}</strong></li>`
+        + `<li><span>Output</span><strong>${escapeHtml(output)}</strong></li>`
+        + '</ul>'
+        + (logicItems ? '<div class="flow-step-logic"><span>Logic</span><ul>' + logicItems + '</ul></div>' : '')
+        + (operationGroups
+          ? '<div class="flow-step-local"><span class="component-row-label">Local flows and operations</span>'
+            + operationGroups
+            + '</div>'
+          : '')
+        + '</div>'
+        + '</details>'
+      );
+    }
+
+    function flowStepRowsFromTable(table, operations = []) {
+      const bodyRows = Array.from(table.querySelectorAll('tr')).slice(1);
+      const rows = bodyRows.map(row => {
+        const cells = Array.from(row.children);
+        const [numberCell, edgeCell, inputCell, outputCell, logicCell] = cells;
+        return flowStepRowHtml({
+          number: readableCellText(numberCell),
+          edge: readableCellText(edgeCell),
+          input: readableCellText(inputCell),
+          output: readableCellText(outputCell),
+          logic: readableCellText(logicCell),
+        }, operations);
+      }).join('');
+      return rows ? `<div class="flow-step-list">${rows}</div>` : '';
+    }
+
+    function enhanceFlowDetailSections() {
+      document.querySelectorAll('.section[id^="flow-"]').forEach(section => {
+        const cards = Array.from(section.querySelectorAll(':scope > .card'));
+        const operationCard = cards.find(card => card.querySelector(':scope > h4')?.textContent.trim() === 'Extracted Operations');
+        const operations = operationCard ? annotationCardsFromSection(operationCard) : [];
+        section.querySelectorAll('.diagram-card .diagram-header p').forEach(copy => {
+          if (copy.textContent.includes('table')) {
+            copy.textContent = 'Numbered edges correspond to the flow steps below.';
+          }
+        });
+        Array.from(section.querySelectorAll(':scope > .card > table')).forEach(table => {
+          const headers = Array.from(table.querySelectorAll('tr:first-child th'))
+            .map(header => header.textContent.trim().toLowerCase());
+          const isFlowTable = ['#', 'edge', 'input', 'output', 'logic']
+            .every((header, index) => headers[index] === header);
+          if (!isFlowTable) return;
+          const rows = flowStepRowsFromTable(table, operations);
+          if (rows) {
+            table.insertAdjacentHTML('beforebegin', rows);
+          }
+          table.remove();
+        });
+        section.querySelectorAll('.flow-step-list > div.flow-step-row').forEach(row => {
+          const number = readableCellText(row.querySelector('.flow-step-index'));
+          const edge = readableCellText(row.querySelector('.flow-step-edge'));
+          const fields = Array.from(row.querySelectorAll('.flow-step-field strong')).map(readableCellText);
+          const logic = readableCellText(row.querySelector('.flow-step-logic ul'));
+          row.insertAdjacentHTML('beforebegin', flowStepRowHtml({
+            number,
+            edge,
+            input: fields[0] || '',
+            output: fields[1] || '',
+            logic,
+          }, operations));
+          row.remove();
+        });
+        if (operationCard) {
+          operationCard.remove();
+        }
+        cards
+          .filter(card => card.querySelector('.diagram-header h3')?.textContent.trim().startsWith('Local Flow:'))
+          .forEach(card => card.remove());
+      });
+    }
+
+    function annotationCardsFromSection(card) {
+      return Array.from(card.querySelectorAll(':scope > .card')).map(child => {
+        const pre = child.querySelector('pre');
+        let payload = {};
+        if (pre) {
+          try {
+            payload = JSON.parse(pre.textContent);
+          } catch {
+            payload = {};
+          }
+        }
+        const sourceText = child.querySelector('p')?.textContent.trim() || '';
+        const sourceParts = sourceText.match(/^(.*):(\d+)$/);
+        return {
+          id: child.querySelector('h3')?.textContent.trim() || payload.id || '',
+          source: sourceParts ? sourceParts[1] : sourceText,
+          line: sourceParts ? sourceParts[2] : '',
+          payload,
+        };
+      }).filter(item => item.id || item.payload.id);
+    }
+
+    function enhanceContainerDetailSections() {
+      document.querySelectorAll('.section[id^="container-"]').forEach(section => {
+        const cards = Array.from(section.querySelectorAll(':scope .container-stack > .card'));
+        const componentCard = cards.find(card => card.querySelector(':scope > h4')?.textContent.trim() === 'Components');
+        if (componentCard && !componentCard.querySelector('.component-table')) {
+          const rows = componentRowsHtml(annotationCardsFromSection(componentCard));
+          if (rows) {
+            componentCard.classList.add('component-table-card');
+            componentCard.innerHTML = '<h4>Components</h4>' + rows;
+          }
+        }
+
+        const dataShapeCard = cards.find(card => card.querySelector(':scope > h4')?.textContent.trim() === 'Data Shapes');
+        if (dataShapeCard && !dataShapeCard.querySelector('.data-shape-table')) {
+          const rows = dataShapeRowsHtml(annotationCardsFromSection(dataShapeCard));
+          if (rows) {
+            dataShapeCard.classList.add('data-shape-table-card');
+            dataShapeCard.innerHTML = '<h4>Data Shapes</h4>' + rows;
+          }
+        }
+
+        const operationCard = cards.find(card => card.querySelector(':scope > h4')?.textContent.trim() === 'Operations');
+        if (operationCard && !operationCard.querySelector('.operation-table')) {
+          const rows = operationRowsHtml(annotationCardsFromSection(operationCard));
+          if (rows) {
+            operationCard.classList.add('operation-table-card');
+            operationCard.innerHTML = '<h4>Operations</h4>' + rows;
+          }
+        }
+      });
+    }
+
+    function enhanceComponentDiagrams() {
+      document.querySelectorAll('.diagram-card').forEach(card => {
+        const title = card.querySelector('.diagram-header h3')?.textContent.trim();
+        if (title !== 'Extracted Components' && title !== 'Container Components') return;
+        card.classList.add('diagram-card-compact');
+        const source = card.querySelector('pre.mermaid');
+        if (!source || source.dataset.componentCompacted === 'true') return;
+        const lines = source.textContent.split('\n');
+        const nodeIds = lines
+          .map(line => line.match(/^\s*([A-Za-z][A-Za-z0-9_]*)\s*(?:\[|\(|\{|\>)/)?.[1])
+          .filter(Boolean);
+        if (nodeIds.length > 1 && !source.textContent.includes('~~~')) {
+          const spacerLines = [];
+          for (let index = 0; index < nodeIds.length - 1; index += 1) {
+            spacerLines.push(`  ${nodeIds[index]} ~~~ ${nodeIds[index + 1]}`);
+          }
+          source.textContent = `${source.textContent.trim()}\n${spacerLines.join('\n')}`;
+        }
+        source.dataset.componentCompacted = 'true';
+      });
+    }
+
+    function enhanceEntityDetailSections() {
+      document.querySelectorAll('.section[id^="entity-"]').forEach(section => {
+        if (section.dataset.entityEnhanced === 'true') return;
+        const entityPre = section.querySelector(':scope > .card pre');
+        if (!entityPre) return;
+        let entity;
+        try {
+          entity = JSON.parse(entityPre.textContent);
+        } catch {
+          return;
+        }
+        section.dataset.entityEnhanced = 'true';
+
+        const payloads = Array.from(section.querySelectorAll('pre')).slice(1).map(pre => {
+          try {
+            return JSON.parse(pre.textContent);
+          } catch {
+            return null;
+          }
+        }).filter(Boolean);
+        const shapes = payloads.filter(payload => payload.entity === entity.id && payload.shape);
+        const persistence = payloads.filter(payload => (
+          payload.entity === entity.id
+          && (payload.storage_model || payload.physical_store || payload.table || payload.access_patterns)
+        ));
+
+        const summary = metadataSummary([
+          ['Category', entity.category],
+          ['Canonical Type', refText(entity.canonical_type)],
+          ['Logical Owner', refText(entity.logical_owner)],
+          ['Persisted In', refText(entity.persisted_in)],
+        ]);
+        const security = entity.security
+          ? '<div class="metadata-table-wrap"><table class="metadata-table">'
+            + `<tr><th>Security</th><td>${escapeHtml(entity.security)}</td></tr>`
+            + '</table></div>'
+          : '';
+
+        const lifecycle = entity.lifecycle || {};
+        const lifecycleStates = Array.isArray(lifecycle.states)
+          ? lifecycle.states.map(state => `<span class="kind-chip chip-lifecycle">${escapeHtml(state)}</span>`).join('')
+          : '';
+        const lifecycleRows = Array.isArray(lifecycle.transitions)
+          ? lifecycle.transitions.map(item => (
+            '<tr>'
+            + `<td>${escapeHtml(item.from)}</td>`
+            + `<td>${escapeHtml(item.to)}</td>`
+            + `<td>${escapeHtml(item.condition)}</td>`
+            + '</tr>'
+          )).join('')
+          : '';
+        const lifecycleDiagramRows = Array.isArray(lifecycle.transitions)
+          ? lifecycle.transitions.map(item => (
+            '<div class="entity-state-transition">'
+            + `<span class="entity-state-node">${escapeHtml(item.from)}</span>`
+            + '<span class="entity-state-arrow" aria-hidden="true">&rarr;</span>'
+            + `<span class="entity-state-node">${escapeHtml(item.to)}</span>`
+            + '</div>'
+          )).join('')
+          : '';
+        const lifecycleDiagram = lifecycleDiagramRows
+          ? `<div class="entity-state-diagram">${lifecycleDiagramRows}</div>`
+          : `<div class="entity-state-diagram entity-state-diagram-flat">${lifecycleStates}</div>`;
+        const lifecycleCard = lifecycleStates || lifecycleRows
+          ? '<div class="card entity-lifecycle-card"><h4>Lifecycle</h4>'
+            + lifecycleDiagram
+            + (lifecycleRows
+              ? '<details class="payload-expandable lifecycle-transition-details">'
+                + `<summary>Transitions (${lifecycle.transitions.length})</summary>`
+                + '<div class="metadata-table-wrap"><table class="metadata-table lifecycle-transition-table">'
+                + '<colgroup><col class="lifecycle-col-state"><col class="lifecycle-col-state"><col class="lifecycle-col-condition"></colgroup>'
+                + '<tr><th>From</th><th>To</th><th>Condition</th></tr>'
+                + lifecycleRows
+                + '</table></div>'
+                + '</details>'
+              : '')
+            + '</div>'
+          : '';
+
+        const shapeRows = shapes.map(payload => (
+            '<details class="entity-shape-row">'
+            + '<summary>'
+            + `<span class="entity-shape-name">${escapeHtml(payload.id)}</span>`
+            + `<span class="kind-chip chip-shape">${escapeHtml(payload.type_kind)}</span>`
+            + '<span class="entity-shape-chevron" aria-hidden="true"></span>'
+            + '</summary>'
+            + `<div class="schema-viewer"><pre>${escapeHtml(JSON.stringify(payload.shape || {}, null, 2))}</pre></div>`
+            + '</details>'
+        )).join('');
+        const shapesCard = '<div class="card entity-shapes-card"><h4>Related Data Shapes</h4>'
+          + (shapeRows
+            ? `<div class="entity-shape-list">${shapeRows}</div>`
+            : '<p>No related data shapes.</p>')
+          + '</div>';
+
+        const persistenceBlocks = persistence.map(payload => {
+          const summaryHtml = metadataSummary([
+            ['Storage Model', payload.storage_model],
+            ['Physical Store', payload.physical_store],
+            ['Table', payload.table],
+            ['Migrations', payload.migrations_path],
+          ]);
+          const patterns = Array.isArray(payload.access_patterns)
+            ? `<ul>${payload.access_patterns.map(pattern => `<li>${escapeHtml(pattern)}</li>`).join('')}</ul>`
+            : '';
+          const rows = [
+            ['Access Patterns', patterns],
+            ['Security', escapeHtml(payload.security || '')],
+          ].filter(([, value]) => String(value || '').trim()).map(([label, value]) => (
+            `<tr><th>${escapeHtml(label)}</th><td>${value}</td></tr>`
+          )).join('');
+          return (
+            '<div class="entity-persistence-block">'
+            + `<div class="metadata-summary metadata-summary-compact">${summaryHtml}</div>`
+            + `<div class="metadata-table-wrap"><table class="metadata-table">${rows}</table></div>`
+            + rawPayloadDetails('Raw Persistence Payload', payload)
+            + '</div>'
+          );
+        }).join('');
+        const persistenceCard = '<div class="card entity-persistence-card"><h4>Persistence</h4>'
+          + (persistenceBlocks || '<p>No persistence annotation.</p>')
+          + '</div>';
+
+        section.innerHTML = (
+          '<div class="entity-detail-stack">'
+          + '<div class="card entity-summary-card">'
+          + '<div class="card-header">'
+          + `<h3>${escapeHtml(entity.id)}</h3>`
+          + `<div class="pill-list"><span class="kind-chip chip-persistent">${escapeHtml(entity.category)}</span></div>`
+          + '</div>'
+          + `<p>${escapeHtml(entity.description)}</p>`
+          + `<div class="metadata-summary metadata-summary-compact">${summary}</div>`
+          + security
+          + rawPayloadDetails('Raw Entity Payload', entity)
+          + '</div>'
+          + lifecycleCard
+          + shapesCard
+          + persistenceCard
+          + '</div>'
+        );
+      });
+    }
+    if (window.mermaid) {
+      window.mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: 'loose',
+        flowchart: {
+          curve: 'basis',
+          htmlLabels: true,
+          nodeSpacing: 52,
+          rankSpacing: 86,
+        },
+        theme: 'base',
+        themeVariables: {
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          primaryColor: '#ffffff',
+          primaryBorderColor: '#d1d9e0',
+          primaryTextColor: '#1f2328',
+          lineColor: '#8c959f',
+          edgeLabelBackground: '#ffffff',
+          tertiaryColor: '#f6f8fa',
+        },
+      });
+    }
+
+    function watchAuditVersion() {
+      let knownVersion = '';
+      const check = async () => {
+        try {
+          const response = await fetch('/__forge_audit_version', { cache: 'no-store' });
+          if (!response.ok) return;
+          const payload = await response.json();
+          const nextVersion = String(payload.version || '');
+          if (!knownVersion) {
+            knownVersion = nextVersion;
+            return;
+          }
+          if (nextVersion && nextVersion !== knownVersion) {
+            window.location.reload();
+          }
+        } catch {
+          // The live server may have stopped; leave the current audit page usable.
+        }
+      };
+      setInterval(() => { void check(); }, 2000);
+      void check();
+    }
+
     bindNavigation();
-    const initial = window.location.hash.replace('#', '') || 'overview';
-    void activateSection(initial);
+    bindEnvironmentSelectors();
+    enhanceDataOverviewPersistenceChips();
+    enhanceContainerDetailSections();
+    enhanceComponentDiagrams();
+    enhanceEntityDetailSections();
+    enhanceFlowDetailSections();
+    window.addEventListener('hashchange', () => {
+      const target = window.location.hash.replace('#', '');
+      if (target) {
+        void activateSection(target, false);
+      }
+    });
+    watchAuditVersion();
+    const rawInitial = window.location.hash.replace('#', '');
+    void activateSection(rawInitial);
   </script>
 </body>
 </html>

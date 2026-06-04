@@ -1,0 +1,67 @@
+schema: forge.entities
+
+entities:
+  - id: user
+    category: lifecycle_object
+    description: Registered person who can sign in and manage notes.
+    lifecycle:
+      states:
+        - active
+        - disabled
+      transitions:
+        - from: active
+          to: disabled
+          condition: Administrative action disables the user.
+    canonical_type:
+      container: notes_db
+      component: user_store
+      ref: user_record
+    logical_owner:
+      container: backend_api
+      component: account_service
+    persisted_in:
+      container: notes_db
+      component: user_store
+    security: >
+      Contains identity and password hash data. Password hashes must not be
+      exposed to the frontend.
+
+  - id: session
+    category: record
+    description: Authenticated session issued after successful sign-in.
+    canonical_type:
+      container: notes_db
+      component: session_store
+      ref: session_record
+    logical_owner:
+      container: backend_api
+      component: account_service
+    persisted_in:
+      container: notes_db
+      component: session_store
+    security: >
+      Session tokens must be protected and revocable.
+
+  - id: note
+    category: lifecycle_object
+    description: Shared team note moving from active to archived.
+    lifecycle:
+      states:
+        - active
+        - archived
+      transitions:
+        - from: active
+          to: archived
+          condition: Team member archives the note.
+    canonical_type:
+      container: notes_db
+      component: note_store
+      ref: note_record
+    logical_owner:
+      container: backend_api
+      component: note_service
+    persisted_in:
+      container: notes_db
+      component: note_store
+    security: >
+      Notes are visible only to authenticated team members.

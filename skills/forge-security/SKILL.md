@@ -34,6 +34,16 @@ Security in Forge V2 is expressed in four places:
 
 Keep the distinction clean.
 
+## LLM Security Guardrails
+
+Apply these safeguards when adding or reviewing security content:
+
+1. State security assumptions explicitly; do not hide uncertainty behind generic language.
+2. Add only security obligations that change architecture, implementation, or verification.
+3. Keep controls at the right level: system, container, persisted shape, or deployment boundary.
+4. Avoid speculative provider detail unless the schema already commits to that provider.
+5. If a security issue needs deeper analysis, route to the relevant security reference instead of bloating Forge artifacts.
+
 ### `system.security`
 
 Use for:

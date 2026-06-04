@@ -1,5 +1,16 @@
 # Forge V2 Schema Reference
 
+## Authoring Discipline
+
+Forge schema artifacts should be minimal, explicit, and verifiable:
+
+- State assumptions instead of hiding uncertainty in invented structure.
+- Add only fields, artifacts, and flows that serve the current architectural or build goal.
+- Do not add speculative flexibility, optionality, or future-facing artifacts.
+- Keep one-off payloads inline until reuse, persistence, or system significance justifies promotion.
+- Touch the narrowest schema scope needed; do not refactor unrelated artifacts.
+- Define review or validation criteria for every non-trivial schema change.
+
 ## System
 
 Defines the highest-level truth about the system: what it is, why it exists, what is inside its boundary, who interacts with it, and which external systems it depends on.
@@ -200,6 +211,7 @@ Additional rule:
 - A step with `branches` is a decision step.
 - A step with neither is a terminal step.
 - A step with both is invalid.
+- `next` and branch targets may point to earlier steps when the flow intentionally loops.
 
 ### Example
 
@@ -575,6 +587,7 @@ Additional rule:
 - A step with `branches` is a decision step.
 - A step with neither is a terminal step.
 - A step with both is invalid.
+- `next` and branch targets may point to earlier steps when the flow intentionally loops.
 
 ### Example
 
@@ -1228,20 +1241,21 @@ container:
 
 `container.component_flows[].steps[].next`
 - Numeric id of the normal next step.
-- A step may define `next` and `outgoing`, or `branches`, but never both.
+- A step may define `next` with optional `outgoing`, or `branches`, but never both.
 - Terminal steps should omit this field.
 
 `container.component_flows[].steps[].outgoing`
-- Exact payload definition sent from this step to the next step.
+- Exact payload definition emitted by this step.
+- For a step with `next`, this is the payload sent to the next component step.
+- For a terminal step without `next` or `branches`, this is the payload emitted back to the runtime/container boundary.
 - This may include field names, nested structure, required data, and data types.
 - When the payload has been promoted into a `data_shape`, use `ref[data_shape_id]` instead of repeating the full structure inline.
-- A step may define `next` and `outgoing`, or `branches`, but never both.
-- A terminal step should omit this field.
+- A step may define `next` with optional `outgoing`, `branches`, or terminal `outgoing`, but never mix linear and branch fields.
 
 `container.component_flows[].steps[].branches`
 - Optional list of decision branches from the current step.
 - Use this when the step can lead to multiple different next steps.
-- A step may define `branches`, or `next` and `outgoing`, but never both.
+- A step may define `branches`, or `next` with optional `outgoing`, but never both.
 
 `container.component_flows[].steps[].branches[].condition`
 - Plain-language description of the condition that causes the branch.
@@ -1255,10 +1269,11 @@ container:
 - When the payload has been promoted into a `data_shape`, use `ref[data_shape_id]` instead of repeating the full structure inline.
 
 Additional rule:
-- A step with `next` and `outgoing` is a linear step.
+- A step with `next` is a linear step and may include `outgoing`.
 - A step with `branches` is a decision step.
-- A step with neither is a terminal step.
+- A step with neither `next` nor `branches` is a terminal step and may include `outgoing`.
 - A step with both linear and branch fields is invalid.
+- `next` and branch targets may point to earlier steps when the component flow intentionally loops.
 
 ### Example
 
@@ -1323,15 +1338,15 @@ container:
             },
             payment_method_token: string
           }
-        steps:
-          - id: 1
-            component: order_request_controller
-            description:
-              - Accept the order request from the storefront.
-              - Perform request-level validation checks.
-              - Pass the normalized request into the validation service.
-            next: 2
-            outgoing: >
+      steps:
+        - id: 1
+          component: order_request_controller
+          description:
+            - Accept the order request from the storefront.
+            - Perform request-level validation checks.
+            - Pass the normalized request into the validation service.
+          next: 2
+          outgoing: >
               {
                 customer_id: string,
                 line_items: [
@@ -1353,16 +1368,16 @@ container:
                 },
                 payment_method_token: string
               }
-          - id: 2
-            component: order_validation_service
-            description:
-              - Validate the business correctness of the request.
-              - Normalize order content for persistence.
-              - Decide whether the order can proceed.
-            branches:
-              - condition: Order request is valid and can be persisted.
-                next: 3
-                outgoing: >
+        - id: 2
+          component: order_validation_service
+          description:
+            - Validate the business correctness of the request.
+            - Normalize order content for persistence.
+            - Decide whether the order can proceed.
+          branches:
+            - condition: Order request is valid and can be persisted.
+              next: 3
+              outgoing: >
                   {
                     customer_id: string,
                     line_items: [
@@ -1385,31 +1400,31 @@ container:
                     payment_method_token: string,
                     order_status: pending_payment
                   }
-              - condition: Order request is invalid and cannot proceed.
-                next: 5
-                outgoing: ref[order_rejection_response]
-          - id: 3
-            component: order_repository
-            description: Persist the order and return the stored record for payment processing.
-            next: 4
-            outgoing: ref[order_record]
-          - id: 4
-            component: payment_service
-            description:
-              - Request payment authorization for the persisted order.
-              - Determine whether the order can be confirmed.
-            branches:
-              - condition: Payment is authorized successfully.
-                next: 5
-                outgoing: ref[order_confirmation_response]
-              - condition: Payment authorization fails.
-                next: 5
-                outgoing: ref[order_rejection_response]
-          - id: 5
-            component: order_response_mapper
-            description:
-              - Build the customer-facing response payload.
-              - Return the final result to the calling container boundary.
+            - condition: Order request is invalid and cannot proceed.
+              next: 5
+              outgoing: ref[order_rejection_response]
+        - id: 3
+          component: order_repository
+          description: Persist the order and return the stored record for payment processing.
+          next: 4
+          outgoing: ref[order_record]
+        - id: 4
+          component: payment_service
+          description:
+            - Request payment authorization for the persisted order.
+            - Determine whether the order can be confirmed.
+          branches:
+            - condition: Payment is authorized successfully.
+              next: 5
+              outgoing: ref[order_confirmation_response]
+            - condition: Payment authorization fails.
+              next: 5
+              outgoing: ref[order_rejection_response]
+        - id: 5
+          component: order_response_mapper
+          description:
+            - Build the customer-facing response payload.
+            - Return the final result to the calling container boundary.
 ```
 
 ## Deployment

@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 
 from cli import __version__
-from cli.commands import register_audit, register_context, register_init
+from cli.commands import register_audit, register_context, register_crawl, register_init
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -13,6 +13,7 @@ def build_parser() -> argparse.ArgumentParser:
     register_init(subparsers)
     register_context(subparsers)
     register_audit(subparsers)
+    register_crawl(subparsers)
     return parser
 
 

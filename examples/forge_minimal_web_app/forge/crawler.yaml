@@ -1,0 +1,50 @@
+schema: forge.crawler
+
+crawler:
+  ignore_dirs:
+    - .git
+    - .hg
+    - .mypy_cache
+    - .pytest_cache
+    - .ruff_cache
+    - __pycache__
+    - node_modules
+    - dist
+    - build
+
+  ignore_patterns:
+    - "**/*.generated.*"
+    - "**/vendor/**"
+
+  comment_profiles:
+    hash:
+      extensions:
+        - .py
+        - .rb
+        - .sh
+        - .yaml
+        - .yml
+      prefixes:
+        - "#"
+
+    slash:
+      extensions:
+        - .ts
+        - .tsx
+        - .js
+        - .jsx
+        - .go
+        - .rs
+        - .java
+        - .kt
+        - .cs
+        - .swift
+        - .php
+      prefixes:
+        - "//"
+
+    sql:
+      extensions:
+        - .sql
+      prefixes:
+        - "--"

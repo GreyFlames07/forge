@@ -111,6 +111,19 @@ The plan should identify:
 
 Build mode should execute the approved plan incrementally.
 
+### LLM Build Guardrails
+
+Apply these safeguards before and during implementation:
+
+1. State the current increment goal and how it will be verified.
+2. Implement the minimum code needed for that increment; do not add speculative features or abstractions.
+3. Keep edits surgical and aligned with the approved schema, plan, and local code style.
+4. Do not clean up unrelated code; mention unrelated issues separately.
+5. Write or update focused tests before declaring behavior complete.
+6. If the schema, plan, and code disagree, stop and resolve the mismatch instead of coding around it.
+7. State assumptions or ambiguity before implementing when the approved plan does not fully determine behavior.
+8. Remove only dead code, imports, or variables created by the current change unless explicitly asked otherwise.
+
 ### Build Workflow
 
 For each increment:

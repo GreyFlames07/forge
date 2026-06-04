@@ -1,0 +1,60 @@
+schema: forge.system
+
+system:
+  id: team_notes
+  purpose: Let team members create, view, and archive shared notes.
+  description: >
+    Team Notes is a small web app for registering users, signing in, creating
+    notes, listing notes, and archiving notes that are no longer active.
+  boundary: >
+    Includes the frontend web app, backend API, and primary database needed to
+    manage users and notes. Email delivery and external identity providers are
+    outside this example.
+  security: >
+    User actions must be attributable to an authenticated user. Passwords must
+    never be stored as plaintext. Notes are only visible to authenticated users.
+
+  actors:
+    - id: visitor
+      kind: human
+      description: Unauthenticated person who can register or sign in.
+    - id: team_member
+      kind: human
+      description: Authenticated user who creates, views, and archives notes.
+
+  external_dependencies: []
+
+  business_actions:
+    - id: register_user
+      actor: visitor
+      intent: Create a user account for the Team Notes app.
+      outcomes:
+        - user_registered
+        - registration_rejected
+
+    - id: sign_in_user
+      actor: visitor
+      intent: Start an authenticated session.
+      outcomes:
+        - session_started
+        - sign_in_rejected
+
+    - id: create_note
+      actor: team_member
+      intent: Create a shared note.
+      outcomes:
+        - note_created
+        - note_creation_rejected
+
+    - id: list_notes
+      actor: team_member
+      intent: View active shared notes.
+      outcomes:
+        - notes_listed
+
+    - id: archive_note
+      actor: team_member
+      intent: Archive an active note.
+      outcomes:
+        - note_archived
+        - archive_rejected

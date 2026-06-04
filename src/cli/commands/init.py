@@ -9,6 +9,7 @@ from argparse import Namespace
 from importlib.resources import as_file, files
 from pathlib import Path
 
+from cli.crawler import DEFAULT_CRAWLER_CONFIG
 from cli.schema import dump_yaml
 
 COLLECTION_DIRS = [
@@ -51,6 +52,7 @@ def register_init(subparsers) -> None:
     parser.add_argument("--name", default="Forge Project", help="Human-readable project name")
     parser.add_argument("--id", default="forge_project", help="System id to seed into system.yaml")
     parser.add_argument("--force", action="store_true", help="Allow initializing into an existing non-empty directory")
+    parser.add_argument("--schema-version", choices=["v3", "v4"], default="v3", help="Forge schema version to scaffold")
     parser.add_argument("--no-animation", action="store_true", help="Disable the terminal initialization animation")
     parser.set_defaults(func=run)
 
@@ -68,7 +70,7 @@ def run(args: Namespace) -> int:
         animation_thread.start()
 
     try:
-        _scaffold_repository(target_root, system_name=args.name, system_id=args.id)
+        _scaffold_repository(target_root, system_name=args.name, system_id=args.id, schema_version=args.schema_version)
     finally:
         if stop_event is not None:
             stop_event.set()
@@ -158,11 +160,15 @@ def _step(number: int, title: str, detail: str) -> str:
     return f"{head} {label}\n   {detail}"
 
 
-def _scaffold_repository(target_root: Path, system_name: str, system_id: str) -> None:
+def _scaffold_repository(target_root: Path, system_name: str, system_id: str, schema_version: str = "v3") -> None:
     forge_root = target_root / "forge"
     _write_text(target_root / "README.md", _project_readme(system_name))
     _write_text(target_root / ".gitignore", _scaffold_gitignore())
     _write_text(forge_root / "decision_notes.md", "# Decision Notes\n\nRecord meaningful Forge decisions here.\n")
+
+    if schema_version == "v4":
+        _scaffold_v4_repository(forge_root, system_name, system_id)
+        return
 
     _write_yaml(forge_root / "system.yaml", _system_seed(system_name, system_id))
     _write_yaml(forge_root / "runtime.yaml", {"schema": "forge.v2.runtime", "runtime": {"containers": [], "relationships": []}})
@@ -176,6 +182,57 @@ def _scaffold_repository(target_root: Path, system_name: str, system_id: str) ->
     _copy_skills(forge_root)
     _rewrite_skill_references(forge_root)
     _create_surface_skills(target_root, forge_root)
+
+
+def _scaffold_v4_repository(forge_root: Path, system_name: str, system_id: str) -> None:
+    _write_yaml(
+        forge_root / "system.yaml",
+        {
+            "schema": "forge.system",
+            "system": {
+                "id": system_id,
+                "purpose": f"Define the purpose of {system_name}.",
+                "description": "Replace with a plain-language description of the system.",
+                "boundary": "Replace with what sits inside and outside the system boundary.",
+                "security": "Replace with global security posture rules.",
+                "actors": [],
+                "external_dependencies": [],
+                "business_actions": [],
+            },
+        },
+    )
+    _write_yaml(
+        forge_root / "containers.yaml",
+        {
+            "schema": "forge.containers",
+            "containers": [],
+            "container_flows": [],
+        },
+    )
+    _write_yaml(
+        forge_root / "entities.yaml",
+        {
+            "schema": "forge.entities",
+            "entities": [],
+        },
+    )
+    _write_yaml(forge_root / "crawler.yaml", DEFAULT_CRAWLER_CONFIG)
+    _copy_v4_docs(forge_root)
+
+
+def _copy_v4_docs(forge_root: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[3]
+    for filename in ("SCHEMA_REFERENCE_V4.md", "FRAMEWORK_V4.md"):
+        source = repo_root / filename
+        if source.exists():
+            shutil.copy2(source, forge_root / filename)
+    _write_text(
+        forge_root / "USING_FORGE.md",
+        "# Using Forge V4\n\n"
+        "Define C1/C2 centrally in `system.yaml`, `containers.yaml`, and `entities.yaml`.\n"
+        "Define C3 in code using prefix-commented `@forge:*` annotations.\n"
+        "Run `forge crawl`, `forge context`, and `forge audit` from the project root.\n",
+    )
 
 
 def _copy_docs(forge_root: Path) -> None:

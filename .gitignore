@@ -21,3 +21,20 @@ dist/
 .mypy_cache/
 .ruff_cache/
 .DS_Store
+
+# Local agent/editor/runtime artifacts
+.claude/
+.codex/
+.playwright-mcp/
+.system/
+.vscode/
+.specify/.gofer-version
+.specify/README.md
+.specify/scripts/
+.specify/templates/
+
+# Local audit/browser artifacts
+forge-audit.html
+forge-audit-*.png
+runtime-*.png
+v4-flow-numbered-edges*.png

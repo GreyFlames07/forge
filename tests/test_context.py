@@ -3,12 +3,14 @@ from __future__ import annotations
 import importlib.resources
 import json
 import shutil
+import socket
 import tomllib
 from pathlib import Path
 
 import yaml
 
 from cli import __version__
+from cli.commands import audit as audit_command
 from cli.commands.audit import _edge_label, _state_machine_partitions, render_live_audit_html
 from cli.forge import main
 
@@ -168,12 +170,12 @@ def test_audit_generates_html(tmp_path: Path, capsys) -> None:
     text = output.read_text(encoding="utf-8")
     assert "Forge Audit" in text
     assert "class=\"subnav\"" in text
-    assert 'id="overview"' in text
-    assert '>Overview<' in text
+    assert 'id="overview"' not in text
+    assert '>Overview<' not in text
     assert "system-overview" in text
     assert "runtime-overview" in text
     assert "data-overview" in text
-    assert "deployment-overview" in text
+    assert 'data-group="Deployment"' not in text
     assert "container-ordering_api" in text
     assert "artisan_goods_marketplace / Flow: place_order" in text
     assert "High-level flow with nested runtime and component realization." in text
@@ -184,6 +186,70 @@ def test_audit_generates_html(tmp_path: Path, capsys) -> None:
     assert "Early State" in text
     assert "Data Shape" in text
     assert "Persistent Shape" in text
+
+
+def test_audit_no_open_suppresses_live_browser(monkeypatch) -> None:
+    calls: list[bool] = []
+
+    def fake_serve(_root: Path, *, open_browser: bool, port: int = audit_command.DEFAULT_AUDIT_PORT) -> None:
+        assert port == audit_command.DEFAULT_AUDIT_PORT
+        calls.append(open_browser)
+
+    def fail_open(_path: str | Path) -> None:
+        raise AssertionError("_open_file should not be called with --no-open")
+
+    monkeypatch.setattr(audit_command, "_serve_audit", fake_serve)
+    monkeypatch.setattr(audit_command, "_open_file", fail_open)
+
+    assert main(["audit", "--project-dir", str(EXAMPLE_ROOT), "--no-open"]) == 0
+    assert calls == [False]
+
+
+def test_audit_headless_suppresses_live_browser(monkeypatch) -> None:
+    calls: list[bool] = []
+
+    def fake_serve(_root: Path, *, open_browser: bool, port: int = audit_command.DEFAULT_AUDIT_PORT) -> None:
+        assert port == audit_command.DEFAULT_AUDIT_PORT
+        calls.append(open_browser)
+
+    def fail_open(_path: str | Path) -> None:
+        raise AssertionError("_open_file should not be called with --headless")
+
+    monkeypatch.setattr(audit_command, "_serve_audit", fake_serve)
+    monkeypatch.setattr(audit_command, "_open_file", fail_open)
+
+    assert main(["audit", "--project-dir", str(EXAMPLE_ROOT), "--headless"]) == 0
+    assert calls == [False]
+
+
+def test_audit_live_server_reuses_occupied_port(monkeypatch, capsys) -> None:
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen()
+    port = listener.getsockname()[1]
+
+    def fail_open(_path: str | Path) -> None:
+        raise AssertionError("_open_file should not be called when the audit port is already occupied")
+
+    monkeypatch.setattr(audit_command, "_open_file", fail_open)
+    try:
+        audit_command._serve_audit(EXAMPLE_ROOT, open_browser=True, port=port)
+    finally:
+        listener.close()
+
+    assert f"Forge audit live server already running at http://127.0.0.1:{port}" in capsys.readouterr().out
+
+
+def test_audit_headless_suppresses_artifact_open(tmp_path: Path, monkeypatch) -> None:
+    output = tmp_path / "forge-audit.html"
+
+    def fail_open(_path: str | Path) -> None:
+        raise AssertionError("_open_file should not be called with --headless")
+
+    monkeypatch.setattr(audit_command, "_open_file", fail_open)
+
+    assert main(["audit", "--project-dir", str(EXAMPLE_ROOT), "--artifact", "--output", str(output), "--headless"]) == 0
+    assert output.exists()
 
 
 def test_complex_vertical_context_json(capsys) -> None:

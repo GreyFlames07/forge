@@ -8,6 +8,7 @@ from typing import Any
 
 from cli.commands.base import add_project_dir_arg
 from cli.common import find_project_root
+from cli.crawler import ForgeCrawlResult, crawl_project
 from cli.schema import ForgeSchema, dump_yaml, load_schema
 
 REF_PATTERN = re.compile(r"ref\[([a-zA-Z0-9_]+)\]")
@@ -33,6 +34,8 @@ def register_context(subparsers) -> None:
     target.add_argument("--flow", help="Runtime flow id")
     target.add_argument("--container", help="Container id")
     target.add_argument("--component", help="Component id (requires --container or inferable container)")
+    target.add_argument("--entity", help="Entity id")
+    target.add_argument("--operation", help="Operation id")
     target.add_argument("--data-shape", dest="data_shape", help="Data shape id")
     target.add_argument("--persistent-shape", dest="persistent_shape", help="Persistent shape id")
     parser.add_argument("--mode", choices=["plan", "build", "review"], default="build")
@@ -41,16 +44,33 @@ def register_context(subparsers) -> None:
 
 
 def run(args: Namespace) -> int:
-    root = find_project_root(Path(args.project_dir).resolve() if args.project_dir else None)
+    requested_root = Path(args.project_dir).resolve() if args.project_dir else None
+    v4_payload = _try_v4_context(requested_root, args)
+    if v4_payload is not None:
+        _print_payload(v4_payload, args.format)
+        return 0
+    root = find_project_root(requested_root)
     schema = load_schema(root)
     payload = build_context_payload(schema, args)
-    if args.format == "json":
+    _print_payload(payload, args.format)
+    return 0
+
+
+def _print_payload(payload: dict[str, Any], format_: str) -> None:
+    if format_ == "json":
         print(json.dumps(payload, indent=2))
-    elif args.format == "yaml":
+    elif format_ == "yaml":
         print(_yaml_with_header(payload))
     else:
         print(_to_markdown(payload))
-    return 0
+
+
+def _try_v4_context(root: Path | None, args: Namespace) -> dict[str, Any] | None:
+    try:
+        result = crawl_project(root or Path.cwd())
+    except FileNotFoundError:
+        return None
+    return build_v4_context_payload(result, args)
 
 
 def build_context_payload(schema: ForgeSchema, args: Namespace) -> dict[str, Any]:
@@ -90,11 +110,119 @@ def _selected_target(args: Namespace) -> str | None:
         return "container"
     if args.component:
         return "component"
+    if getattr(args, "entity", None):
+        return "entity"
+    if getattr(args, "operation", None):
+        return "operation"
     if args.data_shape:
         return "data_shape"
     if args.persistent_shape:
         return "persistent_shape"
     return None
+
+
+def build_v4_context_payload(result: ForgeCrawlResult, args: Namespace) -> dict[str, Any]:
+    target_kind = _selected_target(args)
+    model = result.to_dict()
+    if target_kind == "system":
+        return _v4_payload("system", model["system"].get("id", "system"), args.mode, {"model": model})
+    if target_kind == "container":
+        container = _v4_find(model["containers"], args.container, "container")
+        return _v4_payload("container", args.container, args.mode, {"container": container, "findings": model["findings"]})
+    if target_kind == "flow":
+        flow = _v4_find(model["container_flows"], args.flow, "container_flow")
+        involved = {
+            step.get("from")
+            for step in flow.get("steps", [])
+            if isinstance(step, dict) and step.get("from")
+        } | {
+            step.get("to")
+            for step in flow.get("steps", [])
+            if isinstance(step, dict) and step.get("to")
+        }
+        containers = [container for container in model["containers"] if container.get("id") in involved]
+        operations = [
+            operation
+            for container in containers
+            for operation in container.get("operations", [])
+            if _v4_operation_in_flow(operation, args.flow)
+        ]
+        return _v4_payload(
+            "container_flow",
+            args.flow,
+            args.mode,
+            {"container_flow": flow, "containers": containers, "operations": operations, "findings": model["findings"]},
+        )
+    if target_kind == "entity":
+        entity = _v4_find(model["entities"], args.entity, "entity")
+        data_shapes = _v4_data_shapes_for_entity(model, args.entity)
+        persistence = [item for item in model["persistence"] if item.get("payload", {}).get("entity") == args.entity]
+        return _v4_payload(
+            "entity",
+            args.entity,
+            args.mode,
+            {"entity": entity, "data_shapes": data_shapes, "persistence": persistence, "findings": model["findings"]},
+        )
+    if target_kind == "component":
+        component = _v4_find_nested(model["containers"], "components", args.component, "component")
+        container = _v4_find(model["containers"], component["container"], "container") if component.get("container") else None
+        return _v4_payload(
+            "component",
+            args.component,
+            args.mode,
+            {"component": component, "container": container, "findings": model["findings"]},
+        )
+    if target_kind == "operation":
+        operation = _v4_find_nested(model["containers"], "operations", args.operation, "operation")
+        container = _v4_find(model["containers"], operation["container"], "container") if operation.get("container") else None
+        return _v4_payload("operation", args.operation, args.mode, {"operation": operation, "container": container, "findings": model["findings"]})
+    if target_kind == "data_shape":
+        data_shape = _v4_find_nested(model["containers"], "data_shapes", args.data_shape, "data_shape")
+        return _v4_payload("data_shape", args.data_shape, args.mode, {"data_shape": data_shape, "findings": model["findings"]})
+    raise ValueError(
+        "No context target selected. Choose one of --system, --flow, --container, "
+        "--entity, --component, --operation, or --data-shape."
+    )
+
+
+def _v4_payload(type_: str, id_: str, mode: str, artifacts: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "target": _target(type_, id_, mode),
+        "summary": _summary_from_item(artifacts.get(type_, {}) if isinstance(artifacts.get(type_), dict) else {}),
+        "artifacts": artifacts,
+        "testing": _testing_expectations(mode),
+    }
+
+
+def _v4_find(items: list[dict[str, Any]], item_id: str, label: str) -> dict[str, Any]:
+    for item in items:
+        if item.get("id") == item_id:
+            return item
+    raise FileNotFoundError(f"Unknown {label}: {item_id}")
+
+
+def _v4_find_nested(containers: list[dict[str, Any]], collection: str, item_id: str, label: str) -> dict[str, Any]:
+    for container in containers:
+        for item in container.get(collection, []):
+            if item.get("id") == item_id:
+                return item
+    raise FileNotFoundError(f"Unknown {label}: {item_id}")
+
+
+def _v4_operation_in_flow(operation: dict[str, Any], flow_id: str) -> bool:
+    payload = operation.get("payload", {})
+    if payload.get("container_flow") == flow_id:
+        return True
+    return any(item.get("container_flow") == flow_id for item in payload.get("participates_in", []) if isinstance(item, dict))
+
+
+def _v4_data_shapes_for_entity(model: dict[str, Any], entity_id: str) -> list[dict[str, Any]]:
+    shapes: list[dict[str, Any]] = []
+    for container in model["containers"]:
+        for shape in container.get("data_shapes", []):
+            if shape.get("payload", {}).get("entity") == entity_id:
+                shapes.append(shape)
+    return shapes
 
 
 def _yaml_with_header(payload: dict[str, Any]) -> str:

@@ -130,6 +130,10 @@ def test_init_scaffolds_traversable_repo(tmp_path: Path, capsys) -> None:
     assert (root / ".claude" / "skills" / "forge-hydrate").is_symlink()
     assert (root / ".agents" / "skills" / "forge-review").is_symlink()
     assert (root / ".copilot" / "skills" / "forge-security").is_symlink()
+    assert (root / ".github" / "copilot-instructions.md").exists()
+    assert (root / ".github" / "instructions" / "forge.instructions.md").exists()
+    assert (root / ".github" / "prompts" / "forge-build.prompt.md").is_symlink()
+    assert (root / ".github" / "prompts" / "forge-build.prompt.md").resolve() == forge_root / "skills" / "forge-build" / "SKILL.md"
     rewritten_skill = (forge_root / "skills" / "forge-schema" / "SKILL.md").read_text(encoding="utf-8")
     assert "forge/SCHEMA_REFERENCE_V4.md" in rewritten_skill
     assert "forge/USING_FORGE.md" in rewritten_skill

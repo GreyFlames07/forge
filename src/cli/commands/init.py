@@ -164,6 +164,7 @@ def _scaffold_repository(target_root: Path, system_name: str, system_id: str) ->
     _copy_skills(forge_root)
     _rewrite_skill_references(forge_root)
     _create_surface_skills(target_root, forge_root)
+    _create_github_copilot_context(target_root)
 
 
 def _copy_docs(forge_root: Path) -> None:
@@ -260,6 +261,30 @@ def _create_surface_skill(surface_root: Path, forge_root: Path, skill_name: str)
     target_skill.symlink_to(_relative_symlink_target(surface_root, source_skill), target_is_directory=True)
 
 
+def _create_github_copilot_context(target_root: Path) -> None:
+    github_root = target_root / ".github"
+    instructions_root = github_root / "instructions"
+    prompts_root = github_root / "prompts"
+    instructions_root.mkdir(parents=True, exist_ok=True)
+    prompts_root.mkdir(parents=True, exist_ok=True)
+    _write_text(github_root / "copilot-instructions.md", _copilot_instructions_doc())
+    _write_text(instructions_root / "forge.instructions.md", _copilot_path_instructions_doc())
+    for skill_name in SKILL_DIRS:
+        _create_symlink(
+            prompts_root / f"{skill_name}.prompt.md",
+            target_root / "forge" / "skills" / skill_name / "SKILL.md",
+        )
+
+
+def _create_symlink(link_path: Path, destination: Path) -> None:
+    if link_path.exists() or link_path.is_symlink():
+        if link_path.is_symlink() or link_path.is_file():
+            link_path.unlink()
+        else:
+            shutil.rmtree(link_path)
+    link_path.symlink_to(_relative_symlink_target(link_path.parent, destination), target_is_directory=destination.is_dir())
+
+
 def _relative_symlink_target(link_parent: Path, destination: Path) -> Path:
     return Path(os.path.relpath(destination, start=link_parent))
 
@@ -288,6 +313,34 @@ def _scaffold_gitignore() -> str:
             "",
         ]
     )
+
+
+def _copilot_instructions_doc() -> str:
+    return """# Forge Instructions
+
+This repository uses Forge V4. Start with `forge/USING_FORGE.md`, then use the
+skills in `forge/skills` in this order:
+
+1. `forge-business`
+2. `forge-schema`
+3. `forge-review`
+4. `forge-security`
+5. `forge-build`
+
+Treat `forge/skills` as the canonical skill source. Agent-specific skill
+surfaces are symlinked back to that directory.
+"""
+
+
+def _copilot_path_instructions_doc() -> str:
+    return """---
+applyTo: "**"
+---
+
+Use the Forge V4 workflow for repository work. Read `forge/USING_FORGE.md`
+before implementation, and prefer the relevant skill in `forge/skills` for the
+current task.
+"""
 
 
 def _print_init_summary(target_root: Path, system_name: str, system_id: str) -> None:

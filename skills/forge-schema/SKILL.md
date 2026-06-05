@@ -1,429 +1,407 @@
 ---
 name: forge-schema
 description: >-
-  Build and refine the Forge V2 schema framework through a guided workshop.
-  Use when defining or updating the canonical Forge V2 architecture artifacts:
-  system, high-level flows, early state, runtime, verticals, runtime flows,
-  data shapes, persistent shapes, containers, and deployment. Use when the
-  user wants consultation rather than blind drafting, when artifact bloat must
-  be controlled, or when a whole-system model must be turned into one vertical
-  at a time.
+  Enterprise system design and Forge V4 central schema authoring. Use when
+  translating system intent into Forge V4 C1/C2 architecture, refining
+  forge/system.yaml, forge/containers.yaml, forge/entities.yaml, reasoning from
+  business actions into cross-container runtime flows, choosing runtime
+  containers, identifying business entities, and preserving a clean boundary
+  between central C1/C2 schema and code-owned C3 annotations. Use after business
+  direction is clear, and before implementation, security review, or build work.
 ---
 
 # forge-schema
 
 Read before starting:
 
-- `../../SCHEMA_REFERENCE_V3.md`
+- `../../FRAMEWORK_V4.md`
+- `../../SCHEMA_REFERENCE_V4.md`
 
-Maintain throughout the workflow:
+Prefer when available:
 
-- `../../decision_notes.md`
+- `forge init`
+- `forge crawl`
+- `forge context`
+- `forge audit`
 
 ## Purpose
 
-Drive the Forge V2 schema process as a workshop, not an autonomous drafting pass.
+Turn clear product or business direction into enterprise-grade Forge V4 system
+architecture.
 
-This skill should:
+This skill owns C1/C2 system design and central Forge schema authoring. It does
+not validate the business idea; that belongs to `forge-business`.
 
-1. Build the whole system model at a high level first.
-2. Stop after `runtime` and derive the initial `verticals`.
-3. Choose one vertical to deepen.
-4. Build the lower-stage artifacts for that vertical.
-5. Apply anti-bloat and review gates continuously.
-6. Record every meaningful modeling decision in `decision_notes.md`.
+Core rule:
 
-Do not jump ahead. Do not define later-stage artifacts before the earlier stage is stable enough to justify them.
+```text
+System intent first.
+Business actions inform runtime speculation.
+Runtime speculation informs containers.
+C1/C2 stay central.
+C3 lives beside code.
+```
+
+## V4 Boundary
+
+Central Forge V4 files own durable C1/C2 truth:
+
+```text
+forge/system.yaml
+forge/containers.yaml
+forge/entities.yaml
+forge/decisions.yaml
+forge/crawler.yaml
+```
+
+Code-owned C3 annotations own implementation architecture:
+
+```text
+@forge:component
+@forge:type
+@forge:persistence
+@forge:operation
+```
+
+Do not model internal container/component flows centrally. A central runtime flow
+may show control moving between runtime containers. Detailed flow inside a
+container is C3 and should be expressed later through code annotations.
+
+## Decision Log
+
+Maintain `forge/decisions.yaml` for non-trivial schema and system design
+decisions. Use the `forge.decisions` schema from `SCHEMA_REFERENCE_V4.md`.
+
+Record decisions when choosing or rejecting:
+
+- system boundary or ownership
+- actors or external dependencies
+- runtime containers or source roots
+- cross-container flow shape
+- entity ownership, lifecycle, persistence, or canonical type direction
+- security, privacy, compliance, availability, or operational trade-offs
+
+Keep each decision small and crawlable. Reference Forge ids in `refs` wherever
+possible. Do not use the decision log for scratch notes.
 
 ## Working Style
 
-Follow these rules throughout:
+Use a consultative system design workshop style.
 
-1. Consult the user before locking in structure.
-2. Ask only the questions needed to resolve the current stage.
-3. Push back on unnecessary artifacts, types, and abstractions.
-4. Prefer inline payload definitions until promotion is justified.
-5. Keep every artifact tied to a real architectural or build need.
-6. Infer from existing artifacts before asking the user to restate information.
-7. Ask questions in small 3-5 question batches, not long questionnaires.
-8. Ask follow-up questions only when ambiguity blocks the next drafting step.
-9. Log every meaningful decision as soon as it is made.
+1. Read existing artifacts before asking questions.
+2. Infer what is supported by the current repo and schema.
+3. Ask only questions that unblock system architecture.
+4. Draft first when architecture is easier to critique than invent.
+5. Explain trade-offs plainly.
+6. Push back on unnecessary services, queues, databases, and abstractions.
+7. Prefer the simplest architecture that satisfies the system drivers.
+8. Keep schema tied to real runtime, ownership, security, or operational needs.
 
-## LLM Guardrails
+## Description-First Drafting
 
-Apply these safeguards before changing schema artifacts:
+When the operator asks to evaluate ideas before schema authoring, draft
+schema-conformant descriptions first.
 
-1. State assumptions and unresolved ambiguity before drafting.
-2. Choose the simplest valid schema representation; do not add optional fields, artifacts, or promotion just for neatness.
-3. Make surgical edits to the current stage or vertical only.
-4. Every changed line should trace to a user decision, a schema rule, or a validation finding.
-5. For non-trivial changes, define the review check that will prove the schema is better.
-6. If two schema interpretations are plausible, present the tradeoff instead of silently choosing.
+Use this mode to refine:
 
-## Decision Notes Rule
+- system purpose and boundary
+- actor and external dependency descriptions
+- business actions and outcomes
+- speculative runtime flow descriptions
+- container responsibilities
+- entity descriptions, ownership, lifecycle, and security notes
 
-Maintain a markdown file named:
+Keep prose close enough to the V4 schema that it can be converted directly into
+YAML. Do not introduce concepts that the schema cannot represent unless they are
+clearly labeled as assumptions, risks, or open questions.
 
-- `decision_notes.md`
+After operator approval, convert the refined descriptions into the central Forge
+files with minimal transformation.
 
-This file should clearly record every meaningful decision made during schema development.
+## Enterprise Design Lens
 
-Record:
+Evaluate the system through these lenses as relevant:
 
-- the decision
-- the stage where it was made
-- the reasoning behind it
-- any important alternatives that were rejected
-- any assumptions that still remain open
+- System boundary and ownership
+- Actors and external systems
+- Business actions and outcomes
+- Cross-container runtime behavior
+- Runtime responsibility boundaries
+- Data ownership and lifecycle
+- Integration style and coupling
+- Consistency, latency, availability, and scale
+- Security, privacy, and compliance obligations
+- Observability and supportability
+- Deployment and operational complexity
+- Team ownership and future change pressure
 
-Update `decision_notes.md` whenever:
-
-- a boundary is fixed
-- a flow structure is chosen
-- a container is introduced or rejected
-- a vertical is chosen or reordered
-- a payload is promoted or intentionally kept inline
-- a persisted shape is introduced
-- a container artifact is justified
-- a deployment assumption is fixed
-- a security obligation is made explicit
-
-Do not leave decisions only in chat if they materially affect the framework.
-
-## Questioning Protocol
-
-Apply this protocol at every stage.
-
-1. Read the existing artifacts for the current scope first.
-2. Infer everything that is reasonably supported by the existing material.
-3. Ask only for information that cannot be safely inferred.
-4. Ask the highest-yield questions first.
-5. Ask questions in batches of closely related items.
-6. If ambiguity remains after the answer, ask a narrow follow-up question instead of restarting the stage.
-
-### High-Yield Question Standard
-
-Prefer questions that unlock multiple downstream decisions at once.
-
-Good examples:
-
-- What is the first end-to-end slice you want working?
-- Which high-level flows belong to that slice?
-- What runtime boundaries are real versus merely conceptual?
-
-Avoid low-yield questions that only rename things or ask for details that can be inferred from already-stated context.
-
-## Draft-First Rule
-
-Use a draft-first approach for the deeper stages where structure is easier to critique than to invent from scratch.
-
-Apply this especially to:
-
-- `vertical`
-- `runtime_flow`
-- `container`
-- `deployment`
-
-Draft-first means:
-
-1. Build a lean first draft from the current evidence.
-2. State the key logic behind the draft.
-3. Ask the user to critique the draft rather than answer from a blank page.
-4. Revise based on critique.
-
-When using draft-first mode:
-
-- explain why the draft is structured that way
-- call out assumptions explicitly
-- keep the first draft minimal
-- do not overfill optional fields just because the schema permits them
+Use these lenses to improve judgment. Do not force every insight into YAML.
 
 ## Workflow
 
-### Phase 1: Whole-System Framing
+### Phase 1: Situation Scan
 
-Complete these stages in order:
+If Forge files exist, inspect them:
 
-1. `system`
-2. `high_level_flow`
-3. `early_state`
-4. `runtime`
+```bash
+ls -la forge 2>/dev/null
+forge crawl --format json
+```
 
-For each stage:
+If Forge files do not exist, determine whether the user wants a new V4
+workspace:
 
-1. Read the matching section in `SCHEMA_REFERENCE_V3.md`.
-2. Summarize what the stage is trying to define.
-3. Ask targeted questions.
-4. Draft or refine the artifact.
-5. Run the review gate for that stage before moving on.
+```bash
+forge init
+```
 
-### Phase 2: Vertical Initialization
+Do not initialize or edit files unless asked.
 
-After `runtime` is stable:
+### Phase 2: System Intent
 
-1. Derive candidate `verticals`.
-2. Explain that a vertical is a development slice, not a business domain.
-3. Draft the initial `verticals` artifact even if some fields stay empty.
-4. Explain the logic behind the proposed vertical boundaries.
-5. Ask the user to critique the draft and choose the first vertical to deepen.
+Clarify the system-level architectural intent.
 
-Do not define `runtime_flow`, `data_shape`, `persistent_shape`, `container`, or `deployment` for the whole system at once unless the user explicitly wants that. Default to one vertical at a time.
+Ask only what is missing:
 
-### Phase 3: Vertical Deepening
+- What system are we designing?
+- What is inside the system boundary?
+- What is explicitly outside the boundary?
+- Who or what interacts with the system?
+- Which external systems matter?
+- What non-negotiable security, scale, reliability, or compliance constraints
+  exist?
 
-For the selected vertical, complete these stages in order:
+Author or refine:
 
-1. `runtime_flow`
-2. `data_shape`
-3. `persistent_shape`
-4. `container`
-5. `deployment`
+```text
+forge/system.yaml
+```
 
-For each stage:
+Capture:
 
-1. Ask only the questions needed for the chosen vertical.
-2. Keep one-off details inline unless promotion is justified.
-3. Use draft-first mode when the structure is easier to critique than invent.
-3. Run the review gate before moving on.
+- system purpose
+- description
+- boundary
+- actors
+- external dependencies
+- global security posture
+- business actions and expected outcomes
 
-## Stage Questions
+Business actions should express intent and outcomes, not runtime mechanics.
 
-Use these as the default interview prompts. Ask only the subset needed for the current scope.
+### Phase 3: Runtime Flow Speculation
 
-### `system`
+Use the business actions to speculate on cross-container runtime flows before
+settling containers.
 
-- What is the system trying to do?
-- What is inside the boundary?
-- Who interacts with it?
-- Which external dependencies matter at system context level?
-- What global security rules are non-negotiable?
+For each important business action, ask:
 
-### `high_level_flow`
+- What starts this action?
+- What system boundary does it enter through?
+- What durable state may be read or changed?
+- What external systems may be called?
+- What needs to happen synchronously?
+- What can happen asynchronously?
+- Where are the major control handoffs?
+- Where do branches or failures materially change the architecture?
 
-- What can the user or system actually do?
-- What starts the flow?
-- What are the major business steps?
-- Where do business decisions happen?
-- What are the canonical outcomes?
+Draft possible runtime flow shapes in prose first. Do not overfit containers too
+early.
 
-### `early_state`
+Good runtime speculation names control movement:
 
-- What business things matter enough to name now?
-- Which are entities, records, or lifecycle objects?
-- Why does each one matter?
+```text
+user submits checkout
+-> web app sends request to backend
+-> backend validates cart and reserves inventory
+-> backend asks payment provider to authorize payment
+-> backend persists order
+-> backend returns confirmation
+```
 
-### `runtime`
+Avoid C3 detail:
 
-- What actually runs?
-- What actually persists?
-- Which real runtime boundaries exist?
-- Which containers relate to each other?
-- What security obligations belong to each container?
+```text
+checkout_router calls validate_cart_service then payment_adapter then
+order_repository
+```
 
-### `vertical`
+That belongs to code annotations.
 
-- What is the first buildable end-to-end slice?
-- What user value does it deliver?
-- Which high-level flows belong to it?
-- Which runtime containers are involved?
-- What deployment or build constraints matter already?
+### Phase 4: Container Model
 
-Default behavior:
-- Draft 1-3 likely verticals from the current system model.
-- Explain why each is a real build slice.
-- Ask the user which draft to refine, merge, reject, or reorder.
+Settle runtime containers after runtime flow speculation.
 
-### `runtime_flow`
+Author or refine:
 
-- How does the selected vertical move through containers?
-- What exact payload enters the first container?
-- What exact payload leaves each container?
-- Where do branches occur?
-- Which outputs are one-off and which feel reusable?
+```text
+forge/containers.yaml
+```
 
-When a container is clearly orchestrating the workflow:
+Capture:
 
-- model every container-boundary hop explicitly
-- allow later steps in that same container to rely on retained in-flight workflow context
-- make that retention explicit in step descriptions rather than pretending every step is isolated
-- do not introduce a new `persistent_shape` unless the state truly needs durability
+- real runtime containers
+- source roots when known
+- responsibilities
+- security responsibilities
+- deployment entries when known
+- cross-container runtime flows
 
-Preferred wording:
-
-- "acts as the workflow orchestrator for this slice"
-- "retains in-flight workflow context across its own steps"
-- "correlates the payment intent with earlier challenge-entry context"
-- "uses backend-retained workflow state established earlier in the flow"
-
-### `data_shape`
+Rules:
 
-- Which payloads or stored shapes are reused?
-- Which are persisted?
-- Which are important enough to deserve a stable named definition?
-- Which should stay inline instead?
+- Containers are runtime/deployment units, not arbitrary folders.
+- Split containers only when runtime responsibility, deployment, scaling,
+  security, or ownership boundaries justify it.
+- Do not create microservices from domain nouns alone.
+- Do not model internal operations or local component sequencing centrally.
+- Cross-container flow steps describe runtime control movement.
+- Inside-container logic should stay summarized until C3 annotations exist.
 
-### `persistent_shape`
+### Phase 5: Entity Model
 
-- Which shapes are actually persisted?
-- Which container logically owns each persisted shape?
-- Which data store container holds it?
-- What storage model applies?
-- What lifecycle, security, and state-machine behavior matters?
+Author or refine:
 
-### `container`
+```text
+forge/entities.yaml
+```
 
-- Which container actually needs internal modeling?
-- What meaningful components exist inside it?
-- How does the chosen runtime flow move between those components?
-- Should internal logic stay in a step description rather than becoming another artifact?
+Capture:
 
-Default behavior:
-- Draft a minimal component partition first.
-- Explain the reasoning for each component boundary.
-- Ask the user to critique the partition before expanding the flow.
-
-### `deployment`
+- business-significant entities, records, and lifecycle objects
+- logical ownership
+- canonical type references
+- persistence location when known
+- lifecycle states and transitions where useful
+- entity-level security notes
+
+Rules:
 
-- Which environments matter?
-- Which nodes exist in those environments?
-- Which containers run on which nodes?
-- What deployment notes matter: technology, endpoint, region, scaling, availability, dependencies, trust boundary?
-
-## Anti-Bloat Rules
-
-Apply these rules aggressively.
+- Entity is not data shape.
+- Logical owner is not always physical persistence.
+- `canonical_type` should point to an existing or planned `@forge:type`.
+- `persisted_in` should point to durable storage ownership.
+- Do not create entities for incidental DTOs.
 
-### Global Rules
-
-1. Do not create an artifact unless it answers a real architectural or build question.
-2. Do not create a later-stage artifact before the earlier stage justifies it.
-3. Prefer plain-language fields over structure when the detail does not need machine semantics.
-4. Prefer one stable artifact shape over multiple near-duplicate artifact types.
-5. Prefer draft-and-critique over speculative completeness in the deeper stages.
-6. Do not ask the user for information that is already present in the artifacts or can be inferred reliably.
-
-### Stage-Specific Rules
-
-`system`
-- Keep the boundary plain-language.
-- Do not introduce policies, invariants, or compliance structure unless they are clearly system-defining.
+### Phase 6: C3 Responsibility Plan
 
-`high_level_flow`
-- Keep it business-level.
-- Do not mention containers, protocols, schemas, or internal implementation here.
-- Keep decisions inside `steps`, not as a parallel artifact.
+For the first build slice, identify what implementation should later annotate:
+
+- components
+- operations
+- data shapes
+- persistence points
+- internal container/component flows
 
-`early_state`
-- Keep it lightweight.
-- Do not turn it into a type system.
-- Do not define exact fields, persistence models, or detailed state machines here.
-
-`runtime`
-- Create a container only if it is a real application, data store, or runtime boundary.
-- Do not create conceptual containers for vague responsibilities.
-- Do not confuse code organization units with containers.
-
-`vertical`
-- Treat a vertical as a build slice, not a business capability bucket.
-- Do not define a vertical only because a concept exists; it must describe an end-to-end slice that could be built.
-- Initialize the full vertical schema shape, but allow empty fields until later stages justify filling them.
-
-`runtime_flow`
-- Use one step per container participation in the flow.
-- Do not model internal execution inside the container here.
-- Keep payloads inline by default.
-- Promote nothing at this stage just for elegance.
-- Draft the first flow path from the known runtime and high-level flow before asking the user to invent it from scratch.
-
-`data_shape`
-- Promote only when data is reused, persisted, or otherwise important enough to require a stable named definition.
-- Keep one-off payloads inline in the flow.
-- Do not create shapes merely because a payload exists.
-
-`persistent_shape`
-- Create one only for durably stored, architecturally significant state.
-- Every persistent shape must reference a real `data_shape`.
-- Do not create persistent shapes for transient requests or responses.
-
-`container`
-- Create this only for containers that truly need internal modeling.
-- Model flows between components, not between classes or files.
-- Prefer a stepped `description` inside a component step over creating more flow artifacts.
-- Do not let this collapse into code-level noise.
-- Draft a minimal component decomposition first and require critique before elaboration.
-
-`deployment`
-- Keep this architecture-level.
-- Include deployment notes that matter, but do not drift into raw IaC detail, resource sizing minutiae, or vendor config dumps.
-
-## Review Rules
-
-Run these checks before leaving each stage and again at the end of the skill.
-
-### Structural Checks
-
-1. All ids use `snake_case`.
-2. Every referenced id exists.
-3. Every flow references the correct prior-stage artifact ids.
-4. Every `persistent_shape.data_shape` points to a real `data_shape`.
-5. Every runtime/deployment container reference points to a real runtime container.
-6. Every draft-first stage includes explicit assumptions or rationale for the initial draft.
-
-### Flow Checks
-
-1. `high_level_flow` stays business-level.
-2. `runtime_flow` uses container-level steps only.
-3. `container` uses component-level steps only.
-4. A flow step is either:
-   - linear: `next` with optional `outgoing`
-   - decision: `branches`
-   - terminal: neither, or terminal `outgoing` for component-flow boundary output
-5. Reject steps that mix linear and branch forms.
-6. Allow `next` or branch targets to point to earlier steps when the loop is intentional.
-
-### Promotion Checks
-
-1. Challenge every proposed `data_shape` with: "Why is this not inline?"
-2. Reject promoted shapes that are one-off and non-persistent unless the user explicitly wants the stable reference.
-3. Challenge every proposed `persistent_shape` with: "Is this actually durable state?"
-4. Challenge every proposed `container` artifact with: "Does this container really need internal component modeling?"
-5. Challenge every proposed question with: "Can this be inferred instead?"
-
-### Security Checks
-
-1. `system.security` exists when system-wide rules matter.
-2. `runtime.containers[].security` exists where container-specific obligations matter.
-3. `persistent_shapes[].security` exists where stored-data protections matter.
-4. `deployment` trust boundaries align with the security story.
-
-### Consistency Checks
-
-1. Repeated payloads that are clearly reused or persisted are considered for promotion.
-2. One-off payloads remain inline.
-3. External integral services are modeled consistently as `external_container` when they are part of the runtime model.
-4. Deployment examples and runtime examples describe the same architecture, not competing ones.
-5. The skill asks in batches and uses follow-up questions only to resolve blocking ambiguity.
-
-## Completion Criteria
-
-For a whole-system pass:
-
-- `system`, `high_level_flow`, `early_state`, `runtime`, and `vertical` are stable enough to choose a first vertical.
-
-For a vertical-deepening pass:
-
-- The selected vertical has a coherent `runtime_flow`.
-- Promoted `data_shape`s are justified.
-- Real durable state is captured in `persistent_shape`.
-- Any `container` artifact is justified and readable.
-- `deployment` reflects the selected vertical at the right abstraction level.
-
-## Failure Routing
-
-- If the user is still clarifying purpose and boundary, stay in `system`.
-- If flows remain conceptually unclear, do not move into runtime.
-- If runtime boundaries are unclear, do not initialize verticals yet.
-- If a proposed artifact feels decorative, challenge it before drafting it.
-- If the user wants a final coherence pass instead of more authoring, route to `forge-review`.
-- If the user wants a security-focused pass, route to `forge-security`.
-- If the user wants implementation sequencing or vertical delivery execution after runtime or vertical definition, route to `forge-build`.
+Do not author detailed C3 centrally. Produce an annotation responsibility plan:
+
+```text
+When building this slice:
+- account_router should become @forge:component role: interface
+- create_account should become @forge:operation
+- AccountPayload should become @forge:type
+- account_store should become @forge:persistence
+```
+
+### Phase 7: Validation
+
+After schema edits, run where available:
+
+```bash
+forge crawl --format json
+forge context --system --format md
+forge audit
+```
+
+Use results to fix:
+
+- malformed schema
+- broken references
+- unclear cross-container runtime flows
+- duplicate or missing model elements
+- audit views that are valid but hard to understand
+
+## Pattern Guidance
+
+Choose architecture patterns only when requirements justify them.
+
+Default bias:
+
+- early product: monolith or modular monolith
+- clear boundaries but simple operations: modular monolith
+- independent deployment or scaling needs: microservices
+- async reactions and loose coupling: event-driven architecture
+- very different read/write models: CQRS
+- audit-first state history: event sourcing
+- strong domain boundary needs: hexagonal or clean architecture
+- multiple clients or backend services: API gateway only when it simplifies real
+  complexity
+
+Do not choose distributed patterns to sound enterprise-grade.
+
+## Technology Guidance
+
+Make technology choices from constraints, not fashion.
+
+When relevant, compare options using:
+
+- data shape and relationship complexity
+- transaction and consistency needs
+- query patterns
+- throughput and latency
+- operational burden
+- team familiarity
+- deployment environment
+- cost and vendor lock-in
+- security and compliance obligations
+
+Prefer boring, well-understood technology unless a requirement clearly demands
+otherwise.
+
+## Review Gates
+
+Before calling schema work complete, check:
+
+1. Is business validation already clear enough to design from?
+2. Does `system.yaml` describe system intent, not implementation?
+3. Are business actions expressed as intent and outcomes?
+4. Were runtime flows speculated before containers were finalized?
+5. Are containers real runtime units?
+6. Are container responsibilities distinct?
+7. Are central flows cross-container/runtime-level, not C3 internals?
+8. Are entities business-significant?
+9. Are ownership, persistence, and lifecycle separated?
+10. Is C3 intentionally left to annotations?
+11. Is the first build slice thin and buildable?
+12. Would `forge-review` have enough context to evaluate the model?
+
+## Output
+
+When making changes, summarize:
+
+- files changed
+- system design decisions made
+- runtime flow assumptions
+- container boundaries chosen
+- entities identified
+- C3 responsibilities deferred to annotations
+- validation run and results
+
+When not making changes, produce a design brief with:
+
+- recommended system intent
+- inferred business-action/runtime-flow mapping
+- recommended container model
+- recommended entity model
+- key trade-offs
+- next schema steps
+
+## Guardrails
+
+- Do not validate the business idea; route that to `forge-business`.
+- Do not start with containers before understanding runtime behavior.
+- Do not model inside-container flows centrally.
+- Do not over-model.
+- Do not add distributed-system complexity without a concrete driver.
+- Do not hide uncertainty inside confident YAML.
+- Do not use technology names as architecture justification.
+- Do not proceed to build before schema, security, and review concerns are clear.

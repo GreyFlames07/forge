@@ -26,9 +26,8 @@ import type { ArchiveNoteRequest, ArchiveNoteUiCommand } from "./notes_screen";
 //   - Build an archive request with session context.
 //   - Submit the request to the notes API.
 // participates_in:
-//   - container_flow: archive_note
-//     local_flow: archive_note_frontend
-//     step: 1
+//   - container_flow: archive_note:1
+//     local_flow: archive_note_frontend:1
 //     passes: ref[archive_note_request]
 export function archiveNoteFromCard(
   command: ArchiveNoteUiCommand,
@@ -41,16 +40,15 @@ export function archiveNoteFromCard(
 
 // @forge:operation
 // id: render_archived_note
-// input: ref[note_detail_response]
+// input: ref[note_detail_response] or ref[note_error_response]
 // returns: ref[note_detail_response]
 // logic:
-//   - Accept the archived note response.
-//   - Mark the card as archived.
-//   - Remove the card from the active notes list.
+//   - Accept the archive-note result.
+//   - Mark the card as archived when archiving succeeds.
+//   - Show an archive error when the backend rejects the request.
 // participates_in:
-//   - container_flow: archive_note
-//     local_flow: archive_note_frontend
-//     step: 2
+//   - container_flow: archive_note:3
+//     local_flow: archive_note_frontend:2
 //     passes: ref[note_detail_response]
 export function renderArchivedNote(response: unknown): unknown {
   return response;

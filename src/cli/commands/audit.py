@@ -11,11 +11,10 @@ from html import escape
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import Any
 
 from cli.commands.base import add_project_dir_arg
-from cli.common import find_project_root
 from cli.crawler import ForgeCrawlError, ForgeCrawlResult, crawl_project, dump_crawl_error
-from cli.schema import ForgeSchema, load_schema
 
 DEFAULT_AUDIT_PORT = 49891
 
@@ -53,17 +52,12 @@ def run(args: Namespace) -> int:
 
 
 def _audit_root(requested_root: Path | None) -> Path:
-    try:
-        return crawl_project(requested_root or Path.cwd()).root
-    except FileNotFoundError:
-        return find_project_root(requested_root)
+    return crawl_project(requested_root or Path.cwd()).root
 
 
 def _render_audit_for_path(root: Path | None) -> str:
     try:
         return render_v4_audit_html(crawl_project(root or Path.cwd()))
-    except FileNotFoundError:
-        return render_audit_html(load_schema(find_project_root(root)))
     except ForgeCrawlError as exc:
         return f"<html><body><h1>Forge audit error</h1><pre>{escape(dump_crawl_error(exc, 'json', root))}</pre></body></html>"
 
@@ -140,7 +134,8 @@ def render_v4_audit_html(result: ForgeCrawlResult) -> str:
         {"id": "system-overview", "group": "System", "label": "System"},
         {"id": "runtime-overview", "group": "Runtime", "label": "Runtime Overview"},
         {"id": "data-overview", "group": "Data", "label": "Entities & Data"},
-        {"id": "verticals-overview", "group": "Verticals", "label": "Findings"},
+        {"id": "verticals-overview", "group": "Validation", "label": "Findings"},
+        {"id": "quality-assurance-overview", "group": "Quality Assurance", "label": "Quality Assurance"},
     ]
     dynamic_sections: list[str] = []
     for flow in model["container_flows"]:
@@ -221,6 +216,7 @@ def render_v4_audit_html(result: ForgeCrawlResult) -> str:
         "__RUNTIME_BODY__": _render_v4_runtime_section(model),
         "__DATA_BODY__": _render_v4_data_section(model),
         "__VERTICALS_BODY__": _render_v4_findings_overview(model),
+        "__QUALITY_ASSURANCE_BODY__": _render_quality_assurance_overview(str(system.get("id", "forge"))),
         "__DEPLOYMENT_BODY__": "",
         "__DYNAMIC_SECTIONS_HTML__": "".join(dynamic_sections),
         "./forge_white_small.drawio.svg": _asset_data_url("forge_white_small.drawio.svg"),
@@ -269,19 +265,42 @@ def _render_v4_system_section(model: dict[str, object]) -> str:
       <div class="card"><h3>Security</h3><p>{escape(str(system.get('security', '')))}</p></div>
     </div>
     """
-    actions = "".join(
-        f'<div class="card"><h3>{escape(str(action.get("id", "")))}</h3>'
-        f'<p>{escape(str(action.get("intent", "")))}</p>'
-        f'<div class="pill-list"><span class="kind-chip chip-shape">{escape(str(action.get("actor", "")))}</span></div></div>'
-        for action in system.get("business_actions", [])
-        if isinstance(action, dict)
+    action_rows = []
+    for action in system.get("business_actions", []):
+        if not isinstance(action, dict):
+            continue
+        outcomes = "".join(
+            f'<span class="kind-chip chip-shape">{escape(str(outcome))}</span>'
+            for outcome in action.get("outcomes", [])
+            if str(outcome).strip()
+        )
+        action_rows.append(
+            '<button class="business-action-row" type="button" '
+            f'title="{escape(str(action.get("intent", "")))}" '
+            f'data-target="flow-{escape(str(action.get("id", "")))}">'
+            f'<span class="business-action-name">{escape(str(action.get("id", "")))}</span>'
+            '<span class="business-action-actor">'
+            f'<span class="kind-chip chip-storage">{escape(str(action.get("actor", "")))}</span>'
+            '</span>'
+            f'<span class="business-action-results">{outcomes}</span>'
+            '</button>'
+        )
+    actions = (
+        '<div class="business-action-table" role="table" aria-label="Business actions">'
+        '<div class="business-action-header" role="row">'
+        '<span role="columnheader">Action</span>'
+        '<span role="columnheader">Actor</span>'
+        '<span role="columnheader">Results</span>'
+        '</div>'
+        + "".join(action_rows)
+        + '</div>'
     )
     diagram = _render_system_graph(
         str(system.get("id", "system")),
         [item for item in system.get("actors", []) if isinstance(item, dict)],
         [item for item in system.get("external_dependencies", []) if isinstance(item, dict)],
     )
-    return cards + _diagram_card("System Context", "Actors, boundary, and external dependencies", diagram) + '<div class="vertical-cards">' + actions + "</div>"
+    return cards + _diagram_card("System Context", "Actors, boundary, and external dependencies", diagram) + actions
 
 
 def _render_v4_runtime_section(model: dict[str, object]) -> str:
@@ -347,7 +366,177 @@ def _render_v4_findings_overview(model: dict[str, object]) -> str:
             "Validation Findings",
             "Crawler and schema findings from the extracted model.",
         )
+        + _v4_decisions_html(model.get("decisions", []))
+        + _v4_security_surface(model)
         + _v4_findings_html(model["findings"])
+    )
+
+
+def _v4_decisions_html(decisions: object) -> str:
+    if not isinstance(decisions, list) or not decisions:
+        return ""
+    rows: list[str] = []
+    filter_types: list[str] = []
+    sorted_decisions = sorted(
+        (decision for decision in decisions if isinstance(decision, dict)),
+        key=lambda decision: (
+            str(decision.get("date", "")),
+            str(decision.get("id", "")),
+        ),
+        reverse=True,
+    )
+    for decision in sorted_decisions:
+        decision_id = str(decision.get("id", "")).strip()
+        if not decision_id:
+            continue
+        date = str(decision.get("date", "")).strip()
+        owner_skill = str(decision.get("owner_skill", "")).strip()
+        scope = str(decision.get("scope", "")).strip()
+        status = str(decision.get("status", "")).strip()
+        filter_values = status
+        if status:
+            filter_types.append(status)
+        chips = "".join(
+            f'<span class="kind-chip {css_class}">{escape(value)}</span>'
+            for css_class, value in (
+                ("chip-table", date),
+                ("chip-storage", scope),
+                ("chip-shape", status),
+            )
+            if value
+        )
+        rows.append(
+            '<details class="component-table-row component-expandable-row decision-row" '
+            f'data-filter-type="{escape(scope or status or owner_skill)}" '
+            f'data-filter-values="{escape(filter_values)}">'
+            '<summary class="component-row-head decision-row-head">'
+            '<div>'
+            f'<h5>{escape(decision_id)}</h5>'
+            '</div>'
+            f'<div class="pill-list decision-row-chips">{chips}</div>'
+            '<span class="entity-shape-chevron" aria-hidden="true"></span>'
+            '</summary>'
+            f'{_v4_decision_body(decision)}'
+            '</details>'
+        )
+    if not rows:
+        return ""
+    table = f'<div class="component-table decision-table">{"".join(rows)}</div>'
+    return (
+        '<div class="card decision-log-card">'
+        '<h3>Decision Log</h3>'
+        '<p>Structured decisions recorded for future schema, review, security, and build context.</p>'
+        f'{_filterable_rows("decision status", filter_types, table)}'
+        '</div>'
+    )
+
+
+def _v4_decision_body(decision: dict[str, object]) -> str:
+    rows = [
+        ("Owner Skill", decision.get("owner_skill")),
+        ("Scope", decision.get("scope")),
+        ("Status", decision.get("status")),
+        ("Supersedes", decision.get("supersedes")),
+    ]
+    metadata_rows = "".join(
+        f'<tr><th>{escape(label)}</th><td>{escape(str(value))}</td></tr>'
+        for label, value in rows
+        if str(value or "").strip()
+    )
+    body = '<div class="operation-row-body decision-row-body">'
+    if metadata_rows:
+        body += f'<div class="metadata-table-wrap"><table class="metadata-table">{metadata_rows}</table></div>'
+    body += _v4_decision_field("Decision", decision.get("decision"))
+    body += _v4_decision_field("Rationale", decision.get("rationale"))
+    body += _v4_decision_list("Refs", decision.get("refs"))
+    body += _v4_decision_list("Alternatives", decision.get("alternatives"))
+    body += _v4_decision_list("Consequences", decision.get("consequences"))
+    body += "</div>"
+    return body
+
+
+def _v4_decision_field(label: str, value: object) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    return (
+        '<div class="flow-step-logic decision-field">'
+        f'<span>{escape(label)}</span>'
+        f'<p>{escape(text)}</p>'
+        '</div>'
+    )
+
+
+def _v4_decision_list(label: str, value: object) -> str:
+    if isinstance(value, list):
+        items = [str(item).strip() for item in value if str(item).strip()]
+    else:
+        items = [str(value).strip()] if str(value or "").strip() else []
+    if not items:
+        return ""
+    return (
+        '<div class="flow-step-logic decision-field">'
+        f'<span>{escape(label)}</span>'
+        f'<ol>{"".join(f"<li>{escape(item)}</li>" for item in items)}</ol>'
+        '</div>'
+    )
+
+
+def _v4_security_surface(model: dict[str, object]) -> str:
+    cards: list[str] = []
+    system_security = str(model["system"].get("security", "")).strip()
+    if system_security:
+        cards.append(_v4_security_card("System", str(model["system"].get("id", "system")), system_security))
+    for container in model["containers"]:
+        security = str(container.get("security", "")).strip()
+        if security:
+            cards.append(_v4_security_card("Container", str(container.get("id", "")), security, f'container-{container.get("id", "")}'))
+    for entity in model["entities"]:
+        security = str(entity.get("security", "")).strip()
+        if security:
+            cards.append(_v4_security_card("Entity", str(entity.get("id", "")), security, f'entity-{entity.get("id", "")}'))
+    for persistence in model["persistence"]:
+        payload = persistence.get("payload", {})
+        if not isinstance(payload, dict):
+            continue
+        security = str(payload.get("security", "")).strip()
+        entity = str(payload.get("entity", persistence.get("id", "")))
+        if security:
+            cards.append(_v4_security_card("Persistence", entity, security, f"entity-{entity}"))
+    if not cards:
+        return ""
+    return (
+        '<div class="security-surface">'
+        '<div class="security-surface-header">'
+        '<h3>Security Surface</h3>'
+        '<p>Security constraints collected across system, runtime, data, and persistence.</p>'
+        '</div>'
+        '<div class="security-surface-grid">'
+        f'{"".join(cards)}'
+        '</div>'
+        '</div>'
+    )
+
+
+def _v4_security_card(kind: str, title: str, security: str, target: str | None = None) -> str:
+    target_attrs = f' role="button" tabindex="0" data-target="{escape(target)}"' if target else ""
+    return (
+        f'<div class="security-card"{target_attrs}>'
+        '<div class="security-card-head">'
+        f'<span class="kind-chip chip-deploy">{escape(kind)}</span>'
+        f'<strong>{escape(title)}</strong>'
+        '</div>'
+        f'<p>{escape(security)}</p>'
+        '</div>'
+    )
+
+
+def _render_quality_assurance_overview(system_id: str) -> str:
+    return _section_header(
+        "quality-assurance-overview",
+        f"{system_id} / Quality Assurance",
+        "Quality Assurance",
+        "",
     )
 
 
@@ -359,14 +548,38 @@ def _render_v4_runtime_controls(model: dict[str, object]) -> str:
                 environments.add(str(deployment.get("environment", "unknown")))
     if not environments:
         return ""
+    sorted_environments = sorted(environments)
+    selected_environment = sorted_environments[0]
     options = "".join(
-        f'<option value="{escape(environment)}">{escape(environment)}</option>'
-        for environment in sorted(environments)
+        '<button '
+        'type="button" '
+        'role="option" '
+        f'id="environment-option-{escape(environment)}" '
+        f'class="environment-option{" active" if environment == selected_environment else ""}" '
+        f'data-environment-option="{escape(environment)}" '
+        f'aria-selected="{str(environment == selected_environment).lower()}">'
+        f'{escape(environment)}'
+        '</button>'
+        for environment in sorted_environments
     )
     return (
         '<div class="runtime-controls" data-environment-config>'
         '<div><h3>Runtime Containers</h3><p>Deployment fields update by environment.</p></div>'
-        f'<select class="environment-select" data-environment-select aria-label="Deployment environment">{options}</select>'
+        '<div class="environment-select-shell" data-environment-select>'
+        '<button '
+        'type="button" '
+        'class="environment-select" '
+        'data-environment-trigger '
+        'aria-label="Deployment environment" '
+        'aria-haspopup="listbox" '
+        'aria-expanded="false" '
+        f'aria-controls="environment-menu" data-environment-value="{escape(selected_environment)}">'
+        f'<span data-environment-label>{escape(selected_environment)}</span>'
+        '</button>'
+        '<div class="environment-menu" id="environment-menu" role="listbox" data-environment-menu hidden>'
+        f'{options}'
+        '</div>'
+        '</div>'
         '</div>'
     )
 
@@ -378,7 +591,12 @@ def _render_v4_flow_section(flow: dict[str, object], model: dict[str, object]) -
         for operation in container.get("operations", [])
         if _v4_operation_in_flow_payload(operation, str(flow.get("id", "")))
     ]
-    return _v4_flow_card(flow, operations)
+    containers_by_id = {
+        str(container.get("id", "")): container
+        for container in model["containers"]
+        if isinstance(container, dict)
+    }
+    return _v4_flow_card(flow, operations, containers_by_id)
 
 
 def _render_v4_container_section(container: dict[str, object]) -> str:
@@ -427,7 +645,10 @@ def _component_rows(components: object) -> str:
     if not isinstance(components, list):
         return ""
     rows = []
-    for component in components:
+    component_items = [component for component in components if isinstance(component, dict)]
+    component_items.sort(key=_annotation_display_sort_key)
+    filter_types: list[str] = []
+    for component in component_items:
         if not isinstance(component, dict):
             continue
         payload = component.get("payload", component)
@@ -445,6 +666,8 @@ def _component_rows(components: object) -> str:
         ) if isinstance(responsibilities, list) else ""
         source_html = f'<span class="component-source">{escape(source)}</span>' if source else ""
         role_html = f'<span class="kind-chip chip-storage">{escape(role)}</span>' if role else ""
+        if role:
+            filter_types.append(role)
         responsibility_html = (
             '<div class="component-responsibilities">'
             '<span class="component-row-label">Responsibilities</span>'
@@ -454,7 +677,7 @@ def _component_rows(components: object) -> str:
             else ""
         )
         rows.append(
-            '<details class="component-table-row component-expandable-row">'
+            f'<details class="component-table-row component-expandable-row" data-filter-type="{escape(role)}" data-filter-values="{escape(role)}">'
             '<summary class="component-row-head">'
             '<div>'
             f'<h5>{escape(component_id)}</h5>'
@@ -469,14 +692,17 @@ def _component_rows(components: object) -> str:
             '</div>'
             '</details>'
         )
-    return f'<div class="component-table">{"".join(rows)}</div>' if rows else ""
+    return _filterable_rows("component role", filter_types, f'<div class="component-table">{"".join(rows)}</div>') if rows else ""
 
 
 def _data_shape_rows(shapes: object) -> str:
     if not isinstance(shapes, list):
         return ""
     rows = []
-    for shape in shapes:
+    shape_items = [shape for shape in shapes if isinstance(shape, dict)]
+    shape_items.sort(key=_annotation_display_sort_key)
+    filter_types: list[str] = []
+    for index, shape in enumerate(shape_items):
         if not isinstance(shape, dict):
             continue
         payload = shape.get("payload", shape)
@@ -485,27 +711,39 @@ def _data_shape_rows(shapes: object) -> str:
         shape_id = str(shape.get("id") or payload.get("id") or "")
         source = f"{shape.get('source', '')}:{shape.get('line', '')}".strip(":")
         kind = str(payload.get("type_kind", payload.get("kind", "")))
+        shape_payload = payload.get("shape", {})
+        shape_html = escape(json.dumps(shape_payload, indent=2))
         source_html = f'<span class="component-source">{escape(source)}</span>' if source else ""
         kind_html = f'<span class="kind-chip chip-shape">{escape(kind)}</span>' if kind else ""
+        if kind:
+            filter_types.append(kind)
+        filter_attrs = f'data-filter-type="{escape(kind)}" data-filter-values="{escape(kind)}"'
+        toggle_id = f"data-shape-{_elk_id(shape_id)}-{index}"
         rows.append(
-            '<div class="component-table-row data-shape-row">'
-            '<div class="component-row-head">'
+            f'<div class="component-table-row data-shape-row data-shape-expandable" {filter_attrs}>'
+            f'<input class="data-shape-toggle-input" id="{escape(toggle_id)}" type="checkbox">'
+            f'<label class="component-row-head data-shape-toggle" for="{escape(toggle_id)}">'
             '<div>'
             f'<h5>{escape(shape_id)}</h5>'
             f"{source_html}"
             '</div>'
             f"{kind_html}"
-            '</div>'
+            '<span class="entity-shape-chevron" aria-hidden="true"></span>'
+            '</label>'
+            f'<div class="schema-viewer"><pre>{shape_html}</pre></div>'
             '</div>'
         )
-    return f'<div class="component-table data-shape-table">{"".join(rows)}</div>' if rows else ""
+    return _filterable_rows("data shape kind", filter_types, f'<div class="component-table data-shape-table">{"".join(rows)}</div>') if rows else ""
 
 
 def _operation_rows(operations: object) -> str:
     if not isinstance(operations, list):
         return ""
     rows = []
-    for operation in operations:
+    operation_items = [operation for operation in operations if isinstance(operation, dict)]
+    operation_items.sort(key=_annotation_display_sort_key)
+    filter_types: list[str] = []
+    for operation in operation_items:
         if not isinstance(operation, dict):
             continue
         payload = operation.get("payload", operation)
@@ -513,7 +751,18 @@ def _operation_rows(operations: object) -> str:
             payload = {}
         operation_id = str(operation.get("id") or payload.get("id") or "")
         source = f"{operation.get('source', '')}:{operation.get('line', '')}".strip(":")
-        chip_label = str(payload.get("component") or payload.get("local_flow") or payload.get("container_flow") or "operation")
+        chip_label = str(operation.get("component") or payload.get("component") or payload.get("local_flow") or payload.get("container_flow") or "operation")
+        operation_filter_values = " ".join(
+            value
+            for value in [
+                chip_label,
+                str(payload.get("container_flow", "")),
+                str(payload.get("local_flow", "")),
+            ]
+            if value
+        )
+        if chip_label:
+            filter_types.append(chip_label)
         io_rows = [
             ("Input", payload.get("input", "")),
             ("Returns", payload.get("returns", "")),
@@ -528,9 +777,8 @@ def _operation_rows(operations: object) -> str:
         participates = payload.get("participates_in", [])
         participate_rows = "".join(
             "<tr>"
-            f"<td>{escape(str(item.get('container_flow', '')))}</td>"
-            f"<td>{escape(str(item.get('local_flow', '')))}</td>"
-            f"<td>{escape(str(item.get('step', '')))}</td>"
+            f"<td>{escape(_v4_container_flow_step_label(item))}</td>"
+            f"<td>{escape(_v4_local_flow_step_label(item))}</td>"
             f"<td>{escape(str(item.get('passes', '')))}</td>"
             "</tr>"
             for item in participates
@@ -558,7 +806,7 @@ def _operation_rows(operations: object) -> str:
                 '<details class="payload-expandable operation-participation-details">'
                 f"<summary>Participation ({len([item for item in participates if isinstance(item, dict)])})</summary>"
                 '<div class="metadata-table-wrap"><table class="metadata-table operation-participation-table">'
-                "<tr><th>Flow</th><th>Local Flow</th><th>Step</th><th>Passes</th></tr>"
+                "<tr><th>Container Flow</th><th>Component Operation Flow</th><th>Passes</th></tr>"
                 f"{participate_rows}"
                 "</table></div>"
                 "</details>"
@@ -568,7 +816,9 @@ def _operation_rows(operations: object) -> str:
             + "</div>"
         )
         rows.append(
-            '<details class="component-table-row component-expandable-row operation-row">'
+            '<details class="component-table-row component-expandable-row operation-row" '
+            f'data-filter-type="{escape(chip_label)}" '
+            f'data-filter-values="{escape(operation_filter_values)}">'
             '<summary class="component-row-head">'
             '<div>'
             f"<h5>{escape(operation_id)}</h5>"
@@ -580,7 +830,49 @@ def _operation_rows(operations: object) -> str:
             f"{body}"
             "</details>"
         )
-    return f'<div class="component-table operation-table">{"".join(rows)}</div>' if rows else ""
+    return _filterable_rows("operation type", filter_types, f'<div class="component-table operation-table">{"".join(rows)}</div>') if rows else ""
+
+
+def _annotation_display_sort_key(item: dict[str, object]) -> str:
+    payload = item.get("payload", item)
+    if not isinstance(payload, dict):
+        payload = {}
+    return str(item.get("id") or payload.get("id") or "").casefold()
+
+
+def _v4_container_flow_step_label(entry: dict[str, object]) -> str:
+    container_flow = str(entry.get("container_flow", ""))
+    step = entry.get("step")
+    if step in (None, ""):
+        return container_flow
+    return f"{container_flow}:{step}"
+
+
+def _v4_local_flow_step_label(entry: dict[str, object]) -> str:
+    local_flow = str(entry.get("local_flow", ""))
+    local_step = entry.get("local_step")
+    if local_step in (None, ""):
+        return local_flow
+    return f"{local_flow}:{local_step}"
+
+
+def _filterable_rows(label: str, types: list[str], table_html: str) -> str:
+    unique_types = sorted({item for item in types if item.strip()}, key=str.casefold)
+    if not unique_types:
+        return table_html
+    buttons = [
+        '<button class="annotation-filter-btn active" type="button" data-filter-value="all">All</button>'
+    ]
+    buttons.extend(
+        f'<button class="annotation-filter-btn" type="button" data-filter-value="{escape(filter_type)}">{escape(filter_type)}</button>'
+        for filter_type in unique_types
+    )
+    return (
+        f'<div class="annotation-filter" data-annotation-filter aria-label="Filter by {escape(label)}">'
+        f'{"".join(buttons)}'
+        '</div>'
+        f'{table_html}'
+    )
 
 
 def _v4_entity_summary_card(entity: dict[str, object]) -> str:
@@ -615,7 +907,6 @@ def _v4_entity_summary_card(entity: dict[str, object]) -> str:
         f'<p>{escape(str(entity.get("description", "")))}</p>'
         f'<div class="metadata-summary metadata-summary-compact">{summary_html}</div>'
         f'{security_row}'
-        f'{_v4_raw_details("Raw Entity Payload", entity)}'
         '</div>'
     )
 
@@ -738,7 +1029,6 @@ def _v4_entity_persistence_card(persistence: list[dict[str, object]]) -> str:
             '<div class="metadata-table-wrap"><table class="metadata-table">'
             f'{table_rows}'
             '</table></div>'
-            f'{_v4_raw_details("Raw Persistence Payload", payload)}'
             '</div>'
         )
     return f'<div class="card entity-persistence-card"><h4>Persistence</h4>{"".join(blocks)}</div>'
@@ -763,39 +1053,121 @@ def _v4_relationships(model: dict[str, object]) -> list[dict[str, object]]:
     seen: set[tuple[str, str]] = set()
     relationships: list[dict[str, object]] = []
     for flow in model["container_flows"]:
-        for step in flow.get("steps", []):
-            if not isinstance(step, dict) or not step.get("from") or not step.get("to"):
+        steps = [step for step in flow.get("steps", []) if isinstance(step, dict)]
+        steps_by_id = _v4_steps_by_id(steps)
+        for step in steps:
+            source = step.get("container")
+            if not source:
                 continue
-            key = (str(step["from"]), str(step["to"]))
-            if key in seen:
-                continue
-            seen.add(key)
-            relationships.append(
-                {
-                    "from": step["from"],
-                    "to": step["to"],
-                    "description": "",
-                }
-            )
+            for target_step in _v4_step_targets(step, steps_by_id):
+                target = target_step.get("container")
+                if not target or target == source:
+                    continue
+                key = (str(source), str(target))
+                if key in seen:
+                    continue
+                seen.add(key)
+                relationships.append({"from": source, "to": target, "description": ""})
     return relationships
 
 
 def _render_v4_component_graph(container: dict[str, object]) -> str:
     components = [item for item in container.get("components", []) if isinstance(item, dict)]
-    lines = [
-        "flowchart LR",
-        "  classDef forgeNode fill:#ffffff,stroke:#d1d9e0,stroke-width:1.5px,color:#1f2328;",
+    components.sort(key=_annotation_display_sort_key)
+    component_ids = [str(component.get("id", "")) for component in components if str(component.get("id", "")).strip()]
+    component_partitions = _v4_component_partitions(container, component_ids)
+    nodes = [
+        _elk_node(
+            component_id,
+            _v4_component_role(container, component_id),
+            "component",
+            target=None,
+            partition=component_partitions.get(component_id, index),
+            width=220,
+            height=72,
+        )
+        for index, component_id in enumerate(component_ids)
     ]
-    node_ids = []
-    for component in components:
-        node_id = _elk_id(str(component.get("id", "")))
-        node_ids.append(node_id)
-        label = _mermaid_label(str(component.get("id", "")))
-        lines.append(f'  {node_id}["{label}"]')
-        lines.append(f"  class {node_id} forgeNode;")
-    for left, right in zip(node_ids, node_ids[1:]):
-        lines.append(f"  {left} ~~~ {right}")
-    return _mermaid_block("\n".join(lines))
+    edges = [
+        _elk_edge(source, target, "", show_label=False)
+        for source, target in _v4_component_edges(container)
+    ]
+    return _elk_block(_elk_graph(nodes, edges))
+
+
+def _v4_component_role(container: dict[str, object], component_id: str) -> str:
+    for component in container.get("components", []):
+        if not isinstance(component, dict) or str(component.get("id", "")) != component_id:
+            continue
+        payload = component.get("payload", {})
+        if isinstance(payload, dict):
+            return str(payload.get("role") or "component")
+    return "component"
+
+
+def _v4_component_edges(container: dict[str, object]) -> list[tuple[str, str]]:
+    component_ids = {
+        str(component.get("id", "")).strip()
+        for component in container.get("components", [])
+        if isinstance(component, dict) and str(component.get("id", "")).strip()
+    }
+    edges: list[tuple[str, str]] = []
+    for component in container.get("components", []):
+        if not isinstance(component, dict):
+            continue
+        payload = component.get("payload", {})
+        if not isinstance(payload, dict):
+            continue
+        child = str(component.get("id", "") or payload.get("id", "")).strip()
+        parent = str(payload.get("parent_component", "")).strip()
+        if parent and child and parent in component_ids and child in component_ids and parent != child:
+            edge = (parent, child)
+            if edge not in edges:
+                edges.append(edge)
+
+    operations = [operation for operation in container.get("operations", []) if isinstance(operation, dict)]
+    input_to_components: dict[str, list[str]] = {}
+    for operation in operations:
+        payload = operation.get("payload", {})
+        if not isinstance(payload, dict):
+            continue
+        input_ref = str(payload.get("input", "")).strip()
+        component = str(operation.get("component", "") or payload.get("component", "")).strip()
+        if input_ref and component:
+            input_to_components.setdefault(input_ref, []).append(component)
+    for operation in operations:
+        payload = operation.get("payload", {})
+        if not isinstance(payload, dict):
+            continue
+        source = str(operation.get("component", "") or payload.get("component", "")).strip()
+        if not source:
+            continue
+        for entry in _v4_operation_entries(payload):
+            passes = str(entry.get("passes", "")).strip()
+            for target in input_to_components.get(passes, []):
+                if target != source and (source, target) not in edges:
+                    edges.append((source, target))
+    return edges
+
+
+def _v4_component_partitions(container: dict[str, object], component_ids: list[str]) -> dict[str, int]:
+    role_order = {"interface": 0, "logic": 1, "persistence": 2, "data_access": 2}
+    return {
+        component_id: role_order.get(_v4_component_role(container, component_id), index)
+        for index, component_id in enumerate(component_ids)
+    }
+
+
+def _v4_operation_entries(payload: dict[str, object]) -> list[dict[str, object]]:
+    entries = []
+    if payload.get("passes"):
+        entries.append(payload)
+    entries.extend(
+        item
+        for item in payload.get("participates_in", [])
+        if isinstance(item, dict)
+    )
+    return entries
 
 
 def _v4_graph_targets(model: dict[str, object]) -> dict[str, str]:
@@ -889,32 +1261,197 @@ def _v4_container_deployment_panels(container: dict[str, object]) -> str:
     return "".join(panels)
 
 
-def _v4_flow_card(flow: dict[str, object], operations: list[dict[str, object]] | None = None) -> str:
+def _v4_flow_card(
+    flow: dict[str, object],
+    operations: list[dict[str, object]] | None = None,
+    containers_by_id: dict[str, dict[str, object]] | None = None,
+) -> str:
     flow_id = str(flow.get("id", ""))
     flow_operations = operations or []
+    flow_steps = [step for step in flow.get("steps", []) if isinstance(step, dict)]
+    steps_by_id = _v4_steps_by_id(flow_steps)
+    all_operation_items = _v4_all_flow_operation_items(flow_operations, flow_id, flow_steps)
     steps = "".join(
-        _v4_flow_step_row(step, flow_id, flow_operations)
-        for step in flow.get("steps", [])
-        if isinstance(step, dict)
+        _v4_flow_step_row(step, flow_id, flow_operations, steps_by_id, all_operation_items)
+        for step in flow_steps
     )
+    trigger_row = _v4_flow_trigger_row(flow)
+    outcomes_row = _v4_flow_outcomes_row(flow)
     diagram = _diagram_card(
         f"Flow Diagram: {flow.get('id', '')}",
-        "Numbered edges correspond to the flow steps below.",
-        _render_v4_flow_graph(flow),
+        "The orange trigger starts the flow. Runtime containers are shown as nodes.",
+        _render_v4_flow_graph(flow, containers_by_id or {}),
     )
     return (
         '<div class="card">'
         f'<h3>{escape(str(flow.get("id", "")))}</h3>'
         f'<p>{escape(str(flow.get("description", "")))}</p>'
         f"{diagram}"
+        f"{_v4_flow_data_path_card(flow)}"
         '<div class="flow-step-list">'
-        f"{steps or '<p>No flow steps extracted.</p>'}"
+        f"{trigger_row}{steps or '<p>No flow steps extracted.</p>'}{outcomes_row}"
         "</div>"
         "</div>"
     )
 
 
-def _v4_flow_step_row(step: dict[str, object], flow_id: str, operations: list[dict[str, object]]) -> str:
+def _v4_flow_trigger_row(flow: dict[str, object]) -> str:
+    trigger = flow.get("trigger", {})
+    if not isinstance(trigger, dict) or not trigger:
+        return ""
+    actor = str(trigger.get("actor", "")).strip()
+    container = str(trigger.get("container", "")).strip()
+    input_value = str(trigger.get("input", "")).strip()
+    summary = " -> ".join(item for item in (actor, container) if item)
+    return (
+        '<details class="flow-step-row flow-trigger-row" open>'
+        '<summary class="flow-step-summary">'
+        '<span class="flow-step-index flow-trigger-index"></span>'
+        '<span class="flow-step-visible">'
+        '<strong>Trigger</strong>'
+        f'<em>{escape(summary or "Flow trigger")}</em>'
+        '</span>'
+        '<span class="entity-shape-chevron" aria-hidden="true"></span>'
+        '</summary>'
+        '<div class="flow-step-content">'
+        '<ul class="flow-step-io">'
+        + (f'<li><span>Actor</span><strong>{escape(actor)}</strong></li>' if actor else "")
+        + (f'<li><span>Container</span><strong>{escape(container)}</strong></li>' if container else "")
+        + (f'<li><span>Input</span><strong>{escape(input_value)}</strong></li>' if input_value else "")
+        + '</ul>'
+        '</div>'
+        '</details>'
+    )
+
+
+def _v4_flow_outcomes_row(flow: dict[str, object]) -> str:
+    outcomes = flow.get("outcomes", [])
+    if not isinstance(outcomes, list) or not outcomes:
+        return ""
+    chips = "".join(
+        f'<span class="kind-chip chip-shape">{escape(str(outcome))}</span>'
+        for outcome in outcomes
+        if str(outcome).strip()
+    )
+    return (
+        '<div class="flow-outcome-row">'
+        '<span class="component-row-label">Outcomes</span>'
+        f'<div class="pill-list">{chips}</div>'
+        '</div>'
+    )
+
+
+def _v4_flow_data_path_card(flow: dict[str, object]) -> str:
+    refs = _v4_flow_data_path_refs(flow)
+    if not refs:
+        return ""
+    return (
+        '<div class="flow-data-path-shell diagram-card">'
+        '<details class="flow-data-path-card">'
+        '<summary>'
+        '<span class="flow-data-path-title"><strong>Data Path</strong></span>'
+        f'<span class="flow-data-path-meta">{len(refs)} data shapes</span>'
+        '</summary>'
+        '<div class="diagram-wrap data-path-diagram">'
+        f'{_v4_flow_data_path_graph(flow)}'
+        '</div>'
+        '</details>'
+        '<span class="diagram-controls flow-data-path-controls" aria-label="Data Path controls">'
+        '<button class="diagram-control-btn" data-diagram-zoom="out" type="button" aria-label="Zoom out">-</button>'
+        '<button class="diagram-control-btn" data-diagram-zoom="reset" type="button" aria-label="Reset zoom">100%</button>'
+        '<button class="diagram-control-btn" data-diagram-zoom="in" type="button" aria-label="Zoom in">+</button>'
+        '</span>'
+        '</div>'
+    )
+
+
+def _v4_flow_data_path_refs(flow: dict[str, object]) -> list[str]:
+    refs: list[str] = []
+
+    def add_ref(value: object) -> None:
+        text = str(value or "").strip()
+        if not text:
+            return
+        for part in text.replace(" or ", ";").split(";"):
+            candidate = part.strip()
+            if candidate and candidate not in refs:
+                refs.append(candidate)
+
+    trigger = flow.get("trigger", {})
+    if isinstance(trigger, dict):
+        add_ref(trigger.get("input"))
+    for step in flow.get("steps", []):
+        if not isinstance(step, dict):
+            continue
+        add_ref(step.get("input"))
+        add_ref(_v4_step_output(step))
+    return refs
+
+
+def _v4_flow_data_path_graph(flow: dict[str, object]) -> str:
+    refs = _v4_flow_data_path_refs(flow)
+    partitions = {ref: index for index, ref in enumerate(refs)}
+    edges: list[tuple[str, str]] = []
+
+    def add_edge(source: object, target: object) -> None:
+        source_text = str(source or "").strip()
+        target_text = str(target or "").strip()
+        if not source_text or not target_text or source_text == target_text:
+            return
+        edge = (source_text, target_text)
+        if edge not in edges:
+            edges.append(edge)
+
+    trigger = flow.get("trigger", {})
+    previous_ref = trigger.get("input") if isinstance(trigger, dict) else None
+    for step in flow.get("steps", []):
+        if not isinstance(step, dict):
+            continue
+        step_input = step.get("input") or previous_ref
+        output = step.get("output")
+        if output:
+            add_edge(step_input, output)
+            previous_ref = output
+        branches = step.get("branches", [])
+        if isinstance(branches, list):
+            for branch in branches:
+                if not isinstance(branch, dict):
+                    continue
+                branch_output = branch.get("output")
+                add_edge(step_input, branch_output)
+
+    nodes = [
+        _elk_node(
+            ref,
+            "data",
+            "data-shape",
+            partition=partitions.get(ref, index),
+            width=max(120, min(180, len(ref) * 5.4)),
+            height=34,
+        )
+        for index, ref in enumerate(refs)
+    ]
+    graph_edges = [
+        _elk_edge(source, target, "", show_label=False)
+        for source, target in edges
+    ]
+    graph = _elk_graph(nodes, graph_edges)
+    graph["layoutOptions"].update(
+        {
+            "elk.spacing.nodeNode": "24",
+            "elk.layered.spacing.nodeNodeBetweenLayers": "54",
+        }
+    )
+    return _elk_block(graph, scale=0.35)
+
+
+def _v4_flow_step_row(
+    step: dict[str, object],
+    flow_id: str,
+    operations: list[dict[str, object]],
+    steps_by_id: dict[object, list[dict[str, object]]],
+    all_operation_items: list[dict[str, object]],
+) -> str:
     logic = step.get("logic", [])
     if isinstance(logic, list):
         logic_items = "".join(f"<li>{escape(str(item))}</li>" for item in logic if str(item).strip())
@@ -923,28 +1460,35 @@ def _v4_flow_step_row(step: dict[str, object], flow_id: str, operations: list[di
     step_id = str(step.get("id", ""))
     input_value = str(step.get("input", ""))
     output_value = _v4_step_output(step)
-    operation_groups = _v4_step_operation_groups(operations, flow_id, step_id)
-    operation_group_html = "".join(
+    operation_items = _v4_step_operation_items(operations, flow_id, step_id, step)
+    operation_group_html = (
         '<details class="flow-local-group">'
         '<summary>'
         '<span>'
-        f'<strong>{escape(group["container"])}</strong>'
-        f'<em>{escape(group["local_flow"])}</em>'
+        '<strong>Component operations</strong>'
         '</span>'
-        f'<span>{len(group["operations"])} operations</span>'
+        f'<span>{_v4_local_group_summary(operation_items)}</span>'
         '</summary>'
         '<div class="flow-operation-list">'
-        + "".join(_v4_flow_operation_row(operation) for operation in group["operations"])
+        + "".join(
+            _v4_flow_operation_row(
+                item,
+                _v4_operation_pass_target(item, operation_items, all_operation_items),
+            )
+            for item in operation_items
+        )
         + '</div>'
         '</details>'
-        for group in operation_groups
+        if operation_items
+        else ""
     )
     return (
         '<details class="flow-step-row">'
         '<summary class="flow-step-summary">'
         f'<span class="flow-step-index">{escape(step_id)}</span>'
         '<span class="flow-step-visible">'
-        f'<strong>{escape(str(step.get("from", "")))} → {escape(str(step.get("to", "")))}</strong>'
+        f'<strong>{escape(str(step.get("container", "")))}</strong>'
+        f'<em>{escape(_v4_step_handoff_label(step))}</em>'
         '</span>'
         '<span class="entity-shape-chevron" aria-hidden="true"></span>'
         '</summary>'
@@ -963,7 +1507,7 @@ def _v4_flow_step_row(step: dict[str, object], flow_id: str, operations: list[di
         )
         + (
             '<div class="flow-step-local">'
-            '<span class="component-row-label">Local flows and operations</span>'
+            '<span class="component-row-label">Component operations in this step</span>'
             f'{operation_group_html}'
             '</div>'
             if operation_group_html
@@ -974,12 +1518,13 @@ def _v4_flow_step_row(step: dict[str, object], flow_id: str, operations: list[di
     )
 
 
-def _v4_step_operation_groups(
+def _v4_step_operation_items(
     operations: list[dict[str, object]],
     flow_id: str,
     step_id: str,
+    step: dict[str, object],
 ) -> list[dict[str, object]]:
-    grouped: dict[tuple[str, str], list[dict[str, object]]] = {}
+    items: list[dict[str, object]] = []
     for operation in operations:
         payload = operation.get("payload", {})
         if not isinstance(payload, dict):
@@ -989,21 +1534,123 @@ def _v4_step_operation_groups(
             entries.append(payload)
         entries.extend(
             item
-            for item in payload.get("participates_in", [])
-            if (
-                isinstance(item, dict)
-                and item.get("container_flow") == flow_id
-                and str(item.get("step", "")) == step_id
-            )
+            for item in _v4_operation_entries_for_flow(payload, flow_id)
+            if str(item.get("step", "")) == step_id
         )
         for entry in entries:
             local_flow = str(entry.get("local_flow") or payload.get("local_flow") or "local_flow")
             container = _v4_operation_container_label(operation, payload, local_flow)
-            grouped.setdefault((container, local_flow), []).append(operation)
-    return [
-        {"container": container, "local_flow": local_flow, "operations": group_operations}
-        for (container, local_flow), group_operations in sorted(grouped.items())
+            if container != str(step.get("container", "")):
+                continue
+            component = _v4_operation_component_label(operation, payload, local_flow)
+            items.append(
+                {
+                    "component": component,
+                    "container": container,
+                    "local_flow": local_flow,
+                    "step_id": step_id,
+                    "operation": operation,
+                    "entry": entry,
+                }
+            )
+    return sorted(items, key=_v4_local_operation_sort_key)
+
+
+def _v4_all_flow_operation_items(
+    operations: list[dict[str, object]],
+    flow_id: str,
+    steps: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    items: list[dict[str, object]] = []
+    for step in steps:
+        items.extend(_v4_step_operation_items(operations, flow_id, str(step.get("id", "")), step))
+    return sorted(items, key=_v4_runtime_operation_sort_key)
+
+
+def _v4_step_handoff_label(step: dict[str, object]) -> str:
+    logic = step.get("logic", [])
+    if isinstance(logic, list):
+        for item in logic:
+            text = str(item).strip()
+            if text:
+                return text
+    text = str(logic).strip()
+    return text or "Runtime component step"
+
+
+def _v4_container_execution_order(step: dict[str, object], container: str) -> int:
+    current = str(step.get("container", "")).strip()
+    if container == current:
+        return 0
+    return 1
+
+
+def _v4_group_first_local_step(items: list[dict[str, object]]) -> int:
+    if not items:
+        return 999_999
+    return min(_v4_local_operation_sort_key(item)[0] for item in items)
+
+
+def _v4_operation_entries_for_flow(payload: dict[str, object], flow_id: str) -> list[dict[str, object]]:
+    entries: list[dict[str, object]] = []
+    if payload.get("container_flow") == flow_id:
+        entries.append(payload)
+    entries.extend(
+        item
+        for item in payload.get("participates_in", [])
+        if isinstance(item, dict) and item.get("container_flow") == flow_id
+    )
+    return entries
+
+
+def _v4_local_operation_sort_key(item: dict[str, object]) -> tuple[int, str, str]:
+    entry = item.get("entry", {})
+    operation = item.get("operation", {})
+    raw_step = entry.get("local_step") if isinstance(entry, dict) else None
+    try:
+        step = int(str(raw_step))
+    except (TypeError, ValueError):
+        step = 999_999
+    component = str(item.get("component", ""))
+    operation_id = operation.get("id", "") if isinstance(operation, dict) else ""
+    return step, component, str(operation_id)
+
+
+def _v4_runtime_operation_sort_key(item: dict[str, object]) -> tuple[int, int, str, str]:
+    try:
+        step_id = int(str(item.get("step_id", "")))
+    except (TypeError, ValueError):
+        step_id = 999_999
+    local_step = _v4_local_operation_sort_key(item)[0]
+    component = str(item.get("component", ""))
+    operation = item.get("operation", {})
+    operation_id = operation.get("id", "") if isinstance(operation, dict) else ""
+    return step_id, local_step, component, str(operation_id)
+
+
+def _v4_local_group_summary(items: object) -> str:
+    if not isinstance(items, list):
+        return "0 operations"
+    steps = [
+        str(item.get("entry", {}).get("local_step"))
+        for item in items
+        if isinstance(item, dict)
+        and isinstance(item.get("entry"), dict)
+        and item.get("entry", {}).get("local_step") is not None
     ]
+    step_counts = {step: steps.count(step) for step in dict.fromkeys(steps)}
+    step_parts = [
+        f"{step} ({count} concurrent)" if count > 1 else step
+        for step, count in step_counts.items()
+    ]
+    if not step_parts:
+        step_label = "unstepped"
+    elif len(step_parts) == 1:
+        step_label = f"operation step {step_parts[0]}"
+    else:
+        step_label = f"operation steps {', '.join(step_parts)}"
+    count_label = "operation" if len(items) == 1 else "operations"
+    return f"{len(items)} {count_label} · {step_label}"
 
 
 def _v4_operation_container_label(operation: dict[str, object], payload: dict[str, object], local_flow: str) -> str:
@@ -1017,13 +1664,77 @@ def _v4_operation_container_label(operation: dict[str, object], payload: dict[st
     return "container"
 
 
-def _v4_flow_operation_row(operation: dict[str, object]) -> str:
+def _v4_operation_component_label(operation: dict[str, object], payload: dict[str, object], local_flow: str) -> str:
+    explicit = operation.get("component") or payload.get("component")
+    if explicit:
+        return str(explicit)
+    return local_flow or "component"
+
+
+def _v4_operation_pass_target(
+    item: dict[str, object],
+    step_items: list[dict[str, object]],
+    all_flow_items: list[dict[str, object]],
+) -> str:
+    entry = item.get("entry", {})
+    if not isinstance(entry, dict):
+        return ""
+    passes = str(entry.get("passes", "")).strip()
+    if not passes:
+        return ""
+    same_step_targets = _v4_operation_pass_target_candidates(item, step_items, passes)
+    if same_step_targets:
+        return " / ".join(same_step_targets)
+    flow_targets = _v4_operation_pass_target_candidates(item, all_flow_items, passes)
+    return " / ".join(flow_targets)
+
+
+def _v4_operation_pass_target_candidates(
+    source_item: dict[str, object],
+    candidate_items: list[dict[str, object]],
+    passes: str,
+) -> list[str]:
+    targets: list[str] = []
+    source_runtime_step = _v4_runtime_operation_sort_key(source_item)[0]
+    source_local_step = _v4_runtime_operation_sort_key(source_item)[1]
+    source_operation = source_item.get("operation")
+    for candidate in candidate_items:
+        operation = candidate.get("operation")
+        if operation is source_operation:
+            continue
+        candidate_runtime_step, candidate_local_step, *_ = _v4_runtime_operation_sort_key(candidate)
+        if (candidate_runtime_step, candidate_local_step) < (source_runtime_step, source_local_step):
+            continue
+        payload = operation.get("payload", {}) if isinstance(operation, dict) else {}
+        if not isinstance(payload, dict) or str(payload.get("input", "")).strip() != passes:
+            continue
+        component = str(candidate.get("component", "")).strip()
+        if component and component not in targets:
+            targets.append(component)
+    return targets
+
+
+def _v4_flow_operation_row(
+    item: dict[str, object],
+    pass_target: str = "",
+) -> str:
+    operation = item.get("operation", {})
+    if not isinstance(operation, dict):
+        operation = {}
     payload = operation.get("payload", {})
     if not isinstance(payload, dict):
         payload = {}
+    entry = item.get("entry", {})
+    entry = entry if isinstance(entry, dict) else {}
     source = f"{operation.get('source', '')}:{operation.get('line', '')}"
+    local_step = str(entry.get("local_step", "")).strip()
+    component = str(item.get("component", "") or operation.get("component", "") or payload.get("component", "")).strip()
+    operation_id = str(operation.get("id", "")).strip()
+    passes = str(entry.get("passes", "")).strip()
+    step_dot = f'<span class="flow-operation-dot">{escape(local_step)}</span>' if local_step else '<span class="flow-operation-dot"></span>'
+    handoff = f"Passes {passes} to {pass_target}" if passes and pass_target else (f"Passes {passes}" if passes else "")
     io_items = "".join(
-        f"<li><span>{escape(label)}</span><strong>{escape(str(value))}</strong></li>"
+        f"<span><em>{escape(label)}</em> {escape(str(value))}</span>"
         for label, value in (("Input", payload.get("input")), ("Returns", payload.get("returns")))
         if value
     )
@@ -1033,58 +1744,95 @@ def _v4_flow_operation_row(operation: dict[str, object]) -> str:
         logic_items = "".join(f"<li>{escape(str(item))}</li>" for item in logic if str(item).strip())
     elif str(logic).strip():
         logic_items = f"<li>{escape(str(logic))}</li>"
+    title = f"{component} - {operation_id}" if component and operation_id else component or operation_id
     return (
-        '<details class="flow-operation-row">'
-        '<summary>'
-        '<span>'
-        f'<strong>{escape(str(operation.get("id", "")))}</strong>'
+        '<div class="flow-operation-step">'
+        f'{step_dot}'
+        '<div class="flow-operation-step-body">'
+        '<div class="flow-operation-step-head">'
+        '<div>'
+        f'<strong>{escape(title)}</strong>'
         f'<em>{escape(source)}</em>'
-        '</span>'
-        '<span></span>'
-        '<span class="entity-shape-chevron" aria-hidden="true"></span>'
-        '</summary>'
-        + (f'<ul class="flow-step-io flow-operation-io">{io_items}</ul>' if io_items else "")
+        '</div>'
+        '</div>'
+        + (f'<div class="flow-operation-io">{io_items}</div>' if io_items else "")
+        + (f'<div class="flow-operation-handoff">{escape(handoff)}</div>' if handoff else "")
         + (
-            '<div class="flow-step-logic">'
+            '<div class="flow-operation-logic">'
             '<span>Logic</span>'
-            f'<ul>{logic_items}</ul>'
+            f'<ol>{logic_items}</ol>'
             '</div>'
             if logic_items
             else ""
         )
-        + '</details>'
+        + '</div>'
+        + '</div>'
     )
 
 
-def _render_v4_flow_graph(flow: dict[str, object]) -> str:
+def _render_v4_flow_graph(flow: dict[str, object], containers_by_id: dict[str, dict[str, object]]) -> str:
+    steps = [step for step in flow.get("steps", []) if isinstance(step, dict)]
+    steps_by_id = _v4_steps_by_id(steps)
     container_ids: list[str] = []
-    edge_numbers_by_pair: dict[tuple[str, str], list[str]] = {}
-    for step in flow.get("steps", []):
-        if not isinstance(step, dict):
-            continue
-        source = step.get("from")
-        target = step.get("to")
-        if not source or not target:
-            continue
-        for container_id in (str(source), str(target)):
-            if container_id not in container_ids:
-                container_ids.append(container_id)
-        edge_numbers_by_pair.setdefault((str(source), str(target)), []).append(str(step.get("id", "")))
-    edges = [
-        _elk_edge(
-            source,
-            target,
-            ", ".join(number for number in numbers if number),
-            show_label=True,
-            label_wrap=8,
-        )
-        for (source, target), numbers in edge_numbers_by_pair.items()
-    ]
+    edge_pairs: set[tuple[str, str]] = set()
+    for step in steps:
+        source = str(step.get("container", "")).strip()
+        if source and source not in container_ids:
+            container_ids.append(source)
+        for target_step in _v4_step_targets(step, steps_by_id):
+            target = str(target_step.get("container", "")).strip()
+            if not source or not target:
+                continue
+            if target not in container_ids:
+                container_ids.append(target)
+            if source == target:
+                continue
+            edge_pairs.add((source, target))
+    trigger = flow.get("trigger", {})
+    trigger_container = str(trigger.get("container", "")).strip() if isinstance(trigger, dict) else ""
+    if trigger_container and trigger_container not in container_ids:
+        container_ids.insert(0, trigger_container)
+    trigger_id = f"{flow.get('id', 'flow')}_trigger"
+    trigger_node = _elk_node("", "", "trigger", partition=0, width=26, height=26)
     nodes = [
-        _elk_node(container_id, "container", _runtime_visual_kind(container_id), partition=index, width=220, height=78)
+        _elk_node(
+            container_id,
+            str(containers_by_id.get(container_id, {}).get("kind", "container")),
+            _runtime_visual_kind(str(containers_by_id.get(container_id, {}).get("kind", "container"))),
+            partition=_runtime_partition(str(containers_by_id.get(container_id, {}).get("kind", "container"))) + 1,
+            width=220 if str(containers_by_id.get(container_id, {}).get("kind", "")) != "database" else 200,
+            height=78,
+        )
         for index, container_id in enumerate(container_ids)
     ]
+    if trigger_container:
+        trigger_node["id"] = _elk_id(trigger_id)
+        nodes.insert(0, trigger_node)
+    edges = [
+        _elk_edge(source, target, "", show_label=False)
+        for source, target in sorted(edge_pairs)
+    ]
+    if trigger_container:
+        edges.insert(0, _elk_edge(trigger_id, trigger_container, "", show_label=False))
     return _elk_block(_elk_graph(nodes, edges))
+
+
+def _v4_steps_by_id(steps: list[dict[str, object]]) -> dict[object, list[dict[str, object]]]:
+    grouped: dict[object, list[dict[str, object]]] = {}
+    for step in steps:
+        grouped.setdefault(step.get("id"), []).append(step)
+    return grouped
+
+
+def _v4_step_targets(step: dict[str, object], steps_by_id: dict[object, list[dict[str, object]]]) -> list[dict[str, object]]:
+    targets: list[dict[str, object]] = []
+    targets.extend(steps_by_id.get(step.get("next"), []))
+    branches = step.get("branches", [])
+    if isinstance(branches, list):
+        for branch in branches:
+            if isinstance(branch, dict):
+                targets.extend(steps_by_id.get(branch.get("next"), []))
+    return targets
 
 
 def _render_v4_local_flow_graph(operations: list[dict[str, object]], flow_id: str) -> str:
@@ -1134,7 +1882,7 @@ def _render_v4_local_flow_graph(operations: list[dict[str, object]], flow_id: st
             )
         blocks.append(
             _diagram_card(
-                f"Local Flow: {local_flow}",
+                f"Component Operations: {local_flow}",
                 "Numbered operation edges correspond to extracted operation steps.",
                 _elk_block(_elk_graph(nodes, edges)),
             )
@@ -1147,10 +1895,10 @@ def _v4_operation_step(operation: dict[str, object], flow_id: str, local_flow: s
     if not isinstance(payload, dict):
         return 0
     if payload.get("container_flow") == flow_id and payload.get("local_flow") == local_flow:
-        return int(payload.get("step", 0) or 0)
+        return int(payload.get("local_step", 0) or 0)
     for item in payload.get("participates_in", []):
         if isinstance(item, dict) and item.get("container_flow") == flow_id and item.get("local_flow") == local_flow:
-            return int(item.get("step", 0) or 0)
+            return int(item.get("local_step", 0) or 0)
     return 0
 
 
@@ -1247,13 +1995,14 @@ def _asset_data_url(filename: str, mime_type: str = "image/svg+xml") -> str:
     return f"data:{mime_type};base64,{encoded}"
 
 
-def render_audit_html(schema: ForgeSchema) -> str:
+def render_audit_html(schema: Any) -> str:
     data_entries = _build_data_entries(schema)
     sections: list[dict[str, str]] = [
         {"id": "system-overview", "group": "System", "label": "System"},
         {"id": "runtime-overview", "group": "Runtime", "label": "Runtime Overview"},
         {"id": "data-overview", "group": "Data", "label": "Data Overview"},
-        {"id": "verticals-overview", "group": "Verticals", "label": "Verticals"},
+        {"id": "verticals-overview", "group": "Validation", "label": "Validation"},
+        {"id": "quality-assurance-overview", "group": "Quality Assurance", "label": "Quality Assurance"},
     ]
     dynamic_sections: list[str] = []
 
@@ -1334,6 +2083,7 @@ def render_audit_html(schema: ForgeSchema) -> str:
         "__RUNTIME_BODY__": _render_runtime_section(schema),
         "__DATA_BODY__": _render_data_section(data_entries),
         "__VERTICALS_BODY__": _render_verticals_section(schema),
+        "__QUALITY_ASSURANCE_BODY__": _render_quality_assurance_overview(str(schema.system.get("id", "forge"))),
         "__DEPLOYMENT_BODY__": "",
         "__DYNAMIC_SECTIONS_HTML__": "".join(dynamic_sections),
         "./forge_white_small.drawio.svg": _asset_data_url("forge_white_small.drawio.svg"),
@@ -1344,7 +2094,7 @@ def render_audit_html(schema: ForgeSchema) -> str:
     return template
 
 
-def _interaction_payload(schema: ForgeSchema) -> dict[str, object]:
+def _interaction_payload(schema: Any) -> dict[str, object]:
     return {
         "system_id": schema.system.get("id"),
         "verticals": [item.get("id") for item in schema.verticals],
@@ -1354,7 +2104,7 @@ def _interaction_payload(schema: ForgeSchema) -> dict[str, object]:
     }
 
 
-def _render_overview_section(schema: ForgeSchema, data_entries: list[dict[str, object]]) -> str:
+def _render_overview_section(schema: Any, data_entries: list[dict[str, object]]) -> str:
     summary_cards = [
         ("System", str(schema.system.get("id", "forge")), None),
         ("High-Level Flows", str(len(schema.high_level_flows)), "flow"),
@@ -1404,6 +2154,7 @@ def _toolbar_sections(sections: list[dict[str, str]]) -> list[dict[str, str]]:
         "runtime-overview",
         "data-overview",
         "verticals-overview",
+        "quality-assurance-overview",
         "deployment-overview",
     }
     indexed = list(enumerate(section for section in sections if section["id"] not in hidden_ids))
@@ -1465,7 +2216,7 @@ def _section_header(section_id: str, breadcrumb: str, title: str, description: s
     )
 
 
-def _render_system_section(schema: ForgeSchema) -> str:
+def _render_system_section(schema: Any) -> str:
     actors = schema.system.get("actors", [])
     dependencies = schema.system.get("external_dependencies", [])
     cards = f"""
@@ -1479,7 +2230,7 @@ def _render_system_section(schema: ForgeSchema) -> str:
     return cards + _diagram_card("System Context", "Actors, system boundary, and external dependencies", diagram)
 
 
-def _render_runtime_section(schema: ForgeSchema) -> str:
+def _render_runtime_section(schema: Any) -> str:
     containers = schema.runtime.get("containers", [])
     relationships = schema.runtime.get("relationships", [])
     deepened_container_ids = {str(item["id"]) for item in schema.containers}
@@ -1502,7 +2253,7 @@ def _render_runtime_section(schema: ForgeSchema) -> str:
     return _diagram_card("Runtime Topology", "Container graph and boundary-crossing relationships", diagram) + deployment + cards
 
 
-def _render_verticals_section(schema: ForgeSchema) -> str:
+def _render_verticals_section(schema: Any) -> str:
     card_html: list[str] = []
     for vertical in schema.verticals:
         flow_ids = [str(flow_id) for flow_id in vertical.get("high_level_flows", [])]
@@ -1746,7 +2497,7 @@ def _data_entry_summary_meta(entry: dict[str, object]) -> str:
     return f'<div class="record-meta">{escape(" · ".join(parts))}</div>'
 
 
-def _build_data_entries(schema: ForgeSchema) -> list[dict[str, object]]:
+def _build_data_entries(schema: Any) -> list[dict[str, object]]:
     entries: dict[str, dict[str, object]] = {}
 
     persistent_by_shape_id = {
@@ -1793,7 +2544,7 @@ def _build_data_entries(schema: ForgeSchema) -> list[dict[str, object]]:
     return results
 
 
-def _render_deployment_section(schema: ForgeSchema) -> str:
+def _render_deployment_section(schema: Any) -> str:
     environments = schema.deployment.get("environments", [])
     blocks = []
     for environment in environments:
@@ -1833,7 +2584,7 @@ def _render_runtime_flow(flow: dict[str, object]) -> str:
     return _flow_panel(flow, "Container-level runtime flow", include_container=True)
 
 
-def _render_flow_section(schema: ForgeSchema, flow: dict[str, object], runtime_flows: list[dict[str, object]]) -> str:
+def _render_flow_section(schema: Any, flow: dict[str, object], runtime_flows: list[dict[str, object]]) -> str:
     blocks = [
         _flow_panel(flow, "Business/system flow", include_container=False),
     ]
@@ -1860,7 +2611,7 @@ def _render_flow_section(schema: ForgeSchema, flow: dict[str, object], runtime_f
     return "".join(blocks)
 
 
-def _runtime_flows_for_high_level(schema: ForgeSchema, high_level_flow: dict[str, object]) -> list[dict[str, object]]:
+def _runtime_flows_for_high_level(schema: Any, high_level_flow: dict[str, object]) -> list[dict[str, object]]:
     flow_id = str(high_level_flow.get("id", ""))
     matched = [
         item for item in schema.runtime_flows
@@ -1874,7 +2625,7 @@ def _runtime_flows_for_high_level(schema: ForgeSchema, high_level_flow: dict[str
     ]
 
 
-def _runtime_component_flow_blocks(schema: ForgeSchema, runtime_flow: dict[str, object]) -> list[str]:
+def _runtime_component_flow_blocks(schema: Any, runtime_flow: dict[str, object]) -> list[str]:
     runtime_id = str(runtime_flow.get("id", ""))
     blocks: list[str] = []
     for container in schema.containers:
@@ -1913,7 +2664,7 @@ def _render_container_section(container: dict[str, object]) -> str:
     )
 
 
-def _render_deployment_graph(environment: dict[str, object], schema: ForgeSchema) -> str:
+def _render_deployment_graph(environment: dict[str, object], schema: Any) -> str:
     deepened_container_ids = {str(item["id"]) for item in schema.containers}
     nodes = []
     for node in environment.get("nodes", []):
@@ -2221,7 +2972,7 @@ def _render_container_graph(container: dict[str, object]) -> str:
     return _elk_block(_elk_graph(nodes, edges))
 
 
-def _graph_targets(schema: ForgeSchema) -> dict[str, str]:
+def _graph_targets(schema: Any) -> dict[str, str]:
     targets: dict[str, str] = {}
     system_id = schema.system.get("id")
     if system_id:
@@ -2318,13 +3069,14 @@ def _elk_graph(nodes: list[dict[str, object]], edges: list[dict[str, object]]) -
     }
 
 
-def _elk_block(graph: dict[str, object]) -> str:
-    return _mermaid_block(_mermaid_from_elk_graph(graph))
+def _elk_block(graph: dict[str, object], *, scale: float | None = None) -> str:
+    return _mermaid_block(_mermaid_from_elk_graph(graph), scale=scale)
 
 
-def _mermaid_block(source: str) -> str:
+def _mermaid_block(source: str, *, scale: float | None = None) -> str:
+    scale_attr = f' data-scale="{scale:.2f}"' if scale is not None else ""
     return (
-        '<div class="mermaid-graph diagram-surface" data-mermaid-rendered="false">'
+        f'<div class="mermaid-graph diagram-surface" data-mermaid-rendered="false"{scale_attr}>'
         f'<pre class="mermaid">{escape(source)}</pre>'
         "</div>"
     )
@@ -2336,6 +3088,7 @@ def _mermaid_from_elk_graph(graph: dict[str, object]) -> str:
         "  classDef forgeNode fill:#ffffff,stroke:#d1d9e0,stroke-width:1.5px,color:#1f2328;",
         "  classDef forgeExternal fill:#fff7ed,stroke:#fdba74,stroke-width:1.5px,color:#1f2328;",
         "  classDef forgeDatabase fill:#f6f8fa,stroke:#94a3b8,stroke-width:1.5px,color:#1f2328;",
+        "  classDef forgeTrigger fill:#fd8c73,stroke:#fd8c73,stroke-width:1.5px,color:#ffffff;",
     ]
     for node in graph.get("children", []):
         if not isinstance(node, dict):
@@ -2344,10 +3097,11 @@ def _mermaid_from_elk_graph(graph: dict[str, object]) -> str:
         forge = node.get("forge", {})
         if not isinstance(forge, dict):
             forge = {}
-        label = str(forge.get("label") or node_id)
         kind = str(forge.get("kind") or "")
+        label = " " if kind == "trigger" else str(forge.get("label") or node_id)
         shape_open, shape_close = _mermaid_node_shape(kind)
-        lines.append(f'  {node_id}{shape_open}"{_mermaid_label(label)}"{shape_close}')
+        rendered_label = " " if kind == "trigger" else _mermaid_label(label)
+        lines.append(f'  {node_id}{shape_open}"{rendered_label}"{shape_close}')
         lines.append(f"  class {node_id} {_mermaid_class(kind)};")
         target = str(forge.get("target") or "")
         if target:
@@ -2371,6 +3125,8 @@ def _mermaid_from_elk_graph(graph: dict[str, object]) -> str:
 
 
 def _mermaid_node_shape(kind: str) -> tuple[str, str]:
+    if kind == "trigger":
+        return "((", "))"
     if kind in {"actor", "dependency", "external", "deploy-external"}:
         return "((", "))"
     if kind in {"database", "deploy-database"}:
@@ -2379,6 +3135,8 @@ def _mermaid_node_shape(kind: str) -> tuple[str, str]:
 
 
 def _mermaid_class(kind: str) -> str:
+    if kind == "trigger":
+        return "forgeTrigger"
     if kind in {"database", "deploy-database"}:
         return "forgeDatabase"
     if kind in {"dependency", "external", "deploy-external", "system"}:

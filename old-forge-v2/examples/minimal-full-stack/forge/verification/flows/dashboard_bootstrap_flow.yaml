@@ -1,5 +1,0 @@
-id: dashboard_bootstrap_flow
-flow: dashboard_bootstrap_flow
-kind: operator
-intent: Confirm the dashboard bootstrap path works end to end.
-check: Start the API, serve the app shell, open the dashboard route, and confirm the dashboard payload can be fetched successfully.

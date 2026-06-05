@@ -52,9 +52,8 @@ class SignInCommand:
 #   - Hash the submitted password.
 #   - Build a pending user record for persistence.
 # participates_in:
-#   - container_flow: register_user
-#     local_flow: register_user_backend
-#     step: 2
+#   - container_flow: register_user:2
+#     local_flow: register_user_backend:2
 #     passes: ref[pending_user_record]
 #     next: 3
 def register_user_business_rules(command: RegisterUserCommand) -> dict[str, str]:
@@ -74,9 +73,8 @@ def register_user_business_rules(command: RegisterUserCommand) -> dict[str, str]
 #   - Compare submitted password with stored password hash.
 #   - Produce verified credential context when valid.
 # participates_in:
-#   - container_flow: sign_in_user
-#     local_flow: sign_in_user_backend
-#     step: 2
+#   - container_flow: sign_in_user:2
+#     local_flow: sign_in_user_backend:2
 #     passes: ref[verified_user_credentials]
 #     next: 3
 def verify_sign_in_credentials(command: SignInCommand) -> dict[str, str]:

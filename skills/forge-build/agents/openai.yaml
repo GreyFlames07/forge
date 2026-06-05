@@ -1,0 +1,4 @@
+interface:
+  display_name: "Forge Build"
+  short_description: "Build or test a Forge V4 slice"
+  default_prompt: "Use $forge-build to implement or test this approved Forge V4 build slice."

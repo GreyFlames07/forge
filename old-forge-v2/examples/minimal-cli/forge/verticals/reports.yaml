@@ -1,6 +1,0 @@
-id: reports
-name: Reports
-description: A second CLI slice that exposes a non-bootstrap command.
-purpose: Demonstrate that additional CLI slices still graph and validate cleanly.
-owned_by: forge.examples
-invariants: []

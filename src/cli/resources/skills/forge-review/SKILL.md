@@ -1,248 +1,228 @@
 ---
 name: forge-review
-description: Review Forge V2 schema artifacts for consistency, bloat, broken references, bad promotion decisions, flow mistakes, security gaps, and deployment/runtime drift. Use when the user wants a review of any Forge V2 schema scope, vertical slice, or full system model, especially after authoring `system`, `flows`, `runtime`, `verticals`, `data_shapes`, `persistent_shapes`, `container`, or `deployment`, and before `forge-build` starts implementation.
+description: Review the Forge V4 merged model for consistency, broken references, unclear boundaries, flow mistakes, over-modeling, code/schema drift, audit readability, and missing or malformed C3 annotations. Use when the user wants a quality gate for central Forge V4 schema, extracted code-owned C3, a build slice, or the full system model, especially after editing forge/system.yaml, forge/containers.yaml, forge/entities.yaml, forge/crawler.yaml, or @forge annotations, and before forge-build starts implementation.
 ---
 
 # forge-review
 
 Read before starting:
 
-- `../../SCHEMA_REFERENCE_V3.md`
+- `../../FRAMEWORK_V4.md`
+- `../../SCHEMA_REFERENCE_V4.md`
+
+Prefer when available:
+
+- `forge crawl --format json`
+- `forge context`
+- `forge audit`
 
 ## Purpose
 
-Review the produced Forge V2 artifacts and return findings.
+Review the Forge V4 model that actually exists.
 
-This skill should:
+Forge V4 truth is the merged result of:
 
-1. Find structural inconsistencies.
-2. Find anti-bloat violations.
-3. Find unclear or invalid flow logic.
-4. Find promotion mistakes around `data_shape` and `persistent_shape`.
-5. Find security and deployment drift.
+```text
+central C1/C2 schema
++ code-owned C3 annotations
++ crawler validation findings
+```
 
-For a vertical that is about to be implemented, this skill should act as a pre-build readiness pass rather than an after-the-fact cleanup step.
+This skill should find risks and defects. It should not silently redesign the
+system. If a fix requires new architecture, route back to `forge-schema`.
 
-Do not silently rewrite the architecture in review. Prefer findings, rationale, and routing back to the right authoring stage.
+## Decision Log
 
-## Review Output Standard
+Read `forge/decisions.yaml` when it exists and use it as review context.
 
-Present findings first.
+Record or request a decision entry when review accepts a non-trivial trade-off,
+deferral, modeling exception, source-root/layout choice, known drift, or
+residual risk. Use the `forge.decisions` schema from `SCHEMA_REFERENCE_V4.md`.
+
+Review findings should call out missing decision records when an architectural
+choice is visible in schema or code but the rationale is not crawlable.
+
+## Output Standard
+
+Lead with findings.
 
 Order findings by severity:
 
-1. structural invalidity
-2. behaviorally misleading architecture
-3. security or trust-boundary gaps
-4. over-modeling and schema bloat
-5. quality or clarity issues
+1. Broken extraction, malformed schema, or broken references
+2. Broken input/return contracts across runtime or C3 flow steps
+3. Behaviorally misleading architecture
+4. Missing or misleading C3 annotations
+5. Security, privacy, or trust-boundary gaps
+6. Over-modeling, under-modeling, or unclear ownership
+7. Context or audit readability issues
 
 Every finding should include:
 
-- what is wrong
-- why it matters
-- which artifact or stage it belongs to
-- what the likely fix direction is
+- evidence
+- impact
+- smallest fix direction
+- owner skill: `forge-schema`, `forge-security`, or `forge-build`
 
-If nothing is wrong, say so explicitly and then note any remaining risks or modeling gaps.
+If no issues are found, say so clearly and note any residual risk.
 
-## Review Modes
+## Workflow
 
-Use one of these modes based on scope.
+### 1. Establish Scope
 
-### Full-System Review
+Identify whether the review is for:
 
-Review the whole chain:
+- full system
+- one container
+- one flow
+- one entity
+- one component or operation
+- one build slice
 
-- `system`
-- `high_level_flow`
-- `early_state`
-- `runtime`
-- `vertical`
-- `runtime_flow`
-- `data_shape`
-- `persistent_shape`
-- `container`
-- `deployment`
+Do not broaden scope unless the requested target cannot be evaluated safely
+without more context.
 
-### Vertical Review
+### 2. Load The Merged Model
 
-Review one chosen vertical across:
+Start with:
 
-- `vertical`
-- matching `runtime_flow`
-- related `data_shape`
-- related `persistent_shape`
-- related `container`
-- relevant `deployment`
+```bash
+forge crawl --format json
+```
 
-### Stage Review
+Use crawler output as the source of truth for:
 
-Review only one artifact class when the user asks for a narrower pass.
+- central system, containers, container flows, and entities
+- extracted components, data shapes, persistence, and operations
+- warnings and validation findings
+- source locations for annotations
 
-## Review Workflow
+If crawl fails, report the failure first and stop the review there.
 
-1. Identify the scope being reviewed.
-2. Read only the relevant artifacts for that scope.
-3. Validate references and stage ordering first.
-4. Validate behavior and modeling discipline second.
-5. Validate security and deployment coherence third.
-6. Present findings.
+### 3. Pull Focused Context
 
-If a fix would require inventing new architecture rather than correcting drift, route back to `forge-schema` instead of improvising in review.
+Use scoped context only as needed:
 
-## LLM Review Guardrails
+```bash
+forge context --system --format md
+forge context --container <id> --format md
+forge context --flow <id> --format md
+forge context --entity <id> --format md
+forge context --component <id> --format md
+forge context --operation <id> --format md
+forge context --data-shape <id> --format md
+```
 
-Apply these safeguards during every review:
+Use `forge audit` when a human-facing review surface or diagram readability is
+part of the request.
 
-1. Findings must be grounded in a schema rule, artifact line, broken reference, or concrete behavioral risk.
-2. Do not invent fixes that require new architecture; identify the smallest correction direction.
-3. Do not flag personal style preferences as findings.
-4. Do not broaden review scope unless the current artifact cannot be evaluated without it.
-5. If evidence is ambiguous, state the assumption or ask for clarification instead of declaring a defect.
-6. Do not propose speculative flexibility or future-facing artifacts as review fixes.
-7. Every recommendation should be verifiable by a schema edit, review pass, or test.
+## Review Checks
 
-## Review Passes
-
-Run these passes in order.
-
-### Pass 1: Structural Validity
+### Central C1/C2
 
 Check:
 
-1. All ids use `snake_case`.
-2. Every referenced id exists.
-3. `high_level_flow` ids referenced by `runtime_flow` exist.
-4. `runtime` container ids referenced by flows, verticals, persistent shapes, containers, and deployment exist.
-5. `data_shape` ids referenced by `persistent_shape` exist.
-6. `runtime_flow` ids referenced by `container` exist.
+- `system.yaml` describes system intent, not implementation mechanics.
+- Business actions are intent and outcomes, not runtime steps.
+- Actors and external dependencies are real and referenced correctly.
+- Containers are real runtime/deployment units.
+- Container responsibilities do not overlap confusingly.
+- Container flows describe cross-container runtime control, not C3 internals.
+- Flow steps use `next`, `branches`, or terminal form correctly.
+- Entities are business-significant, not incidental DTOs.
+- Entity ownership, canonical type, persistence, lifecycle, and security are not conflated.
 
-Escalate immediately if the schema cannot be crawled reliably.
-
-### Pass 2: Stage Discipline
-
-Check:
-
-1. `high_level_flow` stays business-level.
-2. `runtime_flow` stays container-level.
-3. `container` stays component-level.
-4. `early_state` has not become a hidden type system.
-5. `deployment` has not become infra-as-code detail.
-
-Flag any artifact that is operating at the wrong abstraction level.
-
-### Pass 3: Flow Logic
+### Code-Owned C3
 
 Check:
 
-1. A high-level flow uses only:
-   - linear step: `next`
-   - decision step: `branches`
-   - terminal step: neither
-2. A runtime-aware or component flow uses only:
-   - linear step: `next` with optional `outgoing`
-   - decision step: `branches`
-   - terminal step: neither, or terminal `outgoing` for component-flow boundary output
-3. No flow step mixes linear and branch forms.
-4. Runtime-aware steps represent one container participation each.
-5. Component-flow steps represent one component participation each.
-6. `next` or branch targets may point to earlier steps when the loop is intentional.
-7. A container may retain in-flight workflow-scoped state across its own runtime steps when it is clearly the orchestrator of the slice.
-8. Do not assume that a later step only knows the immediately preceding boundary payload when the same container is plausibly coordinating the broader workflow.
+- Architecture-significant code has nearby `@forge:*` annotations.
+- Components represent meaningful interfaces, logic, persistence, datastores, adapters, or utilities.
+- Operations describe code contracts and participation in container/local flows.
+- Data shapes represent important reusable or canonical shapes.
+- Persistence annotations match real durable storage behavior.
+- Annotation container/component inference from `source_root` is correct.
+- Duplicate or malformed annotations are treated as blocking findings.
 
-For orchestrated runtime flows:
-
-- Do not raise a contract-consistency finding solely because earlier workflow context is not re-threaded through every intermediate boundary hop.
-- Do not require a new `persistent_shape` for intermediate context unless durability is actually needed.
-- Raise a finding only when the artifact is ambiguous about whether the needed knowledge comes from:
-  - immediate boundary payloads
-  - retained in-flight workflow state
-  - reloaded durable state
-
-Accept explicit wording such as:
-
-- "acts as the workflow orchestrator for this slice"
-- "retains in-flight workflow context across its own steps"
-- "correlates the payment intent with earlier challenge-entry context"
-- "uses backend-retained workflow state established earlier in the flow"
-
-### Pass 4: Promotion Discipline
+### Boundary Discipline
 
 Check:
 
-1. One-off payloads are not promoted into `data_shape` without justification.
-2. Reused or persisted important shapes are considered for promotion.
-3. `persistent_shape` is used only for durable, architecturally significant state.
-4. `container` exists only where a runtime container truly needs internal modeling.
-5. A vertical is treated as a build slice rather than a vague capability bucket.
+- C1/C2 central files do not model inside-container/component flow.
+- C3 annotations do not contradict central container or entity ownership.
+- Same-container local work is summarized centrally and detailed in C3.
+- Runtime containers are not created from domain nouns alone.
+- Shared/global concepts are justified by real reuse.
 
-Use these challenge questions:
-
-- Why is this not inline?
-- Why does this need a stable name?
-- Is this actually persisted?
-- Does this container really need internal component modeling?
-- Is this vertical really buildable end to end?
-
-Require a new `persistent_shape` only when the intermediate state must be durable for:
-
-- retry after interruption
-- recovery after process loss
-- auditability
-- reconciliation
-- cross-session continuation
-- asynchronous resumption that cannot rely on live in-flight state alone
-
-### Pass 5: Security Coverage
+### Drift And Completeness
 
 Check:
 
-1. `system.security` exists when system-wide security rules clearly matter.
-2. `runtime.containers[].security` exists where container-specific obligations matter.
-3. `persistent_shapes[].security` exists where stored-data protections matter.
-4. `deployment` trust boundaries align with the stated security story.
-5. Sensitive persisted shapes are not modeled without corresponding protection expectations.
+- Referenced ids resolve across central schema and extracted annotations.
+- Container flows reference known business actions and containers.
+- Entity canonical types point to known or intentionally planned data shapes.
+- Persisted entities point to real persistence ownership.
+- Code behavior and model claims appear aligned.
+- The first build slice is thin enough to implement and validate.
 
-### Pass 6: Runtime and Deployment Coherence
+### Contract Continuity
+
+Explicitly evaluate every input and return/output contract for every step of
+every runtime/container flow.
+
+For each `container_flows[].steps[]`, check:
+
+- The trigger input is sufficient for the first step.
+- Each step input can be produced by the trigger, a prior step output, retained
+  in-flight workflow state, reloaded durable state, or an external dependency.
+- Each step output is sufficient for every downstream `next` or `branches`
+  target that depends on it.
+- Branch conditions have access to the state they inspect.
+- Branch outputs are compatible with the target step input.
+- Terminal outcomes are supported by the final step outputs.
+- Same-container retained workflow context is explicit when later steps depend
+  on earlier same-container knowledge that is not present in the immediate
+  boundary payload.
+
+For each extracted `@forge:operation`, check:
+
+- `input` matches the contract the operation needs from its participating
+  container/local flow step.
+- `returns` matches what the next local operation, runtime step, caller, or
+  terminal outcome expects.
+- `logic` does not claim to read fields that are absent from `input`, retained
+  context, durable state, or external dependencies.
+- `participates_in.container_flow` points to the correct runtime step.
+- `participates_in.local_flow`, `passes`, and `flow_logic` describe local
+  operation sequencing without contradicting the runtime step contract.
+
+Raise a finding when a value appears from nowhere, disappears before it is
+needed, changes shape without explanation, or crosses a container boundary
+without an explicit output/input handoff.
+
+### Human Review Quality
 
 Check:
 
-1. Runtime and deployment describe the same architecture.
-2. Integral external services are modeled consistently as `external_container` where appropriate.
-3. Deployment nodes place the expected runtime containers.
-4. Trust boundaries make sense relative to node kind and role.
-5. Deployment notes add architectural signal rather than operational noise.
+- `forge context` returns useful scoped output for the target.
+- `forge audit` renders the model in a way a human can inspect.
+- Diagrams show runtime containers as nodes and control movement as edges.
+- Dense details live outside diagrams or behind progressive disclosure.
 
-## Anti-Bloat Review Rules
+## Routing
 
-Review should be aggressive about over-modeling.
+Route fixes to:
 
-Flag these patterns:
+- `forge-schema` for system intent, runtime containers, entities, or flow shape
+- `forge-security` for auth, trust boundaries, sensitive data, retention, and compliance
+- `forge-build` for missing implementation, tests, C3 annotations, or code/model drift
 
-1. A `data_shape` exists for a clearly one-off payload.
-2. A `persistent_shape` exists for something transient.
-3. A container exists for a conceptual role rather than a real runtime boundary.
-4. A `container` artifact models classes, files, or framework internals rather than meaningful components.
-5. A deployment node carries detail that belongs in infrastructure config rather than architecture.
-6. A new artifact exists only because the schema permits it, not because the system needs it.
+Do not patch architecture during review unless the user explicitly asks for a
+fix pass.
 
-## Routing Rules
+## Guardrails
 
-Route issues back to the right stage.
-
-- unclear boundary, purpose, or top-level architecture -> `forge-schema` at `system` or `runtime`
-- unclear or invalid vertical definition -> `forge-schema` at `vertical`
-- broken flow logic -> `forge-schema` at `high_level_flow` or `runtime_flow`
-- bad promotion decisions -> `forge-schema` at `data_shape` or `persistent_shape`
-- overgrown internals -> `forge-schema` at `container`
-- deployment drift -> `forge-schema` at `deployment`
-- security-specific gaps -> `forge-security`
-- implementation sequencing or build-slice execution problems -> `forge-build`
-
-## Constraints
-
-1. Findings are the primary output.
-2. Do not silently author missing architecture in review.
-3. Do not accept bloat just because it is structurally valid.
-4. Prefer a short, sharp findings list over a long descriptive recap.
+- Review the model Forge extracts, not the model that was intended.
+- Do not accept bloat because it is structurally valid.
+- Do not invent missing architecture to make a finding disappear.
+- Do not flag personal style preferences as defects.
+- Prefer a short findings list over a long recap.

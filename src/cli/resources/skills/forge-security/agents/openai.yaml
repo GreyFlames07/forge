@@ -1,0 +1,4 @@
+interface:
+  display_name: "Forge Security"
+  short_description: "Review Forge V4 security posture"
+  default_prompt: "Use $forge-security to review this Forge V4 model for security risks."

@@ -1,6 +1,0 @@
-id: profile_surface
-surface: load_profile_http
-intent: Profile surface returns the declared payload.
-request: GET /api/profile
-expect:
-- 200

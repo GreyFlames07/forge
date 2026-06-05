@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-REQUIRED_ROOT_FILES = ("system.yaml", "runtime.yaml")
+REQUIRED_ROOT_FILES = ("system.yaml", "containers.yaml")
 
 
 def is_forge_root(path: Path) -> bool:
@@ -31,5 +31,5 @@ def find_project_root(start: Path | None = None) -> Path:
             return embedded
     raise FileNotFoundError(
         "Could not find a Forge project root. Run this inside a Forge workspace containing "
-        "`system.yaml` and `runtime.yaml`, run it from a repository with `forge/`, or pass `--project-dir`."
+        "`system.yaml` and `containers.yaml`, run it from a repository with `forge/`, or pass `--project-dir`."
     )

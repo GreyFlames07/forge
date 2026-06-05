@@ -1,0 +1,57 @@
+schema: forge.decisions
+
+decisions:
+  - id: runtime_flow_steps_are_container_scoped
+    date: 2026-06-05
+    owner_skill: forge-schema
+    scope: flow
+    refs:
+      - register_user
+      - frontend_ui
+      - backend_api
+      - notes_db
+    decision: Runtime flow steps are isolated to one runtime container.
+    rationale: Keep runtime control flow separate from container-local component operation ordering.
+    alternatives:
+      - Model runtime steps as container-to-container edges.
+      - Store component operation ordering directly on the runtime flow step.
+    consequences:
+      - Runtime diagrams can show container movement without implying that work happens on an edge.
+      - Component operation order must be declared inside the container-flow step.
+    status: accepted
+  - id: backend_password_hash_boundary
+    date: 2026-06-04
+    owner_skill: forge-security
+    scope: security
+    refs:
+      - backend_api
+      - user
+      - register_user
+      - sign_in_user
+    decision: Password hashing and credential comparison stay inside backend_api.
+    rationale: Frontend components and response data shapes must never receive plaintext passwords or password hashes.
+    alternatives:
+      - Let frontend_ui hash passwords before submission.
+      - Return password hash fields in user response objects for debugging.
+    consequences:
+      - Account service operations own password hashing behavior.
+      - Frontend data shapes only carry registration input and safe response data.
+    status: accepted
+  - id: note_access_requires_authenticated_member
+    date: 2026-06-03
+    owner_skill: forge-review
+    scope: entity
+    refs:
+      - note
+      - session
+      - list_notes
+      - archive_note
+    decision: Note read and archive actions require an authenticated team member session.
+    rationale: Notes are team data and should not be reachable by anonymous visitors.
+    alternatives:
+      - Allow public note reads for shared links.
+      - Let archive_note accept only a note id without session context.
+    consequences:
+      - Note service operations must authorize session state before repository access.
+      - Runtime flows include rejected outcomes when access cannot be proven.
+    status: proposed

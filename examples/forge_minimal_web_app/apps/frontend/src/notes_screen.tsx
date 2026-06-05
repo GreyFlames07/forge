@@ -125,9 +125,8 @@ export type NoteErrorResponse = {
 //   - Build a create note request with session context.
 //   - Submit the request to the notes API.
 // participates_in:
-//   - container_flow: create_note
-//     local_flow: create_note_frontend
-//     step: 1
+//   - container_flow: create_note:1
+//     local_flow: create_note_frontend:1
 //     passes: ref[create_note_request]
 export function submitCreateNoteForm(
   state: NoteEditorState,
@@ -148,9 +147,8 @@ export function submitCreateNoteForm(
 //   - Build an active notes query.
 //   - Submit the query to the notes API.
 // participates_in:
-//   - container_flow: list_notes
-//     local_flow: list_notes_frontend
-//     step: 1
+//   - container_flow: list_notes:1
+//     local_flow: list_notes_frontend:1
 //     passes: ref[list_notes_request]
 export function requestActiveNotes(
   request: ListNotesViewRequest,
@@ -160,16 +158,15 @@ export function requestActiveNotes(
 
 // @forge:operation
 // id: render_created_note
-// input: ref[note_detail_response]
+// input: ref[note_detail_response] or ref[note_error_response]
 // returns: ref[note_editor_state]
 // logic:
-//   - Accept the created note response.
-//   - Clear the note editor fields.
-//   - Mark the note editor complete.
+//   - Accept the create-note result.
+//   - Clear the note editor fields when creation succeeds.
+//   - Mark the note editor complete or failed.
 // participates_in:
-//   - container_flow: create_note
-//     local_flow: create_note_frontend
-//     step: 2
+//   - container_flow: create_note:3
+//     local_flow: create_note_frontend:2
 //     passes: ref[note_editor_state]
 export function renderCreatedNote(
   state: NoteEditorState,
@@ -192,9 +189,8 @@ export function renderCreatedNote(
 //   - Render active notes in updated order.
 //   - Preserve the current session context.
 // participates_in:
-//   - container_flow: list_notes
-//     local_flow: list_notes_frontend
-//     step: 2
+//   - container_flow: list_notes:3
+//     local_flow: list_notes_frontend:2
 //     passes: ref[note_list_response]
 export function renderNoteList(response: NoteListResponse): NoteListResponse {
   return response;

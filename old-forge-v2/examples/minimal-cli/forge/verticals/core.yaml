@@ -1,6 +1,0 @@
-id: core
-name: Core CLI
-description: The first useful command workflow.
-purpose: Deliver a working status command through a canonical surface.
-owned_by: forge.examples
-invariants: []

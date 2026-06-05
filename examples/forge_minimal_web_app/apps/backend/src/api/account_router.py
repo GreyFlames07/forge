@@ -64,9 +64,8 @@ class HttpResponse:
 #   - Validate transport-level request shape.
 #   - Convert the request into a registration command.
 # participates_in:
-#   - container_flow: register_user
-#     local_flow: register_user_backend
-#     step: 1
+#   - container_flow: register_user:2
+#     local_flow: register_user_backend:1
 #     passes: ref[register_user_command]
 #     next: 2
 def handle_register_user(request: dict[str, str]) -> AccountCommand:
@@ -86,9 +85,8 @@ def handle_register_user(request: dict[str, str]) -> AccountCommand:
 #   - Validate transport-level request shape.
 #   - Convert the request into a sign-in command.
 # participates_in:
-#   - container_flow: sign_in_user
-#     local_flow: sign_in_user_backend
-#     step: 1
+#   - container_flow: sign_in_user:2
+#     local_flow: sign_in_user_backend:1
 #     passes: ref[sign_in_command]
 #     next: 2
 def handle_sign_in_user(request: dict[str, str]) -> AccountCommand:
@@ -104,9 +102,8 @@ def handle_sign_in_user(request: dict[str, str]) -> AccountCommand:
 #   - Remove password hash material.
 #   - Build the frontend registration response.
 # participates_in:
-#   - container_flow: register_user
-#     local_flow: register_user_backend
-#     step: 4
+#   - container_flow: register_user:4
+#     local_flow: register_user_backend:4
 #     passes: ref[registration_success_response]
 def build_registration_response(user: dict[str, str]) -> dict[str, str]:
     return {
@@ -125,9 +122,8 @@ def build_registration_response(user: dict[str, str]) -> dict[str, str]:
 #   - Build the frontend sign-in response.
 #   - Include only approved session data.
 # participates_in:
-#   - container_flow: sign_in_user
-#     local_flow: sign_in_user_backend
-#     step: 4
+#   - container_flow: sign_in_user:2
+#     local_flow: sign_in_user_backend:4
 #     passes: ref[sign_in_success_response]
 def build_sign_in_response(session: dict[str, str]) -> dict[str, str]:
     return {

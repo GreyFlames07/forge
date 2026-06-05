@@ -126,9 +126,8 @@ export type SignInErrorResponse = {
 //   - Map form state into a backend registration request.
 //   - Submit the request to the account API.
 // participates_in:
-//   - container_flow: register_user
-//     local_flow: register_user_frontend
-//     step: 1
+//   - container_flow: register_user:1
+//     local_flow: register_user_frontend:1
 //     passes: ref[register_user_request]
 export function submitRegistrationForm(
   state: RegistrationFormState,
@@ -149,9 +148,8 @@ export function submitRegistrationForm(
 //   - Map form state into a backend sign-in request.
 //   - Submit the request to the account API.
 // participates_in:
-//   - container_flow: sign_in_user
-//     local_flow: sign_in_user_frontend
-//     step: 1
+//   - container_flow: sign_in_user:1
+//     local_flow: sign_in_user_frontend:1
 //     passes: ref[sign_in_request]
 export function submitSignInForm(state: SignInFormState): SignInRequest {
   return {
@@ -162,16 +160,15 @@ export function submitSignInForm(state: SignInFormState): SignInRequest {
 
 // @forge:operation
 // id: render_registration_result
-// input: ref[registration_success_response]
+// input: ref[registration_success_response] or ref[registration_error_response]
 // returns: ref[registration_form_state]
 // logic:
-//   - Accept the registration response from the backend.
-//   - Mark the registration form complete.
-//   - Show the registration success message.
+//   - Accept the registration result from the backend.
+//   - Mark the registration form complete or failed.
+//   - Show the registration success or error message.
 // participates_in:
-//   - container_flow: register_user
-//     local_flow: register_user_frontend
-//     step: 2
+//   - container_flow: register_user:5
+//     local_flow: register_user_frontend:2
 //     passes: ref[registration_form_state]
 export function renderRegistrationResult(
   _response: RegistrationSuccessResponse,
@@ -186,16 +183,15 @@ export function renderRegistrationResult(
 
 // @forge:operation
 // id: render_sign_in_result
-// input: ref[sign_in_success_response]
+// input: ref[sign_in_success_response] or ref[sign_in_error_response]
 // returns: ref[sign_in_form_state]
 // logic:
-//   - Accept the sign-in response from the backend.
-//   - Store approved session context.
-//   - Mark the sign-in form complete.
+//   - Accept the sign-in result from the backend.
+//   - Store approved session context when present.
+//   - Mark the sign-in form complete or failed.
 // participates_in:
-//   - container_flow: sign_in_user
-//     local_flow: sign_in_user_frontend
-//     step: 2
+//   - container_flow: sign_in_user:3
+//     local_flow: sign_in_user_frontend:2
 //     passes: ref[sign_in_form_state]
 export function renderSignInResult(_response: SignInSuccessResponse): SignInFormState {
   return {

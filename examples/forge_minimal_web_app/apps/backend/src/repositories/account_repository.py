@@ -52,9 +52,8 @@ class VerifiedUserCredentials:
 #   - Persist the pending user record when unique.
 #   - Return the stored user record.
 # participates_in:
-#   - container_flow: register_user
-#     local_flow: register_user_backend
-#     step: 3
+#   - container_flow: register_user:2
+#     local_flow: register_user_backend:3
 #     passes: ref[user_record]
 def save_registered_user(record: PendingUserRecord) -> dict[str, str]:
     return {
@@ -74,9 +73,8 @@ def save_registered_user(record: PendingUserRecord) -> dict[str, str]:
 #   - Persist the session record.
 #   - Return the stored session record.
 # participates_in:
-#   - container_flow: sign_in_user
-#     local_flow: sign_in_user_backend
-#     step: 3
+#   - container_flow: sign_in_user:2
+#     local_flow: sign_in_user_backend:3
 #     passes: ref[session_record]
 def create_session_for_verified_user(
     credentials: VerifiedUserCredentials,

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Forge Business"
+  short_description: "Research and frame product direction"
+  default_prompt: "Use $forge-business to create a business-plan.md for this product idea."

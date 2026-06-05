@@ -7,7 +7,7 @@ from cli.commands import register_audit, register_context, register_crawl, regis
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="forge", description="Forge V3 CLI")
+    parser = argparse.ArgumentParser(prog="forge", description="Forge V4 CLI")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     subparsers = parser.add_subparsers(dest="command", required=True)
     register_init(subparsers)

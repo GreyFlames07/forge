@@ -1,0 +1,4 @@
+interface:
+  display_name: "Forge Hydrate"
+  short_description: "Reverse-engineer code into Forge V4"
+  default_prompt: "Use $forge-hydrate to reverse-engineer this existing codebase into Forge V4."

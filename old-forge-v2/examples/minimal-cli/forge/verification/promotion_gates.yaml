@@ -1,6 +1,0 @@
-dev:
-- bootstrap command succeeds
-- schema validation passes
-test: []
-prod:
-- bootstrap command remains callable

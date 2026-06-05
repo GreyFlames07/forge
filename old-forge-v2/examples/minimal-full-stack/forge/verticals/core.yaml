@@ -1,6 +1,0 @@
-id: core
-name: Core Experience
-description: The first end-user dashboard slice.
-purpose: Deliver a minimal app plus API path that can be validated early.
-owned_by: forge.examples
-invariants: []

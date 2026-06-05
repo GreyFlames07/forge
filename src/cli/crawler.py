@@ -4,14 +4,16 @@ import fnmatch
 import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-from cli.schema import dump_yaml, read_yaml
+from cli.yaml_io import dump_yaml, read_yaml
 
 V4_ROOT_FILES = ("system.yaml", "containers.yaml", "entities.yaml")
+DEFAULT_DECISIONS: dict[str, Any] = {"schema": "forge.decisions", "decisions": []}
 ANNOTATION_KINDS = {"component", "type", "persistence", "operation"}
 
 
@@ -174,6 +176,7 @@ class ForgeCrawlResult:
     system: dict[str, Any]
     containers: dict[str, Any]
     entities: dict[str, Any]
+    decisions: dict[str, Any]
     config: CrawlerConfig
     annotations: list[ForgeAnnotation] = field(default_factory=list)
     skipped_file_types: dict[str, int] = field(default_factory=dict)
@@ -200,7 +203,7 @@ class ForgeCrawlResult:
 
     def to_dict(self) -> dict[str, Any]:
         extracted_containers = _extracted_containers(self)
-        return {
+        return _json_safe({
             "schema": "forge.extracted_model",
             "root": str(self.root),
             "workspace_root": str(self.workspace_root),
@@ -208,6 +211,7 @@ class ForgeCrawlResult:
             "containers": extracted_containers,
             "container_flows": _collection(self.containers, "container_flows"),
             "entities": _collection(self.entities, "entities"),
+            "decisions": _collection(self.decisions, "decisions"),
             "persistence": [annotation.to_dict(self.workspace_root) for annotation in self.persistence],
             "warnings": _warnings(self),
             "findings": _validation_findings(self),
@@ -219,6 +223,7 @@ class ForgeCrawlResult:
                 "containers": len(extracted_containers),
                 "container_flows": len(_collection(self.containers, "container_flows")),
                 "entities": len(_collection(self.entities, "entities")),
+                "decisions": len(_collection(self.decisions, "decisions")),
                 "components": len(self.components),
                 "data_shapes": len(self.data_shapes),
                 "persistence": len(self.persistence),
@@ -228,7 +233,7 @@ class ForgeCrawlResult:
                 "validation_findings": _validation_finding_count(_validation_findings(self)),
                 "forge_docs": len(self.forge_docs),
             },
-        }
+        })
 
 
 def is_v4_forge_root(path: Path) -> bool:
@@ -264,6 +269,7 @@ def crawl_project(root: Path) -> ForgeCrawlResult:
     system = read_yaml(forge_root / "system.yaml")
     containers = read_yaml(forge_root / "containers.yaml")
     entities = read_yaml(forge_root / "entities.yaml")
+    decisions = read_yaml(forge_root / "decisions.yaml") if (forge_root / "decisions.yaml").exists() else DEFAULT_DECISIONS
     config = load_crawler_config(forge_root)
     container_source_roots = _container_source_roots(workspace_root, containers)
     annotations: list[ForgeAnnotation] = []
@@ -279,6 +285,7 @@ def crawl_project(root: Path) -> ForgeCrawlResult:
         system=system,
         containers=containers,
         entities=entities,
+        decisions=decisions,
         config=config,
         annotations=sorted(annotations, key=lambda item: (str(item.source), item.line)),
         skipped_file_types=dict(sorted(skipped_file_types.items())),
@@ -334,6 +341,7 @@ def dump_crawl_result(result: ForgeCrawlResult, format_: str) -> str:
             f"- containers: `{summary['containers']}`",
             f"- container flows: `{summary['container_flows']}`",
             f"- entities: `{summary['entities']}`",
+            f"- decisions: `{summary['decisions']}`",
             f"- components: `{summary['components']}`",
             f"- data shapes: `{summary['data_shapes']}`",
             f"- persistence annotations: `{summary['persistence']}`",
@@ -417,6 +425,8 @@ def _extract_annotations(
         if kind not in ANNOTATION_KINDS:
             continue
         payload = _parse_annotation_payload(source, start_line, kind, payload_lines)
+        if kind == "operation":
+            payload = _normalize_operation_payload(payload)
         container = _annotation_container(payload, source, workspace_root, container_source_roots)
         component = _annotation_component(kind, payload, current_component)
         annotation = ForgeAnnotation(
@@ -480,6 +490,45 @@ def _parse_annotation_payload(source: Path, line: int, kind: str, payload_lines:
             annotation=f"@forge:{kind}",
         )
     return loaded
+
+
+def _normalize_operation_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Normalize compact operation flow refs like `register_user:1`."""
+    normalized = dict(payload)
+    if isinstance(normalized.get("container_flow"), str):
+        _normalize_operation_entry(normalized)
+    participates_in = normalized.get("participates_in")
+    if isinstance(participates_in, list):
+        normalized["participates_in"] = [
+            _normalize_operation_entry(dict(item))
+            if isinstance(item, dict)
+            else item
+            for item in participates_in
+        ]
+    return normalized
+
+
+def _normalize_operation_entry(entry: dict[str, Any]) -> dict[str, Any]:
+    container_flow = entry.get("container_flow")
+    if isinstance(container_flow, str):
+        flow_id, step = _split_flow_step_ref(container_flow)
+        entry["container_flow"] = flow_id
+        if step is not None and entry.get("step") is None:
+            entry["step"] = step
+    local_flow = entry.get("local_flow")
+    if isinstance(local_flow, str):
+        local_flow_id, local_step = _split_flow_step_ref(local_flow)
+        entry["local_flow"] = local_flow_id
+        if local_step is not None and entry.get("local_step") is None:
+            entry["local_step"] = local_step
+    return entry
+
+
+def _split_flow_step_ref(value: str) -> tuple[str, int | None]:
+    flow_id, separator, raw_step = value.rpartition(":")
+    if not separator or not flow_id or not raw_step.isdigit():
+        return value, None
+    return flow_id, int(raw_step)
 
 
 def _normalize_schema_shorthand(line: str) -> str:
@@ -639,7 +688,7 @@ def _missing_required_field_findings(result: ForgeCrawlResult) -> list[dict[str,
                 _annotation_finding(
                     annotation,
                     result,
-                    "`container_flow`, `local_flow`, and `step` are required, either directly or through `participates_in`.",
+                    "`container_flow` and `local_flow` with `flow_id:step` values are required, either directly or through `participates_in`.",
                 )
             )
     for label, items, required_fields in (
@@ -651,6 +700,12 @@ def _missing_required_field_findings(result: ForgeCrawlResult) -> list[dict[str,
             for field_name in required_fields:
                 if item.get(field_name) in (None, "", []):
                     findings.append({"kind": label, "id": item.get("id"), "message": f"`{field_name}` is required."})
+            if label == "container_flow":
+                for step in _collection(item, "steps"):
+                    if step.get("container") in (None, ""):
+                        findings.append({"kind": label, "id": item.get("id"), "message": "`step.container` is required."})
+                    if step.get("from") or step.get("to"):
+                        findings.append({"kind": label, "id": item.get("id"), "message": "Container-flow steps use `container`, not `from`/`to`."})
     return findings
 
 
@@ -679,9 +734,8 @@ def _unresolved_reference_findings(result: ForgeCrawlResult) -> list[dict[str, A
             if trigger.get("container") and trigger["container"] not in containers:
                 findings.append(_reference_finding("container_flow", flow.get("id"), "trigger.container", trigger["container"], "container"))
         for step in _collection(flow, "steps"):
-            for field_name in ("from", "to"):
-                if step.get(field_name) and step[field_name] not in containers:
-                    findings.append(_reference_finding("container_flow", flow.get("id"), f"step.{field_name}", step[field_name], "container"))
+            if step.get("container") and step["container"] not in containers:
+                findings.append(_reference_finding("container_flow", flow.get("id"), "step.container", step["container"], "container"))
             for ref in sorted(_extract_refs(step)):
                 if ref not in data_shapes:
                     findings.append(_reference_finding("container_flow", flow.get("id"), "step.ref", ref, "data_shape"))
@@ -775,9 +829,26 @@ def _unresolved_reference_findings(result: ForgeCrawlResult) -> list[dict[str, A
 def _invalid_flow_step_findings(result: ForgeCrawlResult) -> list[dict[str, Any]]:
     findings: list[dict[str, Any]] = []
     for flow in _collection(result.containers, "container_flows"):
-        step_ids = {step.get("id") for step in _collection(flow, "steps")}
-        for step in _collection(flow, "steps"):
+        steps = _collection(flow, "steps")
+        step_ids = {step.get("id") for step in steps}
+        previous_step: dict[str, Any] | None = None
+        for step in steps:
             findings.extend(_step_findings("container_flow", flow.get("id"), step, step_ids))
+            if (
+                previous_step
+                and previous_step.get("id") != step.get("id")
+                and previous_step.get("container")
+                and previous_step.get("container") == step.get("container")
+            ):
+                findings.append(
+                    {
+                        "kind": "container_flow",
+                        "id": flow.get("id"),
+                        "step": step.get("id"),
+                        "message": "Adjacent runtime steps in the same container should be merged into one step.",
+                    }
+                )
+            previous_step = step
     operations_by_flow: dict[tuple[str | None, str | None, str | None], list[ForgeAnnotation]] = defaultdict(list)
     for operation in result.operations:
         for entry in _operation_entries(operation):
@@ -789,9 +860,11 @@ def _invalid_flow_step_findings(result: ForgeCrawlResult) -> list[dict[str, Any]
             for entry in _operation_entries(operation)
             if entry.get("container_flow") == container_flow and entry.get("local_flow") == local_flow
         ]
-        step_ids = {entry.get("step") for _operation, entry in entries}
+        step_ids = {entry.get("local_step") for _operation, entry in entries}
         for operation, entry in entries:
-            for finding in _step_findings("operation", operation.id, entry, step_ids):
+            local_step = dict(entry)
+            local_step["id"] = entry.get("local_step")
+            for finding in _step_findings("operation", operation.id, local_step, step_ids):
                 finding.update({"container_flow": container_flow, "local_flow": local_flow})
                 findings.append(finding)
     return findings
@@ -822,7 +895,12 @@ def _step_findings(kind: str, owner_id: Any, step: dict[str, Any], step_ids: set
 
 
 def _operation_entries(annotation: ForgeAnnotation) -> list[dict[str, Any]]:
-    if annotation.payload.get("container_flow") and annotation.payload.get("local_flow") and annotation.payload.get("step") is not None:
+    if (
+        annotation.payload.get("container_flow")
+        and annotation.payload.get("local_flow")
+        and annotation.payload.get("step") is not None
+        and annotation.payload.get("local_step") is not None
+    ):
         return [annotation.payload]
     participates_in = annotation.payload.get("participates_in", [])
     if not isinstance(participates_in, list):
@@ -834,6 +912,7 @@ def _operation_entries(annotation: ForgeAnnotation) -> list[dict[str, Any]]:
         and item.get("container_flow")
         and item.get("local_flow")
         and item.get("step") is not None
+        and item.get("local_step") is not None
     ]
 
 
@@ -927,6 +1006,18 @@ def _collection(payload: dict[str, Any], key: str) -> list[dict[str, Any]]:
     if not isinstance(value, list):
         return []
     return [item for item in value if isinstance(item, dict)]
+
+
+def _json_safe(value: Any) -> Any:
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {key: _json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_json_safe(item) for item in value)
+    return value
 
 
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:

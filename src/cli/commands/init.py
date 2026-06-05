@@ -10,19 +10,12 @@ from importlib.resources import as_file, files
 from pathlib import Path
 
 from cli.crawler import DEFAULT_CRAWLER_CONFIG
-from cli.schema import dump_yaml
-
-COLLECTION_DIRS = [
-    "high_level_flows",
-    "runtime_flows",
-    "data_shapes",
-    "persistent_shapes",
-    "verticals",
-    "containers",
-]
+from cli.yaml_io import dump_yaml
 
 SKILL_DIRS = [
+    "forge-business",
     "forge-schema",
+    "forge-hydrate",
     "forge-review",
     "forge-security",
     "forge-build",
@@ -35,8 +28,8 @@ SKILL_SURFACES = [
 ]
 
 DOC_FILES = [
-    "SCHEMA_REFERENCE_V3.md",
-    "FRAMEWORK_V3.md",
+    "SCHEMA_REFERENCE_V4.md",
+    "FRAMEWORK_V4.md",
 ]
 
 ORANGE = "208"
@@ -52,7 +45,6 @@ def register_init(subparsers) -> None:
     parser.add_argument("--name", default="Forge Project", help="Human-readable project name")
     parser.add_argument("--id", default="forge_project", help="System id to seed into system.yaml")
     parser.add_argument("--force", action="store_true", help="Allow initializing into an existing non-empty directory")
-    parser.add_argument("--schema-version", choices=["v3", "v4"], default="v3", help="Forge schema version to scaffold")
     parser.add_argument("--no-animation", action="store_true", help="Disable the terminal initialization animation")
     parser.set_defaults(func=run)
 
@@ -70,7 +62,7 @@ def run(args: Namespace) -> int:
         animation_thread.start()
 
     try:
-        _scaffold_repository(target_root, system_name=args.name, system_id=args.id, schema_version=args.schema_version)
+        _scaffold_repository(target_root, system_name=args.name, system_id=args.id)
     finally:
         if stop_event is not None:
             stop_event.set()
@@ -160,31 +152,28 @@ def _step(number: int, title: str, detail: str) -> str:
     return f"{head} {label}\n   {detail}"
 
 
-def _scaffold_repository(target_root: Path, system_name: str, system_id: str, schema_version: str = "v3") -> None:
+def _scaffold_repository(target_root: Path, system_name: str, system_id: str) -> None:
     forge_root = target_root / "forge"
     _write_text(target_root / "README.md", _project_readme(system_name))
     _write_text(target_root / ".gitignore", _scaffold_gitignore())
-    _write_text(forge_root / "decision_notes.md", "# Decision Notes\n\nRecord meaningful Forge decisions here.\n")
+    _write_text(target_root / "business-plan.md", _business_plan_doc(system_name))
 
-    if schema_version == "v4":
-        _scaffold_v4_repository(forge_root, system_name, system_id)
-        return
-
-    _write_yaml(forge_root / "system.yaml", _system_seed(system_name, system_id))
-    _write_yaml(forge_root / "runtime.yaml", {"schema": "forge.v2.runtime", "runtime": {"containers": [], "relationships": []}})
-    _write_yaml(forge_root / "early_state.yaml", {"schema": "forge.v2.early_state", "early_state": []})
-    _write_yaml(forge_root / "deployment.yaml", {"schema": "forge.v2.deployment", "deployment": {"environments": []}})
-
-    for directory in COLLECTION_DIRS:
-        (forge_root / directory).mkdir(parents=True, exist_ok=True)
-
+    _write_v4_schema_files(forge_root, system_name, system_id)
     _copy_docs(forge_root)
     _copy_skills(forge_root)
     _rewrite_skill_references(forge_root)
     _create_surface_skills(target_root, forge_root)
 
 
-def _scaffold_v4_repository(forge_root: Path, system_name: str, system_id: str) -> None:
+def _copy_docs(forge_root: Path) -> None:
+    forge_root.mkdir(parents=True, exist_ok=True)
+    for filename in DOC_FILES:
+        with as_file(files("cli").joinpath("resources", filename)) as source_path:
+            shutil.copy2(source_path, forge_root / filename)
+    _write_text(forge_root / "USING_FORGE.md", _using_forge_doc())
+
+
+def _write_v4_schema_files(forge_root: Path, system_name: str, system_id: str) -> None:
     _write_yaml(
         forge_root / "system.yaml",
         {
@@ -216,31 +205,14 @@ def _scaffold_v4_repository(forge_root: Path, system_name: str, system_id: str) 
             "entities": [],
         },
     )
-    _write_yaml(forge_root / "crawler.yaml", DEFAULT_CRAWLER_CONFIG)
-    _copy_v4_docs(forge_root)
-
-
-def _copy_v4_docs(forge_root: Path) -> None:
-    repo_root = Path(__file__).resolve().parents[3]
-    for filename in ("SCHEMA_REFERENCE_V4.md", "FRAMEWORK_V4.md"):
-        source = repo_root / filename
-        if source.exists():
-            shutil.copy2(source, forge_root / filename)
-    _write_text(
-        forge_root / "USING_FORGE.md",
-        "# Using Forge V4\n\n"
-        "Define C1/C2 centrally in `system.yaml`, `containers.yaml`, and `entities.yaml`.\n"
-        "Define C3 in code using prefix-commented `@forge:*` annotations.\n"
-        "Run `forge crawl`, `forge context`, and `forge audit` from the project root.\n",
+    _write_yaml(
+        forge_root / "decisions.yaml",
+        {
+            "schema": "forge.decisions",
+            "decisions": [],
+        },
     )
-
-
-def _copy_docs(forge_root: Path) -> None:
-    forge_root.mkdir(parents=True, exist_ok=True)
-    for filename in DOC_FILES:
-        with as_file(files("cli").joinpath("resources", filename)) as source_path:
-            shutil.copy2(source_path, forge_root / filename)
-    _write_text(forge_root / "USING_FORGE.md", _using_forge_doc())
+    _write_yaml(forge_root / "crawler.yaml", DEFAULT_CRAWLER_CONFIG)
 
 
 def _copy_skills(forge_root: Path) -> None:
@@ -255,8 +227,6 @@ def _rewrite_skill_references(forge_root: Path) -> None:
     for skill_name in SKILL_DIRS:
         skill_path = forge_root / "skills" / skill_name / "SKILL.md"
         text = skill_path.read_text(encoding="utf-8")
-        text = text.replace("../../SCHEMA_REFERENCE_V3.md", "../../SCHEMA_REFERENCE_V3.md")
-        text = text.replace("../../FRAMEWORK_V3.md", "../../FRAMEWORK_V3.md")
         if "Read before starting:" in text and "../../USING_FORGE.md" not in text:
             text = text.replace(
                 "Read before starting:\n",
@@ -303,8 +273,8 @@ def _create_surface_skill(surface_root: Path, forge_root: Path, skill_name: str)
 def _surface_skill_text(skill_path: Path) -> str:
     text = skill_path.read_text(encoding="utf-8")
     return (
-        text.replace("../../SCHEMA_REFERENCE_V3.md", "../../../forge/SCHEMA_REFERENCE_V3.md")
-        .replace("../../FRAMEWORK_V3.md", "../../../forge/FRAMEWORK_V3.md")
+        text.replace("../../SCHEMA_REFERENCE_V4.md", "../../../forge/SCHEMA_REFERENCE_V4.md")
+        .replace("../../FRAMEWORK_V4.md", "../../../forge/FRAMEWORK_V4.md")
         .replace("../../USING_FORGE.md", "../../../forge/USING_FORGE.md")
     )
 
@@ -321,21 +291,6 @@ def _project_readme(system_name: str) -> str:
         "Start with `forge/USING_FORGE.md`. Forge is skills-first: the skills drive "
         "the workflow, and the CLI supplies only the scoped context or artifacts the active skill needs.\n"
     )
-
-
-def _system_seed(system_name: str, system_id: str) -> dict[str, object]:
-    return {
-        "schema": "forge.v2.system",
-        "system": {
-            "id": system_id,
-            "purpose": f"Define the purpose of {system_name}.",
-            "description": "Replace with a plain-language description of the system.",
-            "boundary": "Replace with a plain-language statement of what sits inside the system boundary.",
-            "security": "Replace with any global security posture rules that already clearly apply.",
-            "actors": [],
-            "external_dependencies": [],
-        },
-    }
 
 
 def _scaffold_gitignore() -> str:
@@ -367,7 +322,8 @@ def _print_init_summary(target_root: Path, system_name: str, system_id: str) -> 
     print(_bullet(f"skills: {forge_root / 'skills'}"))
     print("")
     print(_section("Start With Skills"))
-    print(_bullet("primary driver: `forge/skills/forge-schema/SKILL.md`"))
+    print(_bullet("business discovery: `forge/skills/forge-business/SKILL.md`"))
+    print(_bullet("system design: `forge/skills/forge-schema/SKILL.md`"))
     print(_bullet("pre-build architecture review: `forge/skills/forge-review/SKILL.md`"))
     print(_bullet("pre-build security review: `forge/skills/forge-security/SKILL.md`"))
     print(_bullet("plan and build only after those passes: `forge/skills/forge-build/SKILL.md`"))
@@ -377,50 +333,51 @@ def _print_init_summary(target_root: Path, system_name: str, system_id: str) -> 
     print(
         _step(
             1,
-            "Define the broad truth with `forge-schema`.",
-            "Author `forge/system.yaml`, `forge/high_level_flows/`, `forge/early_state.yaml`, and `forge/runtime.yaml` first.",
+            "Frame the business with `forge-business`, then define C1/C2 with `forge-schema`.",
+            "Author `business-plan.md`, then central Forge files: `system.yaml`, "
+            "`containers.yaml`, `entities.yaml`, `decisions.yaml`, and `crawler.yaml`.",
         )
     )
-    print(_step(2, "Split the system into development slices in `verticals/`.", "Keep each vertical thin, buildable, and tied to clear user value."))
+    print(_step(2, "Speculate runtime flows before settling containers.", "Use business actions to reason about cross-container control movement."))
     print(
         _step(
             3,
-            "Deepen one vertical only.",
-            "Add `forge/runtime_flows/`, `forge/data_shapes/`, `forge/persistent_shapes/`, `forge/containers/`, and `forge/deployment.yaml` as needed.",
+            "Leave C3 beside implementation.",
+            "Use `@forge:component`, `@forge:type`, `@forge:persistence`, and `@forge:operation` annotations in code.",
         )
     )
     print(
         _step(
             4,
             "Run `forge-review` and `forge-security` before building.",
-            "Use them as readiness gates to catch drift, bloat, missing references, and security gaps before implementation starts.",
+            "Use them as readiness gates to catch drift, unclear C3 expectations, missing references, and security gaps.",
         )
     )
-    print(_step(5, "Use `forge-build` only after the slice is reviewable.", "Plan or implement the approved vertical, then validate it end to end."))
+    print(_step(5, "Use `forge-build` only after the slice is reviewable.", "Build one thin slice, add annotations, then validate with `forge crawl`."))
     print("")
     print(_section("How To Get The Most Out Of The Framework"))
-    print(_bullet("stay broad until the previous layer is clear"))
+    print(_bullet("model C1/C2 centrally and C3 beside code"))
     print(_bullet("model real runtime boundaries, not imagined ones"))
-    print(_bullet("only promote shapes that are reused, persisted, or system-significant"))
-    print(_bullet("capture meaningful tradeoffs in `decision_notes.md`"))
+    print(_bullet("run `forge crawl` after schema or code annotation changes"))
+    print(_bullet("capture meaningful tradeoffs in `forge/decisions.yaml`"))
     print("")
     print(_section("Read Next"))
     print(_bullet(f"`{forge_root / 'USING_FORGE.md'}`"))
-    print(_bullet(f"`{forge_root / 'FRAMEWORK_V3.md'}`"))
-    print(_bullet(f"`{forge_root / 'SCHEMA_REFERENCE_V3.md'}`"))
+    print(_bullet(f"`{forge_root / 'FRAMEWORK_V4.md'}`"))
+    print(_bullet(f"`{forge_root / 'SCHEMA_REFERENCE_V4.md'}`"))
     print("")
     print(_section("CLI Support Workflow"))
     print(_bullet("ask the active skill what scope it needs first", accent=ORANGE))
+    print(_bullet(f"crawl model: `forge crawl --project-dir {forge_root} --format json`"))
     print(_bullet(f"broad context: `forge context --project-dir {forge_root} --system --format md`"))
-    print(_bullet(f"vertical context: `forge context --project-dir {forge_root} --vertical <id> --format json`"))
+    print(_bullet(f"container context: `forge context --project-dir {forge_root} --container <id> --format json`"))
     print(_bullet(f"audit dashboard: `forge audit --project-dir {forge_root} --output forge-audit.html`"))
 
 
 def _using_forge_doc() -> str:
     return """# Using Forge
 
-Forge works best when you move from broad architectural truth to one thin,
-buildable vertical at a time.
+Forge V4 keeps central architecture and implementation architecture separate.
 
 The Forge-owned schema workspace lives under `forge/`.
 
@@ -428,13 +385,16 @@ The Forge-owned schema workspace lives under `forge/`.
 
 Forge is **skills-first**. The skills are the main operating surface:
 
+- `forge/skills/forge-business/SKILL.md`
 - `forge/skills/forge-schema/SKILL.md`
+- `forge/skills/forge-hydrate/SKILL.md`
 - `forge/skills/forge-review/SKILL.md`
 - `forge/skills/forge-security/SKILL.md`
 - `forge/skills/forge-build/SKILL.md`
 
 Use the CLI only to support the active skill:
 
+- `forge crawl` for the merged V4 model
 - `forge context` for scoped context
 - `forge audit` for a reviewable HTML artifact
 
@@ -443,92 +403,140 @@ for only the narrowest context that skill needs next.
 
 ## Use Forge In This Order
 
-1. Define the system:
+1. For new ideas, use `forge-business` to create `business-plan.md`.
+2. Define C1/C2 system architecture:
    - `forge/system.yaml`
-   - `forge/high_level_flows/`
-   - `forge/early_state.yaml`
-   - `forge/runtime.yaml`
-2. Derive `forge/verticals/` once the runtime picture is stable.
-3. Pick one vertical and deepen only that slice:
-   - `forge/runtime_flows/`
-   - `forge/data_shapes/`
-   - `forge/persistent_shapes/`
-   - `forge/containers/`
-   - `forge/deployment.yaml`
-4. Review and secure that slice before build starts.
-5. Build and validate the approved slice before moving on.
+   - `forge/containers.yaml`
+   - `forge/entities.yaml`
+   - `forge/decisions.yaml`
+   - `forge/crawler.yaml`
+3. Use `forge-hydrate` when an existing codebase needs to be reverse-engineered into Forge V4.
+4. Use business actions to speculate cross-container runtime flows.
+5. Settle runtime containers only after the flow shape is clear.
+6. Add C3 annotations beside the implementation:
+   - `@forge:component`
+   - `@forge:type`
+   - `@forge:persistence`
+   - `@forge:operation`
+7. Run `forge crawl`, `forge context`, and `forge audit` to validate the merged model.
 
 ## Core Artifacts
 
-- `forge/system.yaml`: purpose, boundary, actors, dependencies, and global security posture
-- `forge/runtime.yaml`: the real runtime containers and their relationships
-- `forge/early_state.yaml`: the important business things that matter before exact typing
-- `forge/high_level_flows/`: business and system flows
-- `forge/verticals/`: thin development slices derived from the system
-- `forge/runtime_flows/`: how a vertical moves through containers
-- `forge/data_shapes/`: promoted reusable payload/state shapes
-- `forge/persistent_shapes/`: the persisted subset of data shapes
-- `forge/containers/`: internal component structure for important containers
-- `forge/deployment.yaml`: environments, nodes, trust boundaries, and operational placement
+- `business-plan.md`: market research, product framing, MVP sequence, risks, and business actions
+- `forge/system.yaml`: purpose, boundary, actors, dependencies, security posture, and business actions
+- `forge/containers.yaml`: real runtime containers, deployment entries, and cross-container runtime flows
+- `forge/entities.yaml`: important entities, records, lifecycle objects, ownership, persistence, and security notes
+- `forge/decisions.yaml`: crawlable decision records for non-trivial architecture, security, review, and build choices
+- `forge/crawler.yaml`: source scanning and annotation parsing configuration
 
 ## Skill Roles
 
-- `forge-schema`: define and refine the architecture
-- `forge-review`: catch drift, bloat, and broken references
-- `forge-security`: review security posture across system, runtime, persistence,
-  and deployment
-- `forge-build`: plan or implement one vertical with TDD and full-system
-  validation
+- `forge-business`: research markets, frame product scenarios, sequence MVP scope, and define business actions
+- `forge-schema`: design C1/C2 system architecture and central schema
+- `forge-hydrate`: reverse-engineer existing code into Forge V4 schema and C3 annotations
+- `forge-review`: review central schema, extracted C3, crawler findings, context, and audit output
+- `forge-security`: review security posture across system, runtime, entities, persistence, and operations
+- `forge-build`: plan or implement one build slice with code-owned C3 annotations and tests
 
 ## Recommended Workflow
 
-1. Use `forge-schema` to define the system, flows, early state, and runtime.
-2. Initialize `verticals` once the runtime picture is clear.
-3. Pick one vertical and deepen only that vertical.
-4. Use `forge-review` to catch drift, bloat, and broken references before implementation starts.
-5. Use `forge-security` to make the security posture explicit before implementation starts.
-6. Use `forge-build` to plan or implement the approved slice.
+1. Use `forge-business` to research the market, frame the product, and define business actions.
+2. Use `forge-schema` to define system intent, containers, entities, and runtime flows.
+3. Use `forge-review` to catch drift, bloat, broken references, and unclear C3 expectations.
+4. Use `forge-security` to make the security posture explicit before implementation starts.
+5. Use `forge-build` to plan or implement the approved slice.
+6. Run `forge crawl` after code or schema changes to validate the merged model.
 
 ## Best Operating Mode
 
-- Start with `forge-schema`, not with `forge context`.
-- Stay broad until the current layer is genuinely clear.
+- Start with `forge-business` for new ideas and `forge-schema` for already-validated direction, not with `forge context`.
+- Keep C1/C2 central and C3 beside code.
 - Use `forge context` only after the active skill asks for a specific scope.
 - Keep `forge audit` as the main artifact for human review and sign-off.
-- Record meaningful tradeoffs and scope choices in `forge/decision_notes.md`.
+- Record meaningful tradeoffs and scope choices in `forge/decisions.yaml`.
 
 ## CLI Usage
 
 Use the CLI to retrieve only the context needed for the current skill step:
 
+- `forge crawl --project-dir . --format json`
 - `forge context --project-dir . --system --format md`
-- `forge context --project-dir . --vertical <id> --format json`
 - `forge context --project-dir . --flow <id> --format md`
 - `forge context --project-dir . --container <id> --format yaml`
 - `forge context --project-dir . --component <id> --format json`
+- `forge context --project-dir . --entity <id> --format json`
+- `forge context --project-dir . --operation <id> --format json`
+- `forge context --project-dir . --data-shape <id> --format json`
 
 Start broad, then narrow:
 
-1. vertical
-2. flow
-3. container
-4. component
+1. system
+2. flow or container
+3. entity, component, operation, or data shape
 
 Use `forge audit --project-dir . --output forge-audit.html` when you want a
-reviewable HTML artifact for the whole schema.
+reviewable HTML artifact for the merged model.
 
 ## Golden Path Examples
 
-- compact walkthrough: `examples/forge_v2_ordering_example`
-- richer reference system: `examples/forge_v2_fulfillment_control_example`
+- `examples/forge_minimal_web_app`
 
 ## Anti-Bloat Rules
 
-- Keep one-off payloads inline unless they are reused, persisted, or important enough to deserve a stable name.
+- Keep C1/C2 central and C3 beside code.
 - Do not invent containers unless they are real runtime boundaries.
-- Do not create container internals unless a container truly needs explicit internal modeling.
-- Do not drift deployment into low-level infrastructure configuration.
-- Keep the current vertical thin and runnable.
+- Do not model inside-container flow centrally.
+- Do not add distributed-system complexity without a concrete driver.
+- Keep the current build slice thin and runnable.
+"""
+
+
+def _business_plan_doc(system_name: str) -> str:
+    return f"""# Business Plan: {system_name}
+
+Use `forge-business` to replace this scaffold with market research, product
+framing, MVP sequencing, risks, assumptions, and development guidance for
+`forge-schema`.
+
+## Executive Summary
+
+TBD
+
+## Market Overview
+
+TBD
+
+## Target Customers
+
+TBD
+
+## Competitors
+
+TBD
+
+## Opportunities
+
+TBD
+
+## Assumptions And Tests
+
+TBD
+
+## MVP Sequence
+
+TBD
+
+## Risks
+
+TBD
+
+## Development Guidance For Forge Schema
+
+TBD
+
+## Sources
+
+TBD
 """
 
 

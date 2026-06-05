@@ -1,5 +1,0 @@
-id: cli_status_flow
-flow: cli_status_flow
-kind: operator
-intent: Confirm the CLI status command prints the expected JSON payload.
-check: Run python3 apps/cli/src/main.py status and verify the output contains status and source fields.

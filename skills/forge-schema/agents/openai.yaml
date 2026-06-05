@@ -1,0 +1,4 @@
+interface:
+  display_name: "Forge Schema"
+  short_description: "Design Forge V4 system architecture"
+  default_prompt: "Use $forge-schema to turn this business direction into Forge V4 system schema."

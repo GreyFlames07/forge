@@ -1,9 +1,0 @@
-id: linkhub.shortener.interactions.redirector_records_click
-type: interaction
-name: RedirectorRecordsClick
-description: After issuing the redirect, the redirector emits a click event to the click recorder.
-status: active
-caller: linkhub.shortener.traffic.redirector.redirect.emit_click
-callee: linkhub.shortener.traffic.click_recorder.click.record
-trigger: 301 redirect successfully issued
-policies: []

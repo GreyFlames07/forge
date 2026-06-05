@@ -1,4 +1,0 @@
-id: worker_health
-unit: worker
-intent: Worker healthcheck succeeds.
-check: python3 apps/worker/src/main.py --healthcheck exits 0

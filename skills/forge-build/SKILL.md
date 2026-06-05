@@ -1,361 +1,343 @@
 ---
 name: forge-build
-description: Plan and build a Forge V2 vertical slice. Use when the user wants to implement a chosen vertical from the Forge V2 schema after it has already passed `forge-review` and `forge-security`, or when the user is explicitly resolving findings from those pre-build passes. If no build plan exists for that vertical, create the build plan first; otherwise execute the build. Use when implementation must proceed in thin vertical slices, follow a TDD-style workflow, and be validated through unit, integration, and full-system testing in the real build environment.
+description: "Lean Forge V4 build and QA workflow. Use when implementing a thin build slice from the Forge V4 model, scoping code-owned C3 annotations before development, or generating thorough black-box and structural tests from Forge crawl operation, component, container, runtime, and system contracts. Supports two modes only: C3 scope-and-develop, and QA testing."
 ---
 
 # forge-build
 
 Read before starting:
 
-- `../../SCHEMA_REFERENCE_V3.md`
+- `../../FRAMEWORK_V4.md`
+- `../../SCHEMA_REFERENCE_V4.md`
 - `../forge-schema/SKILL.md`
 - `../forge-review/SKILL.md`
 - `../forge-security/SKILL.md`
 
 Prefer when available:
 
-- Forge CLI `init`
-- Forge CLI `context`
-- Forge CLI `audit`
-
-Maintain throughout the workflow:
-
-- `../../decision_notes.md`
+- `forge list`
+- `forge context`
+- `forge crawl --format json`
+- `forge audit`
 
 ## Purpose
 
-Handle both planning and implementation for a Forge V2 vertical.
+Build one thin Forge V4 slice while keeping implementation, tests, and code-owned C3 schema aligned.
 
-This skill is bifurcated:
+This skill has two modes:
 
-1. `plan` mode
-2. `build` mode
+1. `develop`: scope the C3 work, implement the slice, and keep annotations crawlable.
+2. `test`: act as a QA testing agent and generate focused tests from the V4 model.
 
-Use `plan` mode when no build plan exists yet for the target vertical.
-Use `build` mode when a build plan already exists and implementation should proceed.
+Do not redesign the system here. If implementation proves the system, containers, entities, flows, or security posture are wrong, route the change back through `forge-schema`, `forge-review`, or `forge-security`.
 
-Do not treat planning and implementation as unrelated. The output of planning must directly drive the build.
+## Decision Log
 
-## Pre-Build Gate
+Read `forge/decisions.yaml` when it exists and use it as build context.
 
-`forge-build` is not the first skill to use on a new or newly deepened slice.
+Record or request a decision entry for non-trivial implementation direction,
+source-root or file layout choices, contract interpretation, testing strategy,
+deferrals, accepted risk, or deviations from the reviewed Forge model. Use the
+`forge.decisions` schema from `SCHEMA_REFERENCE_V4.md`.
 
-Before using this skill, the slice should already have:
+Do not use decisions as a running journal. Record only choices that future build,
+review, security, or schema work would need to understand.
 
-1. a coherent schema pass from `forge-schema`
-2. a consistency pass from `forge-review`
-3. a security pass from `forge-security`
+## Forge V4 Structure
 
-Use this skill before those checks only when the user is explicitly asking you to repair issues discovered by review or security work.
+Forge V4 is structured as:
+
+```text
+forge/
+  system.yaml       # C1 system intent, actors, dependencies, business actions
+  containers.yaml   # C2 runtime containers, source roots, runtime flows
+  entities.yaml     # business state, canonical data refs, ownership, persistence
+  decisions.yaml    # crawlable decision records
+  crawler.yaml      # crawler file/comment configuration when customized
+```
+
+Code owns C3 through annotations placed beside the implementation:
+
+```text
+@forge:component
+@forge:type
+@forge:persistence
+@forge:operation
+```
+
+Central schema describes system and container intent. Code annotations describe the component, operation, type, and persistence reality.
+
+## Crawlable Layout
+
+Directory layout is identified by `containers[].source_root` in `forge/containers.yaml`.
+
+Rules:
+
+1. Every runtime container that owns code should declare a `source_root`.
+2. Architecture-significant code for that container should live under its `source_root`.
+3. The crawler scans declared source roots, then extracts supported `@forge:*` annotations from supported comment styles.
+4. An annotation can omit `container` when the file is under a matching `source_root`.
+5. Files outside declared source roots are not part of the crawled C3 model.
+6. If new implementation must live outside the current roots, update the container `source_root` or add the correct container before building.
+7. Follow the repository's local folder conventions inside each source root; do not invent a new universal Forge folder taxonomy.
+
+Place annotations close to the code that owns the truth:
+
+- interface component: route, screen, worker, CLI, scheduler, event boundary, or meaningful nested surface
+- logic component: service, module, domain logic, orchestration unit
+- persistence component: repository, store, database adapter, file adapter
+- datastore component: database-facing implementation where the store itself owns behavior
+- type: data contract, DTO, model, schema, event shape, persisted record
+- operation: function, method, handler, command, or workflow step that performs behavior
+
+The low-level code is the schema. If code participates in a runtime or container flow, its `@forge:operation` contract must describe `input`, `returns`, `logic`, and where it participates.
 
 ## Mode Selection
 
-For the chosen vertical:
+Use `develop` when the user wants implementation or C3 scoping for a build slice.
 
-1. Check whether a build plan already exists.
-2. If it does not exist, enter `plan` mode first.
-3. If it exists, enter `build` mode.
+Use `test` when the user wants a QA pass, test plan, generated tests, or stronger validation coverage.
 
-If a build plan exists but is clearly incompatible with the current schema, repair the plan before building.
+If the user does not name a mode, choose the smallest mode that satisfies the request.
 
-## Forge CLI First
+## Develop Mode
 
-When the Forge CLI exists, prefer it as the primary context and audit interface.
+Develop mode scopes and builds one thin slice.
 
-Use it for:
+Before coding:
 
-1. initializing a workspace or schema tree
-2. retrieving scoped context for a vertical, runtime container, component, or flow
-3. launching the audit surface for human inspection of audit artifacts
+1. State assumptions explicitly.
+2. If multiple interpretations exist, present them instead of choosing silently.
+3. If a simpler approach exists, say so and prefer it unless it violates the Forge model.
+4. If the request, schema, or code context is unclear, stop and name the ambiguity.
+5. Define success criteria as verifiable checks before implementation.
 
-Expected commands:
+Workflow:
 
-- `forge init`
-- `forge context`
-- `forge audit`
+1. Load the narrow Forge context for the target business action, container flow, container, entity, or component.
+2. Identify the smallest runnable slice and the runtime steps it touches.
+3. Map each touched runtime step to the C3 annotations it needs.
+4. Confirm all implementation files live under the correct `source_root`; adjust schema only when the source-root model is genuinely wrong.
+5. Implement the minimum code needed for the slice.
+6. Add or update C3 annotations in the same code change.
+7. Add or update focused tests.
+8. Run relevant tests and `forge crawl --format json`.
+9. Fix broken references, missing annotations, contract drift, and failed tests before calling the slice complete.
 
-Use `forge context` before planning or building a scoped task whenever it is the most efficient way to retrieve the relevant schema context.
+The C3 scope map should identify:
 
-If the CLI is not available yet, fall back to reading the schema artifacts directly.
+- containers and source roots touched
+- components to create or update
+- operations to create or update
+- `@forge:type` contracts used as operation inputs and returns
+- persistence annotations touched
+- container flow step references such as `create_note:2`
+- local flow step references such as `create_note_backend:1`
+- security or review findings that must be resolved during the build
 
-## Plan Mode
+### Develop Guardrails
 
-Plan mode should:
+Bias toward caution over speed.
 
-1. Choose or confirm the target vertical.
-2. Define the thinnest runnable end-to-end slice.
-3. Break that slice into ordered build increments.
-4. Define verification checkpoints for each increment.
-5. Record meaningful planning decisions in `decision_notes.md`.
+Think before coding:
 
-### Planning Rules
+- do not assume hidden requirements
+- do not hide confusion
+- surface tradeoffs when the implementation path is not obvious
+- ask only when ambiguity blocks a responsible implementation
 
-1. Plan vertically, not by technical layer.
-2. Start with the smallest slice that proves the architecture.
-3. Make deferrals explicit.
-4. Do not add architecture just to make the plan look neat.
-5. Draft the first plan, explain the reasoning, then let the user critique it.
+Keep the implementation simple:
 
-### Planning Output
+- build no features beyond the selected slice
+- add no abstractions for single-use code
+- add no configurability that was not requested
+- add no defensive error handling for impossible states unless required by the Forge contract
+- if the implementation grows much larger than the behavior warrants, simplify it before moving on
 
-The plan should identify:
+Make surgical changes:
 
-- chosen vertical
-- first runnable slice
-- ordered increments
-- dependencies
-- deferrals
-- verification checkpoints
+- touch only files required by the slice, tests, and C3 annotations
+- do not improve adjacent code, comments, formatting, or naming unless the current change requires it
+- match existing repository style even when another style is personally preferable
+- remove only imports, variables, functions, files, or annotations made unused by the current change
+- mention unrelated dead code or stale schema separately instead of deleting it
 
-## Build Mode
+Drive execution by verifiable goals:
 
-Build mode should execute the approved plan incrementally.
+- convert each build task into a checkable success criterion
+- for validation work, write or update tests for invalid inputs before calling the validation complete
+- for bug fixes, reproduce the bug with a failing test before fixing it when feasible
+- for refactors, establish current behavior before changing structure and verify behavior afterward
+- for multi-step slices, use a short plan where each step has its own verification command or observation
 
-### LLM Build Guardrails
+## Test Mode
 
-Apply these safeguards before and during implementation:
+Test mode is a thorough QA agent. All test documentation, test planning, and black-box test implementation must be sourced from `forge crawl --format json` plus scoped Forge context.
 
-1. State the current increment goal and how it will be verified.
-2. Implement the minimum code needed for that increment; do not add speculative features or abstractions.
-3. Keep edits surgical and aligned with the approved schema, plan, and local code style.
-4. Do not clean up unrelated code; mention unrelated issues separately.
-5. Write or update focused tests before declaring behavior complete.
-6. If the schema, plan, and code disagree, stop and resolve the mismatch instead of coding around it.
-7. State assumptions or ambiguity before implementing when the approved plan does not fully determine behavior.
-8. Remove only dead code, imports, or variables created by the current change unless explicitly asked otherwise.
+Do not inspect implementation details to decide expected behavior unless the user explicitly asks for white-box structural tests. For normal QA, the source of truth is the Forge model: business actions, system context, container flows, component/local flows, entities, data shapes, persistence refs, and `@forge:operation` contracts.
 
-### Build Workflow
+### Test Source Rules
 
-For each increment:
+1. Start by loading `forge crawl --format json`.
+2. Use implementation files only to locate callable entry points, selectors, test harness setup, and existing test conventions.
+3. Derive expected behavior from Forge contracts, not from current implementation behavior.
+4. Treat implementation behavior that contradicts Forge contracts as a defect unless the Forge model is clearly stale.
+5. Use white-box structural tests only for internal branching, coverage gaps, unreachable paths, or explicit user requests.
+6. Label white-box tests as structural so they are not confused with contract tests.
 
-1. Confirm the current increment goal.
-2. Write or update tests first.
-3. Implement the minimum code required to make the tests pass.
-4. Simplify the implementation where needed without changing behavior.
-5. Run the required verification.
-6. Record important implementation decisions in `decision_notes.md`.
-7. Move to the next increment only when the current one is green.
+### Test Case Derivation
 
-Do not batch large amounts of work without testing.
+For every selected operation, component flow, container flow, runtime flow, and business action, derive a test matrix before writing tests.
 
-### Context Retrieval During Build
+Include:
 
-Before implementing a scoped task, retrieve the narrowest useful context.
+- valid nominal inputs from the referenced data shape
+- multiple valid boundary inputs
+- invalid but well-formed inputs
+- malformed inputs with missing, extra, null, wrong-type, or wrongly nested fields
+- fuzzed strings, numbers, dates, identifiers, arrays, and nested objects where applicable
+- security-relevant adversarial inputs from `forge-security` context
+- branch-triggering inputs for every declared condition
+- persistence edge cases for reads, writes, duplicate records, missing records, and ownership rules
+- retry, timeout, empty-state, error-state, and partial-failure cases when implied by the flow
 
-Prefer:
+Each test case must identify:
 
-1. `forge context` for the current vertical, container, component, or flow
-2. direct schema reads only when CLI context is unavailable or insufficient
+- Forge source reference: operation id, component id, container flow step, local flow step, entity, or business action
+- input shape and exact example payload
+- expected output, state change, UI state, emitted call, or error
+- test level
+- whether it is black-box contract, structural white-box, security, fuzz, or regression
 
-Do not implement from vague whole-repo context when a smaller scoped context can be retrieved.
+### Naming
 
-### Sub-Agent Dispatch
+Name every test case with this pattern:
 
-Use sub-agents when the current build increment can be safely partitioned into independent work.
-
-Good cases:
-
-- backend container work and frontend container work with a stable contract
-- one component implementation and another component implementation with disjoint ownership
-- production code work and independent test harness work with clear interfaces
-- parallel verification passes after implementation
+```text
+test<MethodName>_<scenario>_<expectedResult>
+```
 
 Rules:
 
-1. Do not dispatch sub-agents for the current blocking task if the main path needs immediate tightly coupled reasoning.
-2. Give each sub-agent a disjoint ownership scope.
-3. Give each sub-agent the relevant Forge CLI or schema context for its scope.
-4. Do not ask sub-agents to redesign the architecture.
-5. Review and integrate sub-agent output before moving on.
+1. `test<MethodName>` uses camel case after the `test` prefix.
+2. `scenario` is lower snake case.
+3. `expectedResult` is lower snake case.
+4. The name must reveal the Forge behavior being tested.
+5. Examples: `testCreateNote_validDraft_returnsCreatedNote`, `testCreateNote_missingTitle_returnsValidationError`, `testRegisterUser_duplicateEmail_returnsConflict`.
 
-## Required TDD Workflow
+### Test Levels
 
-Build mode must use a TDD-style cycle wherever behavior changes:
+Generate tests in this order:
 
-1. write a failing test
-2. make it pass with the smallest reasonable implementation
-3. refactor or simplify while keeping tests green
+1. Unit tests: black-box operation tests for `input`, `returns`, and declared `logic`.
+2. Component tests: black-box local-flow tests for operation ordering, `passes`, state shaping, and component responsibilities.
+3. Container tests: integration tests for all operations inside a runtime container step.
+4. Runtime flow tests: cross-container tests for trigger, step handoffs, branches, outputs, and outcomes.
+5. Full system tests: business-action tests against real interfaces or realistic runtime boundaries.
+6. Structural tests: white-box tests only where branch coverage, unreachable states, or internal invariants cannot be proven through black-box tests.
 
-For bug fixes:
+Logical files should mirror the test level and Forge scope. Prefer names such as:
 
-1. reproduce the bug with a failing test first
-2. fix the bug
-3. confirm the test passes
+```text
+tests/unit/<operation_or_component>_test.*
+tests/component/<component_or_local_flow>_test.*
+tests/integration/<container_or_container_flow>_test.*
+tests/system/<business_action_or_runtime_flow>_test.*
+tests/e2e/<business_action>_test.*
+tests/reports/
+```
 
-Never rely on "it looks right" as proof.
+Follow existing repository conventions when they already define equivalent folders.
 
-## Test Sandboxing Rule
+### Test Structure
 
-Treat tests as a protected correctness boundary, not a flexible implementation companion.
+Every test must follow Arrange, Act, Assert.
 
 Rules:
 
-1. Write or extend tests before changing implementation behavior.
-2. Do not rewrite tests just to make a broken implementation pass.
-3. Only change an existing test when one of these is true:
-   - the test encodes behavior that is genuinely wrong
-   - the test contradicts the approved schema or build plan
-   - the test is structurally flaky or invalid
-   - the intended behavior has been explicitly changed and approved
-4. If a test fails, prefer fixing the implementation first.
-5. If a test appears wrong, explain why before changing it.
-6. Keep test changes scoped to the behavior actually under construction.
+1. Arrange creates all required data, configuration, mocks, services, browser state, auth state, and fixtures.
+2. Act performs exactly the operation, flow, user action, API call, CLI command, or system trigger under test.
+3. Assert verifies the declared Forge contract: output, state change, UI state, persisted result, emitted call, error, branch, or outcome.
+4. Keep setup inside fixtures, factories, containers, test harnesses, or explicit test helpers.
+5. Do not require manual environment setup, hand-edited config, preloaded database state, manual login, manual browser clicks, or human sequencing.
+6. Smoke and full-system tests must be autonomously runnable from a documented command.
+7. If a full-system test needs services, databases, seeded users, credentials, queues, files, or browsers, the test suite must provision, seed, reset, or mock them itself.
+8. If true autonomous setup is impossible, mark the gap in the audit report and do not claim full-system coverage.
 
-Use this decision check before editing an existing test:
+### Contract Continuity
 
-- Is the test wrong, or is the code wrong?
-- Does the test contradict the approved architecture or vertical plan?
-- Would a human reviewer believe this test edit improves correctness, rather than hiding a defect?
+For every flow under test, prove that data flows correctly.
 
-## Required Testing Levels
+Check:
 
-The build is not complete unless it is tested at all relevant levels.
+- trigger input matches first runtime step input
+- each runtime step output matches the next step input
+- branch conditions are reachable and mutually understandable
+- branch outputs match branch target inputs
+- terminal outputs match declared outcomes
+- operation inputs and returns match referenced `@forge:type` shapes
+- local flow `passes` values match the next local step input
+- persisted writes satisfy entity ownership and persistence refs
+- reads return shapes that can feed downstream operations
 
-### 1. Unit Tests
+If a value appears, disappears, changes shape, crosses a trust boundary, or changes owner without an explicit Forge handoff, create a failing test or a review finding.
 
-Use for:
+### UI And Full-System Automation
 
-- pure logic
-- validators
-- transforms
-- component-local behavior
-- service-level rules
+When the system has a real interface, implement autonomous end-to-end tests against that interface.
 
-### 2. Integration Tests
+For web apps, prefer Playwright unless the repository already uses another equivalent browser framework.
 
-Use for:
+E2E tests should:
 
-- API boundaries
-- persistence boundaries
-- container-to-store interaction
-- critical component interactions
+- drive the same user actions implied by Forge business actions
+- use real selectors and accessible roles where possible
+- submit valid, invalid, malformed, and fuzzed inputs through the UI
+- click primary controls, keyboard-submit forms, and test focus/blur behavior
+- test edge interactions such as button-edge clicks, double clicks, rapid submits, disabled controls, back/forward navigation, refresh, and viewport changes when relevant
+- assert visible UI states, network calls, persisted outcomes, and error handling from the Forge contract
+- capture screenshots, traces, videos, or logs when the framework supports it
 
-### 3. Full-System Tests
+For non-web systems, use the closest real interface: CLI commands, API clients, queues, files, scheduled jobs, desktop UI automation, or service calls that match the declared trigger.
 
-Use for:
+### Reports And Logs
 
-- real end-to-end execution of the vertical in the environment in which it is being built
-- actual startup/run behavior
-- real user or system flows
+Every thorough QA pass should produce auditable output.
 
-Do not stop at unit or integration coverage if the vertical can be exercised end to end.
+Prefer repository-native reporting when available. Otherwise create or update a report under an existing reports directory or `tests/reports/`.
 
-### Full-System Test Rule
+The report should include:
 
-Always test the full system in the environment being built whenever that is feasible.
+- Forge crawl timestamp or command used
+- targeted business actions, flows, containers, components, and operations
+- generated test matrix
+- test files created or updated
+- black-box versus structural test classification
+- fuzz and malformed input strategy
+- full-system automation coverage
+- commands run
+- pass/fail results
+- unresolved gaps and reasons
 
-Examples:
+Keep reports factual and reproducible. Do not handwave coverage.
 
-- local build -> run and test locally
-- dev environment build -> run and test in dev
-- browser-facing vertical -> verify in the actual browser/runtime environment
+## Build Guardrails
 
-The point is to prove the vertical works as a real system path, not just in isolated tests.
+1. Build one thin slice at a time.
+2. Keep code under declared source roots so the crawler can see the C3 model.
+3. Do not add architecture-significant code without a nearby Forge annotation.
+4. Do not silently reshape central C1/C2 schema during implementation.
+5. Do not broaden a container flow because a local operation flow needs detail; local/container flow detail belongs in C3 annotations.
+6. Do not change unrelated code or tests.
+7. Do not rewrite tests merely to match broken implementation.
+8. Prefer the repository's existing structure, naming, tools, and test patterns.
 
-## Anti-Bloat Build Rules
+## Completion
 
-1. Do not build horizontally.
-2. Do not introduce speculative abstractions.
-3. Do not create new shapes unless the schema or the build clearly requires them.
-4. Do not broaden scope mid-increment.
-5. Do not "clean up" unrelated code during a vertical build.
-6. Prefer the simplest working implementation first.
-7. Refactor only after behavior is proved by tests.
+A build or QA pass is complete only when:
 
-Use these challenge questions:
-
-- Does this code change directly advance the current vertical slice?
-- Can this be deferred without invalidating the slice?
-- Is this abstraction earned yet?
-- Is this test proving real behavior or just testing implementation detail?
-
-## Review Rules During Build
-
-For each increment, check:
-
-1. the code still aligns with the schema
-2. the build still follows the chosen vertical
-3. the tests actually prove the changed behavior
-4. the system still runs after the increment
-5. complexity has not grown unnecessarily
-
-If implementation reveals architectural drift, stop and route back:
-
-- schema problem -> `forge-schema`
-- consistency problem -> `forge-review`
-- security issue -> `forge-security`
-
-## Reference Skill Usage
-
-This skill should use the coding-agent reference repo for specific workflows instead of duplicating them.
-
-Before relying on that reference repo, always update it first:
-
-```bash
-git -C skills/forge-build/coding_agent_skills_reference pull --ff-only
-```
-
-Then consult the relevant skills under:
-
-- `skills/forge-build/coding_agent_skills_reference/skills/`
-
-Especially useful reference skills:
-
-- `planning-and-task-breakdown`
-- `incremental-implementation`
-- `test-driven-development`
-- `frontend-ui-engineering`
-- `api-and-interface-design`
-- `code-simplification`
-- `browser-testing-with-devtools`
-- `security-and-hardening`
-
-Use them like this:
-
-- planning work -> `planning-and-task-breakdown`
-- incremental delivery discipline -> `incremental-implementation`
-- test-first implementation -> `test-driven-development`
-- frontend implementation quality -> `frontend-ui-engineering`
-- backend/API contract and interface work -> `api-and-interface-design`
-- reducing unnecessary complexity -> `code-simplification`
-- browser/runtime verification -> `browser-testing-with-devtools`
-- implementation hardening -> `security-and-hardening`
-
-The Forge build logic stays here. The task-specific implementation technique comes from those reference skills.
-
-## Audit Surface
-
-When audit artifacts need human review, prefer the Forge CLI audit surface.
-
-Expected command:
-
-```bash
-forge audit
-```
-
-The intended behavior is:
-
-- spin up a local webserver
-- render the available audit artifacts
-- allow interactive inspection
-- allow export of those artifacts
-
-Use this surface for reviewable architecture outputs rather than forcing humans to inspect raw files when the audit interface is available.
-
-## Decision Notes
-
-Record meaningful build decisions in `decision_notes.md`, including:
-
-- why a vertical was chosen first
-- why a slice was considered thin enough
-- what was deferred
-- why a test strategy was chosen
-- why a simplification or refactor was made
-- any architectural issues discovered during build
-
-## Constraints
-
-1. Do not implement without a build plan.
-2. Do not treat testing as optional.
-3. Do not call a slice complete without full-system verification where feasible.
-4. Do not silently reshape the architecture during implementation.
+- relevant tests pass
+- `forge crawl --format json` succeeds
+- code-owned C3 annotations are present for the touched architecture-significant code
+- operation inputs and returns line up across local, container, runtime, and system flow boundaries
+- review and security obligations for the slice are resolved or explicitly handed back to the proper skill

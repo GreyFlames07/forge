@@ -44,3 +44,19 @@ class UserRecord:
 #   - find user by user_id
 #   - create user record
 # security: Password hashes must not be returned to frontend-facing components.
+
+
+# @forge:operation
+# id: persist_user_record
+# input: ref[pending_user_record]
+# returns: ref[user_record]
+# logic:
+#   - Accept the pending user record from the backend API.
+#   - Persist the record in the user store.
+#   - Return the stored user record.
+# participates_in:
+#   - container_flow: register_user:3
+#     local_flow: register_user_datastore:1
+#     passes: ref[user_record]
+def persist_user_record(record: UserRecord) -> UserRecord:
+    return record

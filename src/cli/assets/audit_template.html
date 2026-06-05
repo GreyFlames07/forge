@@ -120,14 +120,19 @@
     }
     .main {
       width: 100%;
-      max-width: 1280px;
+      min-width: 0;
+      max-width: min(1280px, 100vw);
       margin: 0 auto;
       padding: 12px 32px;
       align-self: start;
+      overflow-x: hidden;
     }
     .dashboard-shell {
       display: flex;
       flex-direction: column;
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
       border: 1px solid var(--border);
       border-radius: 6px;
       background: var(--bg);
@@ -167,6 +172,9 @@
       border: 1px solid var(--border);
     }
     .artifact {
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
       border: none;
       border-radius: 0;
       background: var(--bg);
@@ -174,6 +182,9 @@
     }
     .section {
       display: none;
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
       padding: 28px 32px 32px;
       animation: fadeIn 180ms ease;
     }
@@ -238,60 +249,83 @@
       gap: 16px;
       margin-top: 16px;
     }
-    #system-overview > [data-slot="system-body"] > .vertical-cards {
+    .business-action-table {
       display: grid;
-      gap: 0;
+      grid-template-columns: minmax(180px, 1.1fr) minmax(120px, 0.7fr) minmax(260px, 1.6fr);
       margin-top: 18px;
       border: 1px solid var(--border);
       border-radius: 8px;
-      background: var(--bg);
       overflow: hidden;
-    }
-    #system-overview > [data-slot="system-body"] > .vertical-cards::before {
-      content: "Business Actions";
-      display: block;
-      padding: 11px 14px;
-      border-bottom: 1px solid var(--border);
-      background: var(--panel-alt);
-      color: var(--text);
+      background: var(--panel);
       font-size: 12px;
-      font-weight: 700;
     }
-    #system-overview > [data-slot="system-body"] > .vertical-cards > .card {
+    .business-action-header,
+    .business-action-row {
       display: grid;
-      grid-template-columns: minmax(190px, 220px) minmax(0, 1fr) minmax(140px, auto);
-      column-gap: 18px;
+      grid-column: 1 / -1;
+      grid-template-columns: subgrid;
       align-items: center;
-      margin: 0;
-      padding: 11px 14px;
-      border: 0;
-      border-bottom: 1px solid var(--border);
-      border-radius: 0;
-      box-shadow: none;
-      background: var(--bg);
     }
-    #system-overview > [data-slot="system-body"] > .vertical-cards > .card:last-child {
-      border-bottom: 0;
-    }
-    #system-overview > [data-slot="system-body"] > .vertical-cards > .card h3,
-    #system-overview > [data-slot="system-body"] > .vertical-cards > .card p {
-      margin: 0;
-    }
-    #system-overview > [data-slot="system-body"] > .vertical-cards > .card h3 {
-      font-size: 13px;
-      line-height: 1.3;
-      text-align: left;
-    }
-    #system-overview > [data-slot="system-body"] > .vertical-cards > .card p {
+    .business-action-header {
+      min-height: 36px;
+      background: var(--panel-alt);
       color: var(--muted);
       font-size: 12px;
-      line-height: 1.35;
-      text-align: left;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0;
     }
-    #system-overview > [data-slot="system-body"] > .vertical-cards > .card .pill-list {
+    .business-action-header span,
+    .business-action-row > span {
+      min-width: 0;
+      padding: 8px 14px;
+    }
+    .business-action-header span:nth-child(2) {
+      text-align: center;
+    }
+    .business-action-header span:nth-child(3) {
+      text-align: right;
+    }
+    .business-action-row {
+      min-height: 40px;
+      width: 100%;
+      text-align: left;
+      border: 0;
+      border-top: 1px solid var(--border);
+      border-radius: 0;
+      background: transparent;
+      cursor: pointer;
+    }
+    .business-action-row:hover {
+      background: var(--hover);
+    }
+    .business-action-row:focus-visible {
+      position: relative;
+      z-index: 1;
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+    }
+    .business-action-name {
+      font-weight: 700;
+      color: var(--text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .business-action-actor {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .business-action-actor .kind-chip,
+    .business-action-results .kind-chip {
+      font-size: 11px;
+      padding: 3px 9px;
+      line-height: 1;
+    }
+    .business-action-results {
+      display: flex;
+      flex-wrap: wrap;
       justify-content: flex-end;
-      margin: 0;
-      justify-self: end;
+      gap: 6px;
     }
     .deployment-stack {
       display: grid;
@@ -324,12 +358,86 @@
     .environment-select {
       min-width: 180px;
       height: 36px;
-      padding: 0 10px;
+      padding: 0 34px 0 12px;
       border: 1px solid var(--border);
       border-radius: 6px;
       background: var(--bg);
       color: var(--text);
       font: inherit;
+      font-weight: 500;
+      line-height: 1;
+      cursor: pointer;
+      box-shadow: none;
+      outline: none;
+      text-align: left;
+    }
+    .environment-select-shell {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      flex: 0 0 auto;
+      border-radius: 6px;
+      background: var(--bg);
+    }
+    .environment-select-shell::after {
+      content: "";
+      position: absolute;
+      right: 12px;
+      width: 8px;
+      height: 8px;
+      border-right: 1.5px solid var(--muted);
+      border-bottom: 1.5px solid var(--muted);
+      transform: translateY(-2px) rotate(45deg);
+      pointer-events: none;
+    }
+    .environment-select-shell:hover .environment-select {
+      border-color: var(--subtle);
+      background: var(--hover);
+    }
+    .environment-select-shell[data-open="true"] .environment-select,
+    .environment-select:focus-visible {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(253, 140, 115, 0.22);
+    }
+    .environment-select-shell[data-open="true"]::after {
+      transform: translateY(2px) rotate(225deg);
+    }
+    .environment-menu {
+      position: absolute;
+      z-index: 20;
+      top: calc(100% + 4px);
+      right: 0;
+      min-width: 100%;
+      padding: 4px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+    }
+    .environment-option {
+      display: block;
+      width: 100%;
+      min-height: 30px;
+      padding: 0 10px;
+      border: 0;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+      font-size: 12.5px;
+      font-weight: 500;
+      text-align: left;
+      cursor: pointer;
+    }
+    .environment-option:hover,
+    .environment-option:focus-visible {
+      background: var(--hover);
+      outline: none;
+    }
+    .environment-option.active {
+      background: rgba(253, 140, 115, 0.14);
+      color: var(--accent-strong);
+      font-weight: 700;
     }
     .container-stack {
       display: grid;
@@ -355,6 +463,10 @@
       gap: 8px;
       padding: 8px 14px;
       border-top: 1px solid var(--border);
+    }
+    .component-table-row[hidden],
+    [data-filter-type][hidden] {
+      display: none !important;
     }
     .component-table-row:first-child {
       border-top: none;
@@ -438,7 +550,85 @@
     .component-responsibilities li + li {
       margin-top: 2px;
     }
+    .decision-log-card {
+      display: grid;
+      gap: 8px;
+    }
+    .decision-log-card > h3,
+    .decision-log-card > p {
+      margin: 0;
+    }
+    .decision-table {
+      margin-top: 0;
+    }
+    .decision-row-head {
+      grid-template-columns: minmax(0, 1fr) auto 18px;
+      min-height: 38px;
+    }
+    .decision-row[open] > .decision-row-head {
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 4px;
+    }
+    .decision-row-chips {
+      justify-content: flex-end;
+      flex-wrap: nowrap;
+    }
+    .decision-row-body {
+      padding-top: 10px;
+      row-gap: 8px;
+    }
+    .decision-row-body .metadata-table-wrap {
+      margin: 0;
+    }
+    .decision-field {
+      gap: 3px;
+    }
+    .decision-field p {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .decision-field ol {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .decision-field li + li {
+      margin-top: 2px;
+    }
+    .annotation-filter {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 0 0 10px;
+    }
+    .annotation-filter-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 28px;
+      padding: 0 10px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--bg);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1;
+    }
+    .annotation-filter-btn:hover {
+      background: var(--hover);
+      color: var(--text);
+    }
+    .annotation-filter-btn.active {
+      border-color: var(--accent);
+      background: rgba(253, 140, 115, 0.12);
+      color: var(--text);
+    }
     .data-shape-row {
+      display: block;
       min-height: 40px;
       align-content: center;
       padding: 0;
@@ -446,8 +636,40 @@
     .data-shape-row .component-row-head {
       align-items: center;
     }
+    .data-shape-toggle {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+    .data-shape-toggle:hover {
+      background: var(--hover);
+    }
+    .data-shape-toggle-input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
     .data-shape-row .kind-chip {
       align-self: center;
+    }
+    .data-shape-row .schema-viewer {
+      margin-top: 0;
+      border: 0;
+      border-top: 1px solid var(--border);
+      border-radius: 0;
+    }
+    details.data-shape-row:not([open]) > .schema-viewer {
+      display: none;
+    }
+    .data-shape-toggle-input:not(:checked) ~ .schema-viewer {
+      display: none;
+    }
+    .data-shape-toggle-input:checked + .data-shape-toggle .entity-shape-chevron::before {
+      content: "▲";
     }
     .container-stack .grid {
       margin-bottom: 0;
@@ -486,6 +708,9 @@
       padding: 12px 16px;
     }
     .card {
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
       background: var(--panel);
       border: 1px solid var(--border);
       border-radius: 10px;
@@ -914,8 +1139,7 @@
     }
     .entity-shape-row[open] .entity-shape-chevron::before,
     .component-expandable-row[open] .entity-shape-chevron::before,
-    .flow-step-row[open] .entity-shape-chevron::before,
-    .flow-operation-row[open] .entity-shape-chevron::before {
+    .flow-step-row[open] .entity-shape-chevron::before {
       content: "▲";
     }
     .entity-shape-row .schema-viewer {
@@ -1058,6 +1282,12 @@
       border-bottom: 1px solid var(--border);
       background: var(--panel-alt);
     }
+    .diagram-header h3 {
+      margin: 0;
+    }
+    .diagram-header p {
+      margin: 2px 0 0;
+    }
     .diagram-controls {
       display: inline-flex;
       align-items: center;
@@ -1147,6 +1377,11 @@
     .elk-node.database rect {
       fill: #f6f8fa;
     }
+    .elk-node.data-shape rect {
+      fill: #f6f8fa;
+      stroke: #cbd5e1;
+      stroke-dasharray: 4 3;
+    }
     .elk-node.external rect,
     .elk-node.dependency ellipse {
       fill: #fff7ed;
@@ -1154,6 +1389,12 @@
     }
     .elk-node.actor ellipse {
       fill: #ffffff;
+    }
+    .elk-node.trigger circle,
+    .elk-node.trigger ellipse,
+    .elk-node.trigger rect {
+      fill: var(--accent);
+      stroke: var(--accent);
     }
     .elk-node text {
       fill: var(--text);
@@ -1461,6 +1702,20 @@
       font-weight: 700;
       line-height: 1;
     }
+    .flow-trigger-row .flow-step-index,
+    .flow-trigger-index {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: var(--accent);
+    }
+    .flow-trigger-row .flow-step-index::before,
+    .flow-trigger-index::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #ffffff;
+    }
     .flow-step-visible {
       display: grid;
       align-items: center;
@@ -1470,6 +1725,14 @@
       color: var(--text);
       font-size: 12px;
       line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+    .flow-step-visible em {
+      color: var(--muted);
+      font-size: 10.5px;
+      font-style: normal;
+      font-weight: 500;
+      line-height: 1.15;
       overflow-wrap: anywhere;
     }
     .flow-step-content {
@@ -1527,14 +1790,99 @@
       gap: 6px;
       padding-top: 2px;
     }
+    .flow-outcome-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      min-height: 34px;
+      padding: 4px 10px 4px 47px;
+      border-top: 1px solid var(--border);
+      background: var(--panel-alt);
+    }
+    .flow-outcome-row .component-row-label {
+      color: var(--text);
+      font-weight: 700;
+      text-align: left;
+    }
+    .flow-outcome-row .pill-list {
+      justify-content: flex-end;
+      margin: 0;
+    }
+    .flow-data-path-shell {
+      position: relative;
+      contain: inline-size;
+      min-width: 0;
+      max-width: 100%;
+      margin-top: 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      overflow: hidden;
+    }
+    .flow-data-path-card {
+      min-width: 0;
+      max-width: 100%;
+    }
+    .flow-data-path-card summary {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      min-height: 38px;
+      padding: 8px 176px 8px 12px;
+      cursor: pointer;
+      list-style: none;
+      background: var(--panel-alt);
+    }
+    .flow-data-path-card summary::-webkit-details-marker {
+      display: none;
+    }
+    .flow-data-path-card summary strong {
+      color: var(--text);
+      font-size: 13px;
+    }
+    .flow-data-path-title,
+    .flow-data-path-meta {
+      min-width: 0;
+    }
+    .flow-data-path-meta {
+      color: var(--subtle);
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .flow-data-path-controls {
+      position: absolute;
+      top: 3px;
+      right: 12px;
+      z-index: 2;
+    }
+    .flow-data-path-card[open] summary {
+      border-bottom: 1px solid var(--border);
+    }
+    .data-path-diagram {
+      width: 100%;
+      box-sizing: border-box;
+      min-width: 0;
+      max-width: 100%;
+      min-height: 110px;
+      padding: 10px;
+      overflow-x: auto;
+      overflow-y: auto;
+    }
+    .data-path-diagram .diagram-surface,
+    .data-path-diagram .mermaid-graph,
+    .data-path-diagram .mermaid-graph pre {
+      min-width: 0;
+      max-width: none;
+    }
     .flow-local-group {
       border: 1px solid var(--border);
       border-radius: 7px;
-      background: var(--panel-alt);
+      background: var(--bg);
       overflow: hidden;
     }
-    .flow-local-group summary,
-    .flow-operation-row summary {
+    .flow-local-group summary {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
       gap: 10px;
@@ -1547,12 +1895,10 @@
       font-size: 12px;
       font-weight: 700;
     }
-    .flow-local-group summary::-webkit-details-marker,
-    .flow-operation-row summary::-webkit-details-marker {
+    .flow-local-group summary::-webkit-details-marker {
       display: none;
     }
-    .flow-local-group summary span:last-child,
-    .flow-operation-row summary > span:nth-child(2) {
+    .flow-local-group summary span:last-child {
       color: var(--muted);
       font-size: 11px;
       font-weight: 500;
@@ -1580,38 +1926,116 @@
     }
     .flow-operation-list {
       display: grid;
-      border-top: 1px solid var(--border);
+      gap: 8px;
+      padding: 2px 8px 8px;
+      background: transparent;
+    }
+    .flow-operation-step {
+      position: relative;
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr);
+      gap: 8px;
+      background: transparent;
+      padding: 0 0 8px;
+    }
+    .flow-operation-step::after {
+      content: "";
+      position: absolute;
+      left: 10px;
+      top: 22px;
+      bottom: -8px;
+      border-left: 1px solid var(--border);
+    }
+    .flow-operation-step:last-child::after {
+      display: none;
+    }
+    .flow-operation-dot {
+      position: relative;
+      z-index: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border: 1px solid var(--accent);
+      border-radius: 999px;
       background: var(--bg);
+      color: var(--accent-strong);
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
     }
-    .flow-operation-row {
-      border-top: 1px solid var(--border);
-      background: var(--bg);
+    .flow-operation-step-body {
+      min-width: 0;
+      display: grid;
+      gap: 4px;
     }
-    .flow-operation-row:first-child {
-      border-top: 0;
-    }
-    .flow-operation-row summary {
-      grid-template-columns: minmax(180px, 260px) minmax(0, 1fr) 18px;
+    .flow-operation-step-head {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 8px;
+      align-items: baseline;
       font-weight: 600;
     }
-    .flow-operation-row summary strong,
-    .flow-operation-row summary em {
+    .flow-operation-step-head strong,
+    .flow-operation-step-head em {
       display: block;
       min-width: 0;
       overflow-wrap: anywhere;
     }
-    .flow-operation-row summary em {
+    .flow-operation-step-head strong {
+      color: var(--text);
+      font-size: 12px;
+      line-height: 1.15;
+    }
+    .flow-operation-step-head em {
       color: var(--muted);
       font-size: 10.5px;
       font-style: normal;
       font-weight: 400;
       line-height: 1.15;
     }
-    .flow-operation-row .flow-step-logic {
-      padding: 0 8px 8px;
+    .flow-operation-handoff {
+      color: var(--muted);
+      font-size: 10.5px;
+      font-weight: 500;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
     }
     .flow-operation-io {
-      padding: 0 8px 6px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 12px;
+      color: var(--text);
+      font-size: 10.5px;
+      line-height: 1.25;
+    }
+    .flow-operation-io em {
+      color: var(--subtle);
+      font-style: normal;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .flow-operation-logic {
+      color: var(--muted);
+      font-size: 11.5px;
+      line-height: 1.25;
+    }
+    .flow-operation-logic span {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--subtle);
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+    .flow-operation-logic ol {
+      margin: 0;
+      padding-left: 18px;
+    }
+    .flow-operation-logic li + li {
+      margin-top: 2px;
     }
     .flow-outcomes {
       margin-top: 24px;
@@ -1625,6 +2049,53 @@
       margin: 0;
       color: var(--muted);
       line-height: 1.45;
+    }
+    .security-surface {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .security-surface-header h3,
+    .security-surface-header p {
+      margin: 0;
+    }
+    .security-surface-header p {
+      margin-top: 4px;
+      color: var(--muted);
+    }
+    .security-surface-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 10px;
+    }
+    .security-card {
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+    }
+    .security-card[data-target] {
+      cursor: pointer;
+    }
+    .security-card[data-target]:hover {
+      border-color: var(--subtle);
+      background: var(--hover);
+    }
+    .security-card-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .security-card-head strong {
+      font-size: 13px;
+    }
+    .security-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
     }
     .branch-list {
       margin-top: 10px;
@@ -1763,9 +2234,6 @@
     .record-row {
       padding: 12px 14px;
     }
-    #system-overview > [data-slot="system-body"] > .vertical-cards > .card {
-      padding: 8px 12px;
-    }
     .entity-shape-row summary {
       padding: 7px 10px;
     }
@@ -1808,10 +2276,22 @@
       .record-row {
         grid-template-columns: 1fr;
       }
-      #system-overview > [data-slot="system-body"] > .vertical-cards > .card {
+      .business-action-table,
+      .business-action-header,
+      .business-action-row {
         grid-template-columns: minmax(0, 1fr);
       }
-      #system-overview > [data-slot="system-body"] > .vertical-cards > .card .pill-list {
+      .business-action-header {
+        display: none;
+      }
+      .business-action-row {
+        gap: 4px;
+        padding: 10px 14px;
+      }
+      .business-action-row > span {
+        padding: 0;
+      }
+      .business-action-results {
         justify-content: flex-start;
       }
       .grid.grid-3 {
@@ -1866,7 +2346,8 @@
     <button class="tab" data-group="Flows">Flows</button>
     <button class="tab" data-group="Runtime">Runtime</button>
     <button class="tab" data-group="Data">Data</button>
-    <button class="tab" data-group="Verticals">Verticals</button>
+    <button class="tab" data-group="Validation">Validation</button>
+    <button class="tab" data-group="Quality Assurance">Quality Assurance</button>
   </nav>
   <main class="main">
     <div class="dashboard-shell">
@@ -1888,8 +2369,11 @@
           </div>
           <div data-slot="data-body">__DATA_BODY__</div>
         </section>
-        <section class="section" id="verticals-overview" data-group="Verticals">
+        <section class="section" id="verticals-overview" data-group="Validation">
           <div data-slot="verticals-body">__VERTICALS_BODY__</div>
+        </section>
+        <section class="section" id="quality-assurance-overview" data-group="Quality Assurance">
+          <div data-slot="quality-assurance-body">__QUALITY_ASSURANCE_BODY__</div>
         </section>
         __DYNAMIC_SECTIONS_HTML__
       </div>
@@ -1938,7 +2422,8 @@
       System: 'system-overview',
       Runtime: 'runtime-overview',
       Data: 'data-overview',
-      Verticals: 'verticals-overview',
+      Validation: 'verticals-overview',
+      'Quality Assurance': 'quality-assurance-overview',
     };
 
     function setActiveGroup(group, activeSectionId = '') {
@@ -2480,18 +2965,6 @@
         const surfaceNode = wrap && (wrap.querySelector('.mermaid-graph') || wrap.querySelector('.elk-graph') || wrap.querySelector('.diagram-surface'));
         const buttons = card.querySelectorAll('[data-diagram-zoom]');
         if (!wrap || !surfaceNode) return;
-        buttons.forEach(button => {
-          button.addEventListener('click', () => {
-            const current = parseFloat(surfaceNode.dataset.scale || '1');
-            const mode = button.dataset.diagramZoom;
-            const next = mode === 'in'
-              ? Math.min(2.5, current + 0.2)
-              : mode === 'out'
-                ? Math.max(0.6, current - 0.2)
-                : 1;
-            applyDiagramScale(surfaceNode, next);
-          });
-        });
         wrap.addEventListener('wheel', event => {
           if (!(event.metaKey || event.ctrlKey)) return;
           event.preventDefault();
@@ -2500,6 +2973,28 @@
           const next = Math.max(0.6, Math.min(2.5, current + direction));
           applyDiagramScale(surfaceNode, next);
         }, { passive: false });
+      });
+    }
+
+    function bindDiagramZoomButtons() {
+      document.addEventListener('click', event => {
+        const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+        const button = target?.closest('[data-diagram-zoom]');
+        if (!button) return;
+        const card = button.closest('.diagram-card');
+        const wrap = card?.querySelector('.diagram-wrap');
+        const surfaceNode = wrap && (wrap.querySelector('.mermaid-graph') || wrap.querySelector('.elk-graph') || wrap.querySelector('.diagram-surface'));
+        if (!surfaceNode) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const current = parseFloat(surfaceNode.dataset.scale || '1');
+        const mode = button.dataset.diagramZoom;
+        const next = mode === 'in'
+          ? Math.min(2.5, current + 0.2)
+          : mode === 'out'
+            ? Math.max(0.6, current - 0.2)
+            : 1;
+        applyDiagramScale(surfaceNode, next);
       });
     }
 
@@ -2608,7 +3103,7 @@
         if (String(forge.kind || '').startsWith('deploy-')) {
           drawDeploymentShape(svgNs, group, forge, node);
         } else {
-          const shape = (forge.kind === 'actor' || forge.kind === 'dependency') ? 'ellipse' : 'rect';
+          const shape = (forge.kind === 'actor' || forge.kind === 'dependency' || forge.kind === 'trigger') ? 'ellipse' : 'rect';
           const shapeEl = document.createElementNS(svgNs, shape);
           if (shape === 'ellipse') {
             shapeEl.setAttribute('cx', String((node.width || 0) / 2));
@@ -2623,9 +3118,12 @@
           group.appendChild(shapeEl);
         }
 
+        const kind = String(forge.kind || '');
+        if (kind === 'trigger') {
+          return;
+        }
         const label = document.createElementNS(svgNs, 'text');
         label.setAttribute('class', 'label');
-        const kind = String(forge.kind || '');
         const textLayout = kind.startsWith('deploy-')
           ? deploymentTextLayout(kind, node)
           : nodeTextLayout(kind, node);
@@ -2747,6 +3245,7 @@
       setActiveGroup(group, normalizedId);
       enhanceDataOverviewPersistenceChips();
       enhanceContainerDetailSections();
+      bindAnnotationFilters(targetSection);
       enhanceComponentDiagrams();
       enhanceEntityDetailSections();
       enhanceFlowDetailSections();
@@ -2796,14 +3295,95 @@
     }
 
     function bindEnvironmentSelectors() {
-      document.querySelectorAll('[data-environment-select]').forEach(select => {
-        if (select.dataset.bound === 'true') return;
-        select.dataset.bound = 'true';
-        select.addEventListener('change', () => {
-          const section = select.closest('.section') || document;
-          section.querySelectorAll('[data-environment-panel]').forEach(panel => {
-            panel.hidden = panel.dataset.environmentPanel !== select.value;
+      const closeMenu = shell => {
+        const trigger = shell.querySelector('[data-environment-trigger]');
+        const menu = shell.querySelector('[data-environment-menu]');
+        shell.dataset.open = 'false';
+        trigger?.setAttribute('aria-expanded', 'false');
+        if (menu) menu.hidden = true;
+      };
+      const openMenu = shell => {
+        const trigger = shell.querySelector('[data-environment-trigger]');
+        const menu = shell.querySelector('[data-environment-menu]');
+        document.querySelectorAll('[data-environment-select][data-open="true"]').forEach(openShell => {
+          if (openShell !== shell) closeMenu(openShell);
+        });
+        shell.dataset.open = 'true';
+        trigger?.setAttribute('aria-expanded', 'true');
+        if (menu) menu.hidden = false;
+      };
+      const setEnvironment = (shell, environment) => {
+        const trigger = shell.querySelector('[data-environment-trigger]');
+        const label = shell.querySelector('[data-environment-label]');
+        const section = shell.closest('.section') || document;
+        if (trigger) trigger.dataset.environmentValue = environment;
+        if (label) label.textContent = environment;
+        shell.querySelectorAll('[data-environment-option]').forEach(option => {
+          const active = option.dataset.environmentOption === environment;
+          option.classList.toggle('active', active);
+          option.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        section.querySelectorAll('[data-environment-panel]').forEach(panel => {
+          panel.hidden = panel.dataset.environmentPanel !== environment;
+        });
+      };
+      document.querySelectorAll('[data-environment-select]').forEach(shell => {
+        if (shell.dataset.bound === 'true') return;
+        shell.dataset.bound = 'true';
+        shell.dataset.open = 'false';
+        const trigger = shell.querySelector('[data-environment-trigger]');
+        const initial = trigger?.dataset.environmentValue || shell.querySelector('[data-environment-option]')?.dataset.environmentOption || '';
+        if (initial) setEnvironment(shell, initial);
+        trigger?.addEventListener('click', () => {
+          if (shell.dataset.open === 'true') {
+            closeMenu(shell);
+          } else {
+            openMenu(shell);
+          }
+        });
+        trigger?.addEventListener('keydown', event => {
+          if (event.key !== 'ArrowDown' && event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          openMenu(shell);
+          shell.querySelector('[data-environment-option]')?.focus();
+        });
+        shell.querySelectorAll('[data-environment-option]').forEach(option => {
+          option.addEventListener('click', () => {
+            setEnvironment(shell, option.dataset.environmentOption || '');
+            closeMenu(shell);
+            trigger?.focus();
           });
+          option.addEventListener('keydown', event => {
+            const options = Array.from(shell.querySelectorAll('[data-environment-option]'));
+            const index = options.indexOf(option);
+            if (event.key === 'Escape') {
+              closeMenu(shell);
+              trigger?.focus();
+              return;
+            }
+            if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp' && event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            if (event.key === 'Enter' || event.key === ' ') {
+              setEnvironment(shell, option.dataset.environmentOption || '');
+              closeMenu(shell);
+              trigger?.focus();
+              return;
+            }
+            const delta = event.key === 'ArrowDown' ? 1 : -1;
+            options[(index + delta + options.length) % options.length]?.focus();
+          });
+        });
+      });
+      document.addEventListener('click', event => {
+        document.querySelectorAll('[data-environment-select][data-open="true"]').forEach(shell => {
+          if (!shell.contains(event.target)) closeMenu(shell);
+        });
+      });
+      document.addEventListener('keydown', event => {
+        if (event.key !== 'Escape') return;
+        document.querySelectorAll('[data-environment-select][data-open="true"]').forEach(shell => {
+          closeMenu(shell);
+          shell.querySelector('[data-environment-trigger]')?.focus();
         });
       });
     }
@@ -2900,11 +3480,35 @@
         .join('');
     }
 
+    function annotationId(item) {
+      const payload = item.payload && typeof item.payload === 'object' ? item.payload : item;
+      return String(item.id || payload.id || '');
+    }
+
+    function sortedAnnotations(items) {
+      return [...items].sort((left, right) => annotationId(left).localeCompare(annotationId(right), undefined, { sensitivity: 'base' }));
+    }
+
+    function filterableRowsHtml(label, types, tableHtml) {
+      const uniqueTypes = Array.from(new Set(types.filter(type => String(type || '').trim())))
+        .sort((left, right) => String(left).localeCompare(String(right), undefined, { sensitivity: 'base' }));
+      if (!uniqueTypes.length) return tableHtml;
+      const buttons = [
+        '<button class="annotation-filter-btn active" type="button" data-filter-value="all">All</button>',
+        ...uniqueTypes.map(type => (
+          `<button class="annotation-filter-btn" type="button" data-filter-value="${escapeHtml(type)}">${escapeHtml(type)}</button>`
+        )),
+      ].join('');
+      return `<div class="annotation-filter" data-annotation-filter aria-label="Filter by ${escapeHtml(label)}">${buttons}</div>${tableHtml}`;
+    }
+
     function componentRowsHtml(components) {
-      const rows = components.map(component => {
+      const types = [];
+      const rows = sortedAnnotations(components).map(component => {
         const payload = component.payload && typeof component.payload === 'object' ? component.payload : component;
         const id = component.id || payload.id || '';
         const role = payload.role || component.role || '';
+        if (role) types.push(role);
         const description = payload.description || component.description || '';
         const source = [component.source, component.line].filter(Boolean).join(':');
         const responsibilities = Array.isArray(payload.responsibilities || component.responsibilities)
@@ -2915,7 +3519,7 @@
           .map(item => `<li>${escapeHtml(item)}</li>`)
           .join('');
         return (
-          '<details class="component-table-row component-expandable-row">'
+          `<details class="component-table-row component-expandable-row" data-filter-type="${escapeHtml(role)}" data-filter-values="${escapeHtml(role)}">`
           + '<summary class="component-row-head">'
           + '<div>'
           + `<h5>${escapeHtml(id)}</h5>`
@@ -2936,36 +3540,45 @@
           + '</details>'
         );
       }).join('');
-      return rows ? `<div class="component-table">${rows}</div>` : '';
+      return rows ? filterableRowsHtml('component role', types, `<div class="component-table">${rows}</div>`) : '';
     }
 
     function dataShapeRowsHtml(shapes) {
-      const rows = shapes.map(shape => {
+      const types = [];
+      const rows = sortedAnnotations(shapes).map((shape, index) => {
         const payload = shape.payload && typeof shape.payload === 'object' ? shape.payload : shape;
         const id = shape.id || payload.id || '';
         const kind = payload.type_kind || payload.kind || '';
+        if (kind) types.push(kind);
         const source = [shape.source, shape.line].filter(Boolean).join(':');
+        const toggleId = `data-shape-${String(id).replace(/[^a-zA-Z0-9_-]+/g, '_')}-${index}`;
         return (
-          '<div class="component-table-row data-shape-row">'
-          + '<div class="component-row-head">'
+          `<div class="component-table-row data-shape-row data-shape-expandable" data-filter-type="${escapeHtml(kind)}" data-filter-values="${escapeHtml(kind)}">`
+          + `<input class="data-shape-toggle-input" id="${escapeHtml(toggleId)}" type="checkbox">`
+          + `<label class="component-row-head data-shape-toggle" for="${escapeHtml(toggleId)}">`
           + '<div>'
           + `<h5>${escapeHtml(id)}</h5>`
           + (source ? `<span class="component-source">${escapeHtml(source)}</span>` : '')
           + '</div>'
           + (kind ? `<span class="kind-chip chip-shape">${escapeHtml(kind)}</span>` : '')
-          + '</div>'
+          + '<span class="entity-shape-chevron" aria-hidden="true"></span>'
+          + '</label>'
+          + `<div class="schema-viewer"><pre>${escapeHtml(JSON.stringify(payload.shape || {}, null, 2))}</pre></div>`
           + '</div>'
         );
       }).join('');
-      return rows ? `<div class="component-table data-shape-table">${rows}</div>` : '';
+      return rows ? filterableRowsHtml('data shape kind', types, `<div class="component-table data-shape-table">${rows}</div>`) : '';
     }
 
     function operationRowsHtml(operations) {
-      const rows = operations.map(operation => {
+      const types = [];
+      const rows = sortedAnnotations(operations).map(operation => {
         const payload = operation.payload && typeof operation.payload === 'object' ? operation.payload : operation;
         const id = operation.id || payload.id || '';
         const source = [operation.source, operation.line].filter(Boolean).join(':');
-        const chip = payload.component || payload.local_flow || payload.container_flow || 'operation';
+        const chip = operation.component || payload.component || payload.local_flow || payload.container_flow || 'operation';
+        const filterValues = [chip, payload.container_flow, payload.local_flow].filter(Boolean).join(' ');
+        if (chip) types.push(chip);
         const ioRows = [
           ['Input', payload.input],
           ['Returns', payload.returns],
@@ -2975,17 +3588,16 @@
         const logicItems = Array.isArray(payload.logic)
           ? payload.logic.filter(item => String(item || '').trim()).map(item => `<li>${escapeHtml(item)}</li>`).join('')
           : '';
-        const participation = Array.isArray(payload.participates_in) ? payload.participates_in : [];
+        const participation = Array.isArray(payload.participates_in) ? payload.participates_in.map(normalizeParticipationEntry) : [];
         const participationRows = participation.map(item => (
           '<tr>'
-          + `<td>${escapeHtml(item.container_flow)}</td>`
-          + `<td>${escapeHtml(item.local_flow)}</td>`
-          + `<td>${escapeHtml(item.step)}</td>`
+          + `<td>${escapeHtml(containerFlowStepLabel(item))}</td>`
+          + `<td>${escapeHtml(localFlowStepLabel(item))}</td>`
           + `<td>${escapeHtml(item.passes)}</td>`
           + '</tr>'
         )).join('');
         return (
-          '<details class="component-table-row component-expandable-row operation-row">'
+          `<details class="component-table-row component-expandable-row operation-row" data-filter-type="${escapeHtml(chip)}" data-filter-values="${escapeHtml(filterValues)}">`
           + '<summary class="component-row-head">'
           + '<div>'
           + `<h5>${escapeHtml(id)}</h5>`
@@ -3010,7 +3622,7 @@
             ? '<details class="payload-expandable operation-participation-details">'
               + `<summary>Participation (${participation.length})</summary>`
               + '<div class="metadata-table-wrap"><table class="metadata-table operation-participation-table">'
-              + '<tr><th>Flow</th><th>Local Flow</th><th>Step</th><th>Passes</th></tr>'
+              + '<tr><th>Container Flow</th><th>Component Operation Flow</th><th>Passes</th></tr>'
               + participationRows
               + '</table></div>'
               + '</details>'
@@ -3019,7 +3631,41 @@
           + '</details>'
         );
       }).join('');
-      return rows ? `<div class="component-table operation-table">${rows}</div>` : '';
+      return rows ? filterableRowsHtml('operation type', types, `<div class="component-table operation-table">${rows}</div>`) : '';
+    }
+
+    function containerFlowStepLabel(entry) {
+      const containerFlow = String(entry?.container_flow || '');
+      const step = entry?.step;
+      return step === undefined || step === null || step === '' ? containerFlow : `${containerFlow}:${step}`;
+    }
+
+    function localFlowStepLabel(entry) {
+      const localFlow = String(entry?.local_flow || '');
+      const localStep = entry?.local_step;
+      return localStep === undefined || localStep === null || localStep === '' ? localFlow : `${localFlow}:${localStep}`;
+    }
+
+    function normalizeParticipationEntry(entry) {
+      if (!entry || typeof entry !== 'object') return entry;
+      const normalized = { ...entry };
+      const rawFlow = String(normalized.container_flow || '');
+      const match = rawFlow.match(/^(.+):([0-9]+)$/);
+      if (match) {
+        normalized.container_flow = match[1];
+        if (normalized.step === undefined || normalized.step === null || normalized.step === '') {
+          normalized.step = Number.parseInt(match[2], 10);
+        }
+      }
+      const rawLocalFlow = String(normalized.local_flow || '');
+      const localMatch = rawLocalFlow.match(/^(.+):([0-9]+)$/);
+      if (localMatch) {
+        normalized.local_flow = localMatch[1];
+        if (normalized.local_step === undefined || normalized.local_step === null || normalized.local_step === '') {
+          normalized.local_step = Number.parseInt(localMatch[2], 10);
+        }
+      }
+      return normalized;
     }
 
     function readableCellText(cell) {
@@ -3030,13 +3676,16 @@
       }).join('').replace(/\n{2,}/g, '\n').trim();
     }
 
-    function flowOperationRowsHtml(operations, stepNumber) {
-      const groups = new Map();
+    function flowOperationRowsHtml(operations, stepNumber, stepContainer = '') {
+      const items = [];
       const containerLabelForLocalFlow = (operation, payload, localFlow) => {
         if (operation.container || payload.container) return operation.container || payload.container;
         if (String(localFlow || '').endsWith('_frontend')) return 'frontend_ui';
         if (String(localFlow || '').endsWith('_backend')) return 'backend_api';
         return 'container';
+      };
+      const componentLabelForLocalFlow = (operation, payload, localFlow) => {
+        return operation.component || payload.component || localFlow || 'component';
       };
       operations.forEach(operation => {
         const payload = operation.payload && typeof operation.payload === 'object' ? operation.payload : {};
@@ -3044,78 +3693,139 @@
         if (String(payload.step || '') === stepNumber) entries.push(payload);
         if (Array.isArray(payload.participates_in)) {
           payload.participates_in.forEach(item => {
-            if (item && typeof item === 'object' && String(item.step || '') === stepNumber) entries.push(item);
+            const normalizedItem = normalizeParticipationEntry(item);
+            if (normalizedItem && typeof normalizedItem === 'object' && String(normalizedItem.step || '') === stepNumber) entries.push(normalizedItem);
           });
         }
         entries.forEach(entry => {
           const localFlow = entry.local_flow || payload.local_flow || 'local_flow';
           const container = containerLabelForLocalFlow(operation, payload, localFlow);
-          const groupKey = `${container}::${localFlow}`;
-          if (!groups.has(groupKey)) groups.set(groupKey, []);
-          groups.get(groupKey).push(operation);
+          if (stepContainer && container !== stepContainer) return;
+          const component = componentLabelForLocalFlow(operation, payload, localFlow);
+          items.push({ operation, entry, component, container, localFlow, stepId: stepNumber });
         });
       });
-      return Array.from(groups.entries()).map(([groupKey, groupOperations]) => {
-        const [container, localFlow] = groupKey.split('::');
-        return (
+      const localSortKey = item => {
+        const step = Number.parseInt(String(item.entry?.local_step ?? ''), 10);
+        return [Number.isFinite(step) ? step : 999999, String(item.operation?.id || item.operation?.payload?.id || '')];
+      };
+      const groupSummary = items => {
+        const steps = [];
+        items.forEach(item => {
+          const step = item.entry?.local_step;
+          if (step !== undefined && step !== null && !steps.includes(String(step))) steps.push(String(step));
+        });
+        const allSteps = items
+          .map(item => item.entry?.local_step)
+          .filter(step => step !== undefined && step !== null)
+          .map(step => String(step));
+        const stepParts = steps.map(step => {
+          const count = allSteps.filter(item => item === step).length;
+          return count > 1 ? `${step} (${count} concurrent)` : step;
+        });
+        const countLabel = items.length === 1 ? 'operation' : 'operations';
+        let stepLabel = 'unstepped';
+        if (stepParts.length === 1) stepLabel = `operation step ${stepParts[0]}`;
+        if (stepParts.length > 1) stepLabel = `operation steps ${stepParts.join(', ')}`;
+        return `${items.length} ${countLabel} · ${stepLabel}`;
+      };
+      const orderedItems = items.sort((left, right) => {
+        const [leftStep, leftId] = localSortKey(left);
+        const [rightStep, rightId] = localSortKey(right);
+        const componentCompare = String(left.component || '').localeCompare(String(right.component || ''));
+        return leftStep - rightStep || componentCompare || leftId.localeCompare(rightId);
+      });
+      const passTargetForItem = item => {
+        const passes = String(item.entry?.passes || '').trim();
+        if (!passes) return '';
+        const [sourceStep] = localSortKey(item);
+        const targets = [];
+        orderedItems.forEach(candidate => {
+          if (candidate.operation === item.operation) return;
+          const [candidateStep] = localSortKey(candidate);
+          if (candidateStep < sourceStep) return;
+          const payload = candidate.operation?.payload && typeof candidate.operation.payload === 'object'
+            ? candidate.operation.payload
+            : {};
+          if (String(payload.input || '').trim() !== passes) return;
+          const component = String(candidate.component || '').trim();
+          if (component && !targets.includes(component)) targets.push(component);
+        });
+        return targets.join(' / ');
+      };
+      if (!orderedItems.length) return '';
+      return (
         '<details class="flow-local-group">'
         + '<summary>'
         + '<span>'
-        + `<strong>${escapeHtml(container || 'container')}</strong>`
-        + `<em>${escapeHtml(localFlow || 'local_flow')}</em>`
+        + '<strong>Component operations</strong>'
         + '</span>'
-        + `<span>${groupOperations.length} operations</span>`
+        + `<span>${escapeHtml(groupSummary(orderedItems))}</span>`
         + '</summary>'
         + '<div class="flow-operation-list">'
-        + groupOperations.map(operation => {
+        + orderedItems.map(item => {
+          const { operation, entry } = item;
           const payload = operation.payload && typeof operation.payload === 'object' ? operation.payload : {};
           const source = [operation.source, operation.line].filter(Boolean).join(':');
+          const localStep = String(entry?.local_step || '').trim();
+          const component = String(item.component || operation.component || payload.component || '').trim();
+          const operationId = String(operation.id || payload.id || '').trim();
+          const passes = String(entry?.passes || '').trim();
+          const passTarget = passTargetForItem(item);
+          const handoff = passes
+            ? `Passes ${passes}${passTarget ? ` to ${passTarget}` : ''}`
+            : '';
+          const title = component && operationId ? `${component} - ${operationId}` : component || operationId;
           const ioItems = [
             ['Input', payload.input],
             ['Returns', payload.returns],
           ].filter(([, value]) => String(value || '').trim()).map(([label, value]) => (
-            `<li><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></li>`
+            `<span><em>${escapeHtml(label)}</em> ${escapeHtml(value)}</span>`
           )).join('');
           const logicItems = Array.isArray(payload.logic)
             ? payload.logic.filter(item => String(item || '').trim()).map(item => `<li>${escapeHtml(item)}</li>`).join('')
             : '';
           return (
-            '<details class="flow-operation-row">'
-            + '<summary>'
-            + '<span>'
-            + `<strong>${escapeHtml(operation.id || payload.id || '')}</strong>`
+            '<div class="flow-operation-step">'
+            + (localStep ? `<span class="flow-operation-dot">${escapeHtml(localStep)}</span>` : '<span class="flow-operation-dot"></span>')
+            + '<div class="flow-operation-step-body">'
+            + '<div class="flow-operation-step-head">'
+            + '<div>'
+            + `<strong>${escapeHtml(title)}</strong>`
             + (source ? `<em>${escapeHtml(source)}</em>` : '')
-            + '</span>'
-            + '<span></span>'
-            + '<span class="entity-shape-chevron" aria-hidden="true"></span>'
-            + '</summary>'
-            + (ioItems ? `<ul class="flow-step-io flow-operation-io">${ioItems}</ul>` : '')
+            + '</div>'
+            + '</div>'
+            + (ioItems ? `<div class="flow-operation-io">${ioItems}</div>` : '')
+            + (handoff ? `<div class="flow-operation-handoff">${escapeHtml(handoff)}</div>` : '')
             + (logicItems
-              ? '<div class="flow-step-logic"><span>Logic</span><ul>' + logicItems + '</ul></div>'
+              ? '<div class="flow-operation-logic"><span>Logic</span><ol>' + logicItems + '</ol></div>'
               : '')
-            + '</details>'
+            + '</div>'
+            + '</div>'
           );
         }).join('')
         + '</div>'
         + '</details>'
-        );
-      }).join('');
+      );
     }
 
-    function flowStepRowHtml({ number, edge, input, output, logic }, operations = []) {
-      const logicItems = String(logic || '')
+    function flowStepRowHtml({ number, container, input, output, logic }, operations = []) {
+      const logicLines = String(logic || '')
         .split(/\n+/)
         .map(item => item.trim())
-        .filter(Boolean)
+        .filter(Boolean);
+      const logicItems = logicLines
         .map(item => `<li>${escapeHtml(item)}</li>`)
         .join('');
-      const operationGroups = flowOperationRowsHtml(operations, String(number || ''));
+      const description = logicLines[0] || 'Runtime component step';
+      const operationGroups = flowOperationRowsHtml(operations, String(number || ''), String(container || ''));
       return (
         '<details class="flow-step-row">'
         + '<summary class="flow-step-summary">'
         + `<span class="flow-step-index">${escapeHtml(number)}</span>`
         + '<span class="flow-step-visible">'
-        + `<strong>${escapeHtml(edge)}</strong>`
+        + `<strong>${escapeHtml(container)}</strong>`
+        + `<em>${escapeHtml(description)}</em>`
         + '</span>'
         + '<span class="entity-shape-chevron" aria-hidden="true"></span>'
         + '</summary>'
@@ -3126,7 +3836,7 @@
         + '</ul>'
         + (logicItems ? '<div class="flow-step-logic"><span>Logic</span><ul>' + logicItems + '</ul></div>' : '')
         + (operationGroups
-          ? '<div class="flow-step-local"><span class="component-row-label">Local flows and operations</span>'
+          ? '<div class="flow-step-local"><span class="component-row-label">Component operations in this step</span>'
             + operationGroups
             + '</div>'
           : '')
@@ -3139,10 +3849,10 @@
       const bodyRows = Array.from(table.querySelectorAll('tr')).slice(1);
       const rows = bodyRows.map(row => {
         const cells = Array.from(row.children);
-        const [numberCell, edgeCell, inputCell, outputCell, logicCell] = cells;
+        const [numberCell, containerCell, inputCell, outputCell, logicCell] = cells;
         return flowStepRowHtml({
           number: readableCellText(numberCell),
-          edge: readableCellText(edgeCell),
+          container: readableCellText(containerCell),
           input: readableCellText(inputCell),
           output: readableCellText(outputCell),
           logic: readableCellText(logicCell),
@@ -3158,13 +3868,13 @@
         const operations = operationCard ? annotationCardsFromSection(operationCard) : [];
         section.querySelectorAll('.diagram-card .diagram-header p').forEach(copy => {
           if (copy.textContent.includes('table')) {
-            copy.textContent = 'Numbered edges correspond to the flow steps below.';
+            copy.textContent = 'Runtime containers are shown as nodes. Arrows show control moving between containers.';
           }
         });
         Array.from(section.querySelectorAll(':scope > .card > table')).forEach(table => {
           const headers = Array.from(table.querySelectorAll('tr:first-child th'))
             .map(header => header.textContent.trim().toLowerCase());
-          const isFlowTable = ['#', 'edge', 'input', 'output', 'logic']
+          const isFlowTable = ['#', 'container', 'input', 'output', 'logic']
             .every((header, index) => headers[index] === header);
           if (!isFlowTable) return;
           const rows = flowStepRowsFromTable(table, operations);
@@ -3175,12 +3885,12 @@
         });
         section.querySelectorAll('.flow-step-list > div.flow-step-row').forEach(row => {
           const number = readableCellText(row.querySelector('.flow-step-index'));
-          const edge = readableCellText(row.querySelector('.flow-step-edge'));
+          const container = readableCellText(row.querySelector('.flow-step-container'));
           const fields = Array.from(row.querySelectorAll('.flow-step-field strong')).map(readableCellText);
           const logic = readableCellText(row.querySelector('.flow-step-logic ul'));
           row.insertAdjacentHTML('beforebegin', flowStepRowHtml({
             number,
-            edge,
+            container,
             input: fields[0] || '',
             output: fields[1] || '',
             logic,
@@ -3191,7 +3901,7 @@
           operationCard.remove();
         }
         cards
-          .filter(card => card.querySelector('.diagram-header h3')?.textContent.trim().startsWith('Local Flow:'))
+          .filter(card => card.querySelector('.diagram-header h3')?.textContent.trim().startsWith('Component Operations:'))
           .forEach(card => card.remove());
       });
     }
@@ -3247,6 +3957,28 @@
             operationCard.innerHTML = '<h4>Operations</h4>' + rows;
           }
         }
+      });
+    }
+
+    function bindAnnotationFilters(root = document) {
+      root.querySelectorAll('[data-annotation-filter]').forEach(filter => {
+        if (filter.dataset.bound === 'true') return;
+        filter.dataset.bound = 'true';
+        const table = filter.nextElementSibling;
+        const scope = table || filter.closest('.card');
+        if (!scope) return;
+        filter.addEventListener('click', event => {
+          const button = event.target.closest('.annotation-filter-btn');
+          if (!button) return;
+          const value = button.dataset.filterValue || 'all';
+          filter.querySelectorAll('.annotation-filter-btn').forEach(item => {
+            item.classList.toggle('active', item === button);
+          });
+          scope.querySelectorAll('[data-filter-type]').forEach(row => {
+            const values = String(row.dataset.filterValues || row.dataset.filterType || '').split(/\s+/).filter(Boolean);
+            row.hidden = value !== 'all' && !values.includes(value);
+          });
+        });
       });
     }
 
@@ -3387,7 +4119,6 @@
             '<div class="entity-persistence-block">'
             + `<div class="metadata-summary metadata-summary-compact">${summaryHtml}</div>`
             + `<div class="metadata-table-wrap"><table class="metadata-table">${rows}</table></div>`
-            + rawPayloadDetails('Raw Persistence Payload', payload)
             + '</div>'
           );
         }).join('');
@@ -3405,7 +4136,6 @@
           + `<p>${escapeHtml(entity.description)}</p>`
           + `<div class="metadata-summary metadata-summary-compact">${summary}</div>`
           + security
-          + rawPayloadDetails('Raw Entity Payload', entity)
           + '</div>'
           + lifecycleCard
           + shapesCard
@@ -3461,6 +4191,7 @@
     }
 
     bindNavigation();
+    bindDiagramZoomButtons();
     bindEnvironmentSelectors();
     enhanceDataOverviewPersistenceChips();
     enhanceContainerDetailSections();

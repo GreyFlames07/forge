@@ -61,9 +61,8 @@ class ArchiveNoteLookup:
 #   - Persist the pending note record.
 #   - Return the stored note record.
 # participates_in:
-#   - container_flow: create_note
-#     local_flow: create_note_backend
-#     step: 3
+#   - container_flow: create_note:2
+#     local_flow: create_note_backend:3
 #     passes: ref[note_record]
 def save_created_note(record: PendingNoteRecord) -> dict[str, str]:
     return {
@@ -83,9 +82,8 @@ def save_created_note(record: PendingNoteRecord) -> dict[str, str]:
 #   - Order notes by updated time.
 #   - Return a note list response.
 # participates_in:
-#   - container_flow: list_notes
-#     local_flow: list_notes_backend
-#     step: 3
+#   - container_flow: list_notes:2
+#     local_flow: list_notes_backend:3
 #     passes: ref[note_list_response]
 def list_active_notes(_lookup: ActiveNotesLookup) -> dict[str, list[dict[str, str]]]:
     return {"notes": []}
@@ -100,9 +98,8 @@ def list_active_notes(_lookup: ActiveNotesLookup) -> dict[str, list[dict[str, st
 #   - Change status from active to archived.
 #   - Return the updated note record.
 # participates_in:
-#   - container_flow: archive_note
-#     local_flow: archive_note_backend
-#     step: 3
+#   - container_flow: archive_note:2
+#     local_flow: archive_note_backend:3
 #     passes: ref[note_record]
 def archive_active_note(lookup: ArchiveNoteLookup) -> dict[str, str]:
     return {

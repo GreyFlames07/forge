@@ -84,8 +84,7 @@ container_flows:
       input: ref[registration_form_state]
     steps:
       - id: 1
-        from: frontend_ui
-        to: backend_api
+        container: frontend_ui
         input: ref[registration_form_state]
         output: ref[register_user_request]
         logic:
@@ -93,34 +92,40 @@ container_flows:
           - Submit registration data to the backend.
         next: 2
       - id: 2
-        from: backend_api
-        to: notes_db
+        container: backend_api
         input: ref[register_user_request]
+        output: ref[pending_user_record]
         logic:
           - Check whether the email is already registered.
           - Hash the password.
-          - Store the new user record when valid.
+          - Build a pending user record when valid.
         branches:
           - condition: Email is available and request is valid.
             next: 3
-            output: ref[user_record]
+            output: ref[pending_user_record]
           - condition: Email is already registered or request is invalid.
-            next: 4
+            next: 5
             output: ref[registration_error_response]
       - id: 3
-        from: backend_api
-        to: frontend_ui
+        container: notes_db
+        input: ref[pending_user_record]
+        output: ref[user_record]
+        logic:
+          - Persist the pending user record.
+        next: 4
+      - id: 4
+        container: backend_api
         input: ref[user_record]
         output: ref[registration_success_response]
         logic:
           - Map the stored user to a registration success response.
-      - id: 4
-        from: backend_api
-        to: frontend_ui
-        input: ref[registration_error_response]
-        output: ref[registration_error_response]
+        next: 5
+      - id: 5
+        container: frontend_ui
+        input: ref[registration_success_response] or ref[registration_error_response]
+        output: ref[registration_form_state]
         logic:
-          - Return a user-facing registration error.
+          - Render the registration success or error state.
     outcomes:
       - user_registered
       - registration_rejected
@@ -134,8 +139,7 @@ container_flows:
       input: ref[sign_in_form_state]
     steps:
       - id: 1
-        from: frontend_ui
-        to: backend_api
+        container: frontend_ui
         input: ref[sign_in_form_state]
         output: ref[sign_in_request]
         logic:
@@ -143,8 +147,7 @@ container_flows:
           - Submit credentials to the backend.
         next: 2
       - id: 2
-        from: backend_api
-        to: notes_db
+        container: backend_api
         input: ref[sign_in_request]
         logic:
           - Load the user by email.
@@ -155,22 +158,14 @@ container_flows:
             next: 3
             output: ref[session_record]
           - condition: Credentials are invalid.
-            next: 4
+            next: 3
             output: ref[sign_in_error_response]
       - id: 3
-        from: backend_api
-        to: frontend_ui
-        input: ref[session_record]
-        output: ref[sign_in_success_response]
+        container: frontend_ui
+        input: ref[sign_in_success_response] or ref[sign_in_error_response]
+        output: ref[sign_in_form_state]
         logic:
-          - Return session data to the frontend.
-      - id: 4
-        from: backend_api
-        to: frontend_ui
-        input: ref[sign_in_error_response]
-        output: ref[sign_in_error_response]
-        logic:
-          - Return a user-facing sign-in error.
+          - Render approved session data or a user-facing sign-in error.
     outcomes:
       - session_started
       - sign_in_rejected
@@ -184,8 +179,7 @@ container_flows:
       input: ref[note_editor_state]
     steps:
       - id: 1
-        from: frontend_ui
-        to: backend_api
+        container: frontend_ui
         input: ref[note_editor_state]
         output: ref[create_note_request]
         logic:
@@ -193,8 +187,7 @@ container_flows:
           - Submit the note creation request with session context.
         next: 2
       - id: 2
-        from: backend_api
-        to: notes_db
+        container: backend_api
         input: ref[create_note_request]
         logic:
           - Authenticate the session.
@@ -205,22 +198,14 @@ container_flows:
             next: 3
             output: ref[note_record]
           - condition: Session is invalid or note content is rejected.
-            next: 4
+            next: 3
             output: ref[note_error_response]
       - id: 3
-        from: backend_api
-        to: frontend_ui
-        input: ref[note_record]
-        output: ref[note_detail_response]
+        container: frontend_ui
+        input: ref[note_detail_response] or ref[note_error_response]
+        output: ref[note_editor_state]
         logic:
-          - Return the created note to the frontend.
-      - id: 4
-        from: backend_api
-        to: frontend_ui
-        input: ref[note_error_response]
-        output: ref[note_error_response]
-        logic:
-          - Return a user-facing note creation error.
+          - Render the created note response or a user-facing note creation error.
     outcomes:
       - note_created
       - note_creation_rejected
@@ -234,16 +219,14 @@ container_flows:
       input: ref[list_notes_view_request]
     steps:
       - id: 1
-        from: frontend_ui
-        to: backend_api
+        container: frontend_ui
         input: ref[list_notes_view_request]
         output: ref[list_notes_request]
         logic:
           - Request active notes using the current session.
         next: 2
       - id: 2
-        from: backend_api
-        to: notes_db
+        container: backend_api
         input: ref[list_notes_request]
         output: ref[note_list_response]
         logic:
@@ -251,12 +234,11 @@ container_flows:
           - Load active notes ordered by last update time.
         next: 3
       - id: 3
-        from: backend_api
-        to: frontend_ui
+        container: frontend_ui
         input: ref[note_list_response]
         output: ref[note_list_response]
         logic:
-          - Return active notes to the frontend.
+          - Render active notes in the frontend.
     outcomes:
       - notes_listed
 
@@ -269,8 +251,7 @@ container_flows:
       input: ref[archive_note_ui_command]
     steps:
       - id: 1
-        from: frontend_ui
-        to: backend_api
+        container: frontend_ui
         input: ref[archive_note_ui_command]
         output: ref[archive_note_request]
         logic:
@@ -278,8 +259,7 @@ container_flows:
           - Submit the archive request with session context.
         next: 2
       - id: 2
-        from: backend_api
-        to: notes_db
+        container: backend_api
         input: ref[archive_note_request]
         logic:
           - Authenticate the session.
@@ -290,22 +270,14 @@ container_flows:
             next: 3
             output: ref[note_record]
           - condition: Note does not exist or cannot be archived.
-            next: 4
+            next: 3
             output: ref[note_error_response]
       - id: 3
-        from: backend_api
-        to: frontend_ui
-        input: ref[note_record]
+        container: frontend_ui
+        input: ref[note_detail_response] or ref[note_error_response]
         output: ref[note_detail_response]
         logic:
-          - Return the archived note state to the frontend.
-      - id: 4
-        from: backend_api
-        to: frontend_ui
-        input: ref[note_error_response]
-        output: ref[note_error_response]
-        logic:
-          - Return a user-facing archive error.
+          - Render the archived note state or a user-facing archive error.
     outcomes:
       - note_archived
       - archive_rejected

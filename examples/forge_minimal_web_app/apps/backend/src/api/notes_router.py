@@ -41,9 +41,8 @@ class NoteCommand:
 #   - Validate transport-level request shape.
 #   - Convert the request into a create note command.
 # participates_in:
-#   - container_flow: create_note
-#     local_flow: create_note_backend
-#     step: 1
+#   - container_flow: create_note:2
+#     local_flow: create_note_backend:1
 #     passes: ref[create_note_command]
 #     next: 2
 def handle_create_note(request: dict[str, str]) -> NoteCommand:
@@ -63,9 +62,8 @@ def handle_create_note(request: dict[str, str]) -> NoteCommand:
 #   - Validate the session token field.
 #   - Convert the request into an active notes query.
 # participates_in:
-#   - container_flow: list_notes
-#     local_flow: list_notes_backend
-#     step: 1
+#   - container_flow: list_notes:2
+#     local_flow: list_notes_backend:1
 #     passes: ref[list_notes_query]
 #     next: 2
 def handle_list_notes(request: dict[str, str]) -> NoteCommand:
@@ -81,9 +79,8 @@ def handle_list_notes(request: dict[str, str]) -> NoteCommand:
 #   - Validate the session token and note id fields.
 #   - Convert the request into an archive note command.
 # participates_in:
-#   - container_flow: archive_note
-#     local_flow: archive_note_backend
-#     step: 1
+#   - container_flow: archive_note:2
+#     local_flow: archive_note_backend:1
 #     passes: ref[archive_note_command]
 #     next: 2
 def handle_archive_note(request: dict[str, str]) -> NoteCommand:
@@ -101,15 +98,13 @@ def handle_archive_note(request: dict[str, str]) -> NoteCommand:
 #   - Accept a note record.
 #   - Build a frontend note detail response.
 # participates_in:
-#   - container_flow: create_note
-#     local_flow: create_note_backend
-#     step: 4
+#   - container_flow: create_note:2
+#     local_flow: create_note_backend:4
 #     passes: ref[note_detail_response]
 #     flow_logic:
 #       - Return the newly created note to the frontend.
-#   - container_flow: archive_note
-#     local_flow: archive_note_backend
-#     step: 4
+#   - container_flow: archive_note:2
+#     local_flow: archive_note_backend:4
 #     passes: ref[note_detail_response]
 #     flow_logic:
 #       - Return the archived note state to the frontend.
@@ -125,9 +120,8 @@ def build_note_detail_response(note: dict[str, str]) -> dict[str, dict[str, str]
 #   - Accept the active notes list.
 #   - Return the list response unchanged.
 # participates_in:
-#   - container_flow: list_notes
-#     local_flow: list_notes_backend
-#     step: 4
+#   - container_flow: list_notes:2
+#     local_flow: list_notes_backend:4
 #     passes: ref[note_list_response]
 def build_list_notes_response(response: dict[str, list[dict[str, str]]]) -> dict[str, list[dict[str, str]]]:
     return response

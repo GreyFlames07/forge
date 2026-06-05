@@ -36,7 +36,7 @@ jobs:
         run: pytest -q
 
       - name: Compile source
-        run: python -m compileall -q src/cli/__init__.py src/cli/__main__.py src/cli/common.py src/cli/forge.py src/cli/schema.py src/cli/commands
+        run: python -m compileall -q src/cli/__init__.py src/cli/__main__.py src/cli/common.py src/cli/forge.py src/cli/yaml_io.py src/cli/commands
 
       - name: Build distributions
         run: |
@@ -59,8 +59,15 @@ jobs:
         run: |
           tmpdir="$(mktemp -d)"
           /tmp/forge-wheel-venv/bin/forge init --root "$tmpdir" --name "CI Project" --id ci_project --no-animation >/tmp/forge-init.log
+          test -f "$tmpdir/business-plan.md"
           test -f "$tmpdir/forge/USING_FORGE.md"
-          test -f "$tmpdir/forge/SCHEMA_REFERENCE_V3.md"
+          test -f "$tmpdir/forge/SCHEMA_REFERENCE_V4.md"
+          test -f "$tmpdir/forge/FRAMEWORK_V4.md"
+          test -f "$tmpdir/forge/decisions.yaml"
+          test ! -f "$tmpdir/forge/SCHEMA_REFERENCE_V3.md"
+          test ! -f "$tmpdir/forge/FRAMEWORK_V3.md"
+          test -f "$tmpdir/forge/skills/forge-business/SKILL.md"
           test -f "$tmpdir/forge/skills/forge-schema/SKILL.md"
           test -f "$tmpdir/forge/skills/forge-build/SKILL.md"
+          test -f "$tmpdir/forge/skills/forge-hydrate/SKILL.md"
           grep -q "Start With Skills" "$tmpdir/forge/USING_FORGE.md"

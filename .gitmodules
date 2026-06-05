@@ -1,6 +1,3 @@
 [submodule "skills/forge-build/coding_agent_skills_reference"]
 	path = skills/forge-build/coding_agent_skills_reference
 	url = https://github.com/addyosmani/agent-skills.git
-[submodule "skills/forge-security/anthropic_cybersecurity_skills_reference"]
-	path = skills/forge-security/anthropic_cybersecurity_skills_reference
-	url = https://github.com/mukul975/Anthropic-Cybersecurity-Skills.git

@@ -436,8 +436,8 @@ def test_init_scaffolds_v4_project(tmp_path: Path, capsys) -> None:
     assert (forge_root / "skills" / "forge-schema" / "SKILL.md").exists()
     assert (forge_root / "skills" / "forge-hydrate" / "SKILL.md").exists()
     skill_text = (forge_root / "skills" / "forge-schema" / "SKILL.md").read_text(encoding="utf-8")
-    assert "../../FRAMEWORK_V4.md" in skill_text
-    assert "../../SCHEMA_REFERENCE_V4.md" in skill_text
+    assert "forge/FRAMEWORK_V4.md" in skill_text
+    assert "forge/SCHEMA_REFERENCE_V4.md" in skill_text
     capsys.readouterr()
     assert main(["crawl", "--project-dir", str(root)]) == 0
     payload = json.loads(capsys.readouterr().out)

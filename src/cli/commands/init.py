@@ -25,6 +25,7 @@ SKILL_SURFACES = [
     ".claude/skills",
     ".codex/skills",
     ".agents/skills",
+    ".copilot/skills",
 ]
 
 DOC_FILES = [
@@ -227,10 +228,13 @@ def _rewrite_skill_references(forge_root: Path) -> None:
     for skill_name in SKILL_DIRS:
         skill_path = forge_root / "skills" / skill_name / "SKILL.md"
         text = skill_path.read_text(encoding="utf-8")
-        if "Read before starting:" in text and "../../USING_FORGE.md" not in text:
+        text = text.replace("../../SCHEMA_REFERENCE_V4.md", "forge/SCHEMA_REFERENCE_V4.md")
+        text = text.replace("../../FRAMEWORK_V4.md", "forge/FRAMEWORK_V4.md")
+        text = text.replace("../../USING_FORGE.md", "forge/USING_FORGE.md")
+        if "Read before starting:" in text and "forge/USING_FORGE.md" not in text:
             text = text.replace(
                 "Read before starting:\n",
-                "Read before starting:\n\n- `../../USING_FORGE.md`\n",
+                "Read before starting:\n\n- `forge/USING_FORGE.md`\n",
                 1,
             )
         skill_path.write_text(text, encoding="utf-8")
@@ -253,30 +257,7 @@ def _create_surface_skill(surface_root: Path, forge_root: Path, skill_name: str)
             target_skill.unlink()
         else:
             shutil.rmtree(target_skill)
-    target_skill.mkdir(parents=True, exist_ok=True)
-
-    for child in source_skill.iterdir():
-        if child.name == "SKILL.md":
-            continue
-        target_child = target_skill / child.name
-        if target_child.exists() or target_child.is_symlink():
-            if target_child.is_symlink() or target_child.is_file():
-                target_child.unlink()
-            else:
-                shutil.rmtree(target_child)
-        target_child.symlink_to(_relative_symlink_target(target_skill, child), target_is_directory=child.is_dir())
-
-    surfaced_skill = _surface_skill_text(source_skill / "SKILL.md")
-    (target_skill / "SKILL.md").write_text(surfaced_skill, encoding="utf-8")
-
-
-def _surface_skill_text(skill_path: Path) -> str:
-    text = skill_path.read_text(encoding="utf-8")
-    return (
-        text.replace("../../SCHEMA_REFERENCE_V4.md", "../../../forge/SCHEMA_REFERENCE_V4.md")
-        .replace("../../FRAMEWORK_V4.md", "../../../forge/FRAMEWORK_V4.md")
-        .replace("../../USING_FORGE.md", "../../../forge/USING_FORGE.md")
-    )
+    target_skill.symlink_to(_relative_symlink_target(surface_root, source_skill), target_is_directory=True)
 
 
 def _relative_symlink_target(link_parent: Path, destination: Path) -> Path:

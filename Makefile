@@ -52,7 +52,11 @@ verify-package: clean-package-resources sync-package-resources
 	test -f "$$tmpdir/forge/decisions.yaml"; \
 	test -f "$$tmpdir/forge/skills/forge-business/SKILL.md"; \
 	test -f "$$tmpdir/forge/skills/forge-schema/SKILL.md"; \
-	test -f "$$tmpdir/forge/skills/forge-hydrate/SKILL.md"
+	test -f "$$tmpdir/forge/skills/forge-hydrate/SKILL.md"; \
+	test -L "$$tmpdir/.codex/skills/forge-build"; \
+	test -L "$$tmpdir/.claude/skills/forge-schema"; \
+	test -L "$$tmpdir/.agents/skills/forge-review"; \
+	test -L "$$tmpdir/.copilot/skills/forge-security"
 
 smoke-init:
 	tmpdir=$$(mktemp -d); \
@@ -63,6 +67,10 @@ smoke-init:
 	test -f "$$tmpdir/forge/skills/forge-business/SKILL.md"; \
 	test -f "$$tmpdir/forge/skills/forge-hydrate/SKILL.md"; \
 	test -f "$$tmpdir/forge/skills/forge-build/SKILL.md"; \
+	test -L "$$tmpdir/.codex/skills/forge-build"; \
+	test -L "$$tmpdir/.claude/skills/forge-schema"; \
+	test -L "$$tmpdir/.agents/skills/forge-review"; \
+	test -L "$$tmpdir/.copilot/skills/forge-security"; \
 	grep -q "Start With Skills" "$$tmpdir/forge/USING_FORGE.md"
 
 check: lint typecheck test compile check-dist verify-package smoke-init

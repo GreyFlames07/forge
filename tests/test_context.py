@@ -117,20 +117,22 @@ def test_init_scaffolds_traversable_repo(tmp_path: Path, capsys) -> None:
     assert "*.egg-info/" in (root / ".gitignore").read_text(encoding="utf-8")
     codex_skill = root / ".codex" / "skills" / "forge-build"
     assert codex_skill.is_dir()
-    assert not codex_skill.is_symlink()
+    assert codex_skill.is_symlink()
+    assert codex_skill.resolve() == forge_root / "skills" / "forge-build"
     assert (codex_skill / "SKILL.md").exists()
     assert (codex_skill / "agents" / "openai.yaml").exists()
     assert not (codex_skill / "coding_agent_skills_reference").exists()
     surfaced_skill = (codex_skill / "SKILL.md").read_text(encoding="utf-8")
-    assert "../../../forge/USING_FORGE.md" in surfaced_skill
+    assert "forge/USING_FORGE.md" in surfaced_skill
     assert "../forge-schema/SKILL.md" in surfaced_skill
-    assert (root / ".claude" / "skills" / "forge-business" / "SKILL.md").exists()
-    assert (root / ".claude" / "skills" / "forge-schema" / "SKILL.md").exists()
-    assert (root / ".claude" / "skills" / "forge-hydrate" / "SKILL.md").exists()
-    assert (root / ".agents" / "skills" / "forge-review" / "SKILL.md").exists()
+    assert (root / ".claude" / "skills" / "forge-business").is_symlink()
+    assert (root / ".claude" / "skills" / "forge-schema").is_symlink()
+    assert (root / ".claude" / "skills" / "forge-hydrate").is_symlink()
+    assert (root / ".agents" / "skills" / "forge-review").is_symlink()
+    assert (root / ".copilot" / "skills" / "forge-security").is_symlink()
     rewritten_skill = (forge_root / "skills" / "forge-schema" / "SKILL.md").read_text(encoding="utf-8")
-    assert "../../SCHEMA_REFERENCE_V4.md" in rewritten_skill
-    assert "../../USING_FORGE.md" in rewritten_skill
+    assert "forge/SCHEMA_REFERENCE_V4.md" in rewritten_skill
+    assert "forge/USING_FORGE.md" in rewritten_skill
     usage_doc = (forge_root / "USING_FORGE.md").read_text(encoding="utf-8")
     assert "Forge is **skills-first**." in usage_doc
     assert "Use Forge In This Order" in usage_doc

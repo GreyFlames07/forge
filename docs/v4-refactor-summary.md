@@ -103,6 +103,5 @@ The following local tool/runtime artifacts were present in the workspace but are
 - `.vscode/`
 - generated audit screenshots
 - generated `forge-audit.html`
-- local Gofer runtime scripts/templates under `.specify/`
 
 These are ignored so the PR contains only product code, tests, docs, and the V4 example project.

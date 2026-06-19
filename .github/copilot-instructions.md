@@ -4,11 +4,20 @@
 
 **forge** is a Python project. Test runner: pytest.
 
-## Gofer Pipeline
+Forge is a skills-first Python CLI for V4 system design and delivery. It keeps
+C1/C2 architecture central, keeps C3 implementation architecture beside code,
+and packages Forge skills for initialized repositories.
 
-This project uses Gofer for spec-driven development. Run `/0_business_scenario` to start the full pipeline: research -> specify -> plan -> tasks -> implement -> validate.
+## Commands
 
-Key commands: `/1_gofer_research`, `/2_gofer_specify`, `/3_gofer_plan`, `/4_gofer_tasks`, `/5_gofer_implement`, `/6_gofer_validate`. Use `/7_gofer_save` and `/8_gofer_resume` for session continuity. Artifacts in `.specify/specs/{feature}/`.
+- `make lint`: run Ruff on `src` and `tests`
+- `make typecheck`: run mypy
+- `make test`: run pytest
+- `make compile`: compile CLI Python modules
+- `make build`: sync package resources and build distributions
+- `make verify-package`: build and smoke-test the wheel in a fresh venv
+- `make smoke-init`: smoke-test `forge init`
+- `make check`: run the full local verification path
 
 ## Code Quality
 

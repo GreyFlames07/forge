@@ -54,7 +54,3 @@ See @AGENTS.md for project conventions, commands, and code style.
 - **Simplicity First**: Make every change as simple as possible. Impact minimal code.
 - **No Laziness**: Find root causes. No temporary fixes. Senior developer standards.
 - **Minimal Impact**: Changes should only touch what's necessary. Avoid introducing bugs.
-
-## Gofer Pipeline
-
-Run `/0_business_scenario` to start the full pipeline: research -> specify -> plan -> tasks -> implement -> validate. Use `/7_gofer_save` and `/8_gofer_resume` for session continuity. Artifacts go to `.specify/specs/{feature}/`.

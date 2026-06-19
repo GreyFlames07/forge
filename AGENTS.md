@@ -4,7 +4,14 @@
 
 ## Commands
 
-No commands detected. Add build/test/lint scripts to your project.
+- `make lint`: run Ruff on `src` and `tests`
+- `make typecheck`: run mypy
+- `make test`: run pytest
+- `make compile`: compile CLI Python modules
+- `make build`: sync package resources and build distributions
+- `make verify-package`: build and smoke-test the wheel in a fresh venv
+- `make smoke-init`: smoke-test `forge init`
+- `make check`: run the full local verification path
 
 ## Code Style
 
@@ -29,10 +36,6 @@ No commands detected. Add build/test/lint scripts to your project.
 - Use conventional commit messages (feat:, fix:, chore:, docs:)
 - Create feature branches for new work
 - Run tests and linting before committing
-
-## Gofer Pipeline
-
-This project uses Gofer for spec-driven development. Run `/0_business_scenario` to start the pipeline (research -> specify -> plan -> tasks -> implement -> validate). Artifacts in `.specify/specs/{feature}/`.
 
 ## Core Principles
 

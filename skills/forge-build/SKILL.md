@@ -31,6 +31,30 @@ This skill has two modes:
 
 Do not redesign the system here. If implementation proves the system, containers, entities, flows, or security posture are wrong, route the change back through `forge-schema`, `forge-review`, or `forge-security`.
 
+## YAGNI Build Discipline
+
+Forge Build treats lazy as efficient, not careless. Before writing code, stop at
+the first rung that works:
+
+1. Does this behavior need to exist for the selected slice?
+2. Does the repository already have this behavior or a pattern to reuse?
+3. Does the language, framework, browser, database, shell, or platform already do it?
+4. Does an already-installed dependency solve it without new ownership?
+5. Can the slice be implemented as a small direct change?
+6. Only then add new structure, and only the minimum that passes the checks.
+
+Never simplify away trust-boundary validation, data-loss-safe error handling,
+security, accessibility, or explicit Forge contracts. Do simplify away
+speculative abstractions, one-use factories, new configuration, generic helper
+layers, premature extension points, and defensive branches for impossible states.
+
+If a shortcut has a known ceiling, mark it near the code with a `yagni:`
+comment that names the ceiling and upgrade trigger. Example:
+
+```text
+// yagni: linear scan is fine below 1k local items; add indexed lookup if crawl time exceeds 200ms.
+```
+
 ## Decision Log
 
 Read `forge/decisions.yaml` when it exists and use it as build context.
@@ -111,18 +135,20 @@ Before coding:
 3. If a simpler approach exists, say so and prefer it unless it violates the Forge model.
 4. If the request, schema, or code context is unclear, stop and name the ambiguity.
 5. Define success criteria as verifiable checks before implementation.
+6. Name what you are deliberately not building yet.
 
 Workflow:
 
 1. Load the narrow Forge context for the target business action, container flow, container, entity, or component.
 2. Identify the smallest runnable slice and the runtime steps it touches.
-3. Map each touched runtime step to the C3 annotations it needs.
-4. Confirm all implementation files live under the correct `source_root`; adjust schema only when the source-root model is genuinely wrong.
-5. Implement the minimum code needed for the slice.
-6. Add or update C3 annotations in the same code change.
-7. Add or update focused tests.
-8. Run relevant tests and `forge crawl --format json`.
-9. Fix broken references, missing annotations, contract drift, and failed tests before calling the slice complete.
+3. Run the YAGNI ladder against each planned code change.
+4. Map each touched runtime step to the C3 annotations it needs.
+5. Confirm all implementation files live under the correct `source_root`; adjust schema only when the source-root model is genuinely wrong.
+6. Add or update focused tests before or alongside implementation when behavior is non-trivial.
+7. Implement the minimum code needed for the slice.
+8. Add or update C3 annotations in the same code change.
+9. Run relevant tests and `forge crawl --format json`.
+10. Fix broken references, missing annotations, contract drift, and failed tests before calling the slice complete.
 
 The C3 scope map should identify:
 
@@ -149,7 +175,10 @@ Think before coding:
 Keep the implementation simple:
 
 - build no features beyond the selected slice
+- prefer stdlib, platform features, and local helpers before new code
+- add no dependency unless the alternative is meaningfully riskier or larger
 - add no abstractions for single-use code
+- inline one-use wrappers, factories, adapters, and config unless Forge contracts require a boundary
 - add no configurability that was not requested
 - add no defensive error handling for impossible states unless required by the Forge contract
 - if the implementation grows much larger than the behavior warrants, simplify it before moving on
@@ -169,6 +198,8 @@ Drive execution by verifiable goals:
 - for bug fixes, reproduce the bug with a failing test before fixing it when feasible
 - for refactors, establish current behavior before changing structure and verify behavior afterward
 - for multi-step slices, use a short plan where each step has its own verification command or observation
+- leave one runnable check for every non-trivial branch, parser, persistence path, security path, or cross-container contract
+- do not create test helpers until duplication appears or repository conventions already provide them
 
 ## Test Mode
 

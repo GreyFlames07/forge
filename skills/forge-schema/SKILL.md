@@ -97,6 +97,39 @@ Use a consultative system design workshop style.
 7. Prefer the simplest architecture that satisfies the system drivers.
 8. Keep schema tied to real runtime, ownership, security, or operational needs.
 
+## Framework Reuse Preface
+
+Do not reinvent non-core capabilities. For every feature that is not core
+business logic, first identify existing industry-standard frameworks, managed
+services, platform primitives, or bootstrap templates the developer could build
+on. This includes authentication, authorization, RAG, search, security controls,
+rate limiting, payments, billing, email, analytics, observability, background
+jobs, queues, file storage, feature flags, and admin tooling.
+
+Treat framework suggestions as architecture options, not automatic decisions.
+Propose them before modeling custom runtime responsibility. Use custom
+implementation only when the business logic, constraints, compliance posture,
+cost, data ownership, or integration shape clearly justifies owning it.
+
+Keep this pass YAGNI-hardened: a framework is useful only when it reduces owned
+code and operational risk for the current build slice. Do not adopt a framework,
+managed service, starter, queue, worker, database, auth layer, or policy engine
+because a future version might need it. If the current slice can use a local
+framework primitive, existing repository pattern, or simpler managed feature,
+prefer that over a broader platform.
+
+Examples to consider when relevant:
+
+- auth: Auth.js, Clerk, Supabase Auth, framework-native auth
+- RAG and AI retrieval: LangChain, LlamaIndex, vector database integrations
+- security and abuse prevention: OWASP ASVS, Arcjet, platform middleware
+- rate limiting: Upstash Rate Limit, Arcjet, API gateway or platform limits
+- payments and billing: Stripe Checkout, Stripe Billing, Paddle
+- bootstrap frameworks: next-forge, create-t3-app, Django, Rails, Laravel,
+  Phoenix, framework starters already present in the repository
+
+Examples are prompts for research and comparison, not defaults.
+
 ## Description-First Drafting
 
 When the operator asks to evaluate ideas before schema authoring, draft
@@ -138,6 +171,20 @@ Evaluate the system through these lenses as relevant:
 Use these lenses to improve judgment. Do not force every insight into YAML.
 
 ## Workflow
+
+Default to the minimum truthful schema pass:
+
+1. system intent and boundary
+2. real actors and external dependencies
+3. business actions that matter now
+4. real runtime containers only where runtime, deployment, ownership, scaling, or
+   security boundaries justify them
+5. business-significant entities only
+
+Add runtime flows, entity lifecycle detail, deployment metadata, and C3
+responsibility plans only when they clarify the first build slice or prevent a
+real design mistake. Do not model future options as if they are current
+architecture.
 
 ### Phase 1: Situation Scan
 
@@ -228,7 +275,36 @@ order_repository
 
 That belongs to code annotations.
 
-### Phase 4: Container Model
+### Phase 4: Capability Reuse Pass
+
+Before finalizing runtime containers or custom responsibilities, classify each
+required capability as either core business logic or commodity functionality.
+
+For commodity functionality, propose existing options:
+
+- one or two framework, managed-service, platform, or bootstrap options
+- the smallest viable local or platform-native option
+- what responsibility the option would remove from this system
+- what new dependency, data boundary, cost, or lock-in it introduces
+- what code, schema, configuration, infrastructure, or operating procedure it
+  would add
+- the concrete trigger that would justify upgrading from the smallest option
+- whether the schema should model it as an external dependency, a container, or
+  a deferred decision
+
+Prefer external dependencies for managed services and framework capabilities
+that the system calls but does not own. Create a container only when this system
+deploys, operates, or meaningfully owns that runtime.
+
+Reject reuse options that add more surface area than the custom or native
+alternative for the current slice. A reusable framework that introduces unused
+flows, roles, queues, admin surfaces, multi-tenant models, billing products, or
+deployment units is still bloat until those responsibilities are real.
+
+Record a decision when choosing to build custom commodity functionality or when
+choosing a framework/service that shapes architecture.
+
+### Phase 5: Container Model
 
 Settle runtime containers after runtime flow speculation.
 
@@ -257,7 +333,7 @@ Rules:
 - Cross-container flow steps describe runtime control movement.
 - Inside-container logic should stay summarized until C3 annotations exist.
 
-### Phase 5: Entity Model
+### Phase 6: Entity Model
 
 Author or refine:
 
@@ -282,7 +358,7 @@ Rules:
 - `persisted_in` should point to durable storage ownership.
 - Do not create entities for incidental DTOs.
 
-### Phase 6: C3 Responsibility Plan
+### Phase 7: C3 Responsibility Plan
 
 For the first build slice, identify what implementation should later annotate:
 
@@ -302,7 +378,7 @@ When building this slice:
 - account_store should become @forge:persistence
 ```
 
-### Phase 7: Validation
+### Phase 8: Validation
 
 After schema edits, run where available:
 
@@ -365,14 +441,20 @@ Before calling schema work complete, check:
 2. Does `system.yaml` describe system intent, not implementation?
 3. Are business actions expressed as intent and outcomes?
 4. Were runtime flows speculated before containers were finalized?
-5. Are containers real runtime units?
-6. Are container responsibilities distinct?
-7. Are central flows cross-container/runtime-level, not C3 internals?
-8. Are entities business-significant?
-9. Are ownership, persistence, and lifecycle separated?
-10. Is C3 intentionally left to annotations?
-11. Is the first build slice thin and buildable?
-12. Would `forge-review` have enough context to evaluate the model?
+5. Were non-core capabilities checked against existing frameworks, managed
+   services, platform primitives, or bootstrap templates?
+6. Did each proposed reuse option beat the smallest native/local option for the
+   current slice?
+7. Were unused framework features, future workflows, speculative services, and
+   premature integration layers excluded from the schema?
+8. Are containers real runtime units?
+9. Are container responsibilities distinct?
+10. Are central flows cross-container/runtime-level, not C3 internals?
+11. Are entities business-significant?
+12. Are ownership, persistence, and lifecycle separated?
+13. Is C3 intentionally left to annotations?
+14. Is the first build slice thin and buildable?
+15. Would `forge-review` have enough context to evaluate the model?
 
 ## Output
 
@@ -381,6 +463,8 @@ When making changes, summarize:
 - files changed
 - system design decisions made
 - runtime flow assumptions
+- framework, managed-service, platform, or bootstrap options considered for
+  non-core functionality
 - container boundaries chosen
 - entities identified
 - C3 responsibilities deferred to annotations
@@ -390,6 +474,7 @@ When not making changes, produce a design brief with:
 
 - recommended system intent
 - inferred business-action/runtime-flow mapping
+- recommended reuse options for non-core capabilities
 - recommended container model
 - recommended entity model
 - key trade-offs
@@ -402,6 +487,11 @@ When not making changes, produce a design brief with:
 - Do not model inside-container flows centrally.
 - Do not over-model.
 - Do not add distributed-system complexity without a concrete driver.
+- Do not invent custom implementations for commodity capabilities before
+  proposing existing framework, platform, managed-service, or bootstrap options.
+- Do not adopt a reuse option that adds more runtime, schema, configuration, or
+  operational surface than the current slice needs.
+- Do not model unused framework capabilities as current architecture.
 - Do not hide uncertainty inside confident YAML.
 - Do not use technology names as architecture justification.
 - Do not proceed to build before schema, security, and review concerns are clear.

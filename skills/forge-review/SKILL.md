@@ -65,6 +65,25 @@ Every finding should include:
 
 If no issues are found, say so clearly and note any residual risk.
 
+## Complexity Review
+
+When reviewing build, schema, or annotation changes, also run a complexity pass:
+
+- `delete`: dead schema, unused annotation, speculative feature, stale option
+- `stdlib`: custom code where the language/platform already provides the behavior
+- `native`: dependency or model construct doing what the runtime, database, browser, or Forge crawler already does
+- `yagni`: abstraction, container, config, helper, flow, or decision record with only one real use
+- `shrink`: same contract or behavior can be represented with fewer files, annotations, or schema elements
+
+Prefer one-line findings:
+
+```text
+path:line: yagni: one-use adapter around a single operation. Inline until a second caller exists.
+```
+
+Do not apply fixes during review unless the user asks for a fix pass. End with a
+rough net impact when useful: `net: -N lines/files/schema elements possible`.
+
 ## Workflow
 
 ### 1. Establish Scope

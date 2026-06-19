@@ -162,8 +162,14 @@ Ask only questions that cannot be inferred from the model.
 
 ### 4. Research Medium-Specific Attack Vectors
 
-When reviewing a real system or codebase, research current common attack vectors
-for the system's medium before finalizing findings.
+When reviewing a real system or codebase with meaningful security exposure,
+research current common attack vectors for the system's medium before finalizing
+findings. Meaningful exposure includes public input, authentication,
+authorization, sensitive data, money movement, third-party calls, privileged
+actions, deployment surfaces, or user-controlled persistence/query behavior.
+
+For a small model-only edit outside those areas, do a lightweight trust-boundary
+review and state that attack-vector research was not needed.
 
 Use authoritative public references first, such as:
 

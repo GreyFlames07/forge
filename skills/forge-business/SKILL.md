@@ -74,6 +74,12 @@ Use the `forge.decisions` schema from `SCHEMA_REFERENCE_V4.md`.
 
 ## Workflow
 
+Default to the smallest useful business pass. If the user is exploring a small,
+internal, low-spend, or already-understood idea, produce the quick pass first and
+state what deeper research would add. Use the full workflow only when market,
+pricing, regulation, competitive pressure, or investment risk materially affects
+the decision.
+
 ### 1. Frame The Business Scenario
 
 Clarify:
@@ -212,6 +218,16 @@ Do not choose containers here unless the business model imposes a hard runtime
 constraint. Leave system design to `forge-schema`.
 
 ## Output
+
+For a lean pass, create or update `business-plan.md` with:
+
+- target customer
+- problem or desired gain
+- strongest market signal or evidence gap
+- riskiest assumption
+- smallest useful MVP promise
+- business actions needed for `forge-schema`
+- next decision: proceed, stop, pivot, or research deeper
 
 For a full pass, create or update `business-plan.md` with:
 

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ai-forge-cli"
-version = "3.0.3"
+version = "3.0.4"
 description = "Forge V4 architecture context CLI"
 readme = "README.md"
 requires-python = ">=3.11"

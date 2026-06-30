@@ -13,6 +13,7 @@ from cli.crawler import DEFAULT_CRAWLER_CONFIG
 from cli.yaml_io import dump_yaml
 
 SKILL_DIRS = [
+    "forge-orchestrator",
     "forge-business",
     "forge-schema",
     "forge-hydrate",
@@ -160,6 +161,7 @@ def _scaffold_repository(target_root: Path, system_name: str, system_id: str) ->
     _write_text(target_root / "business-plan.md", _business_plan_doc(system_name))
 
     _write_v4_schema_files(forge_root, system_name, system_id)
+    _write_knowledge_scaffold(forge_root)
     _copy_docs(forge_root)
     _copy_skills(forge_root)
     _rewrite_skill_references(forge_root)
@@ -215,6 +217,38 @@ def _write_v4_schema_files(forge_root: Path, system_name: str, system_id: str) -
         },
     )
     _write_yaml(forge_root / "crawler.yaml", DEFAULT_CRAWLER_CONFIG)
+
+
+def _write_knowledge_scaffold(forge_root: Path) -> None:
+    knowledge_root = forge_root / "knowledge"
+    for directory in ("runbooks", "testing", "operations", "security", "domain"):
+        (knowledge_root / directory).mkdir(parents=True, exist_ok=True)
+    _write_text(
+        knowledge_root / "index.md",
+        """---
+type: guide
+title: Forge Knowledge Index
+tags:
+  - forge
+status: draft
+---
+
+# Forge Knowledge
+
+Use this folder for Markdown knowledge that supports the Forge model: runbooks,
+test suites, deployment notes, security notes, incident guides, migration plans,
+and domain glossaries.
+
+Attach docs to Forge objects with refs like:
+
+```yaml
+refs:
+  - container:backend_api
+  - flow:create_note
+  - entity:note
+```
+""",
+    )
 
 
 def _copy_skills(forge_root: Path) -> None:
@@ -356,6 +390,7 @@ def _print_init_summary(target_root: Path, system_name: str, system_id: str) -> 
     print(_bullet(f"skills: {forge_root / 'skills'}"))
     print("")
     print(_section("Start With Skills"))
+    print(_bullet("coordination: `forge/skills/forge-orchestrator/SKILL.md`"))
     print(_bullet("business discovery: `forge/skills/forge-business/SKILL.md`"))
     print(_bullet("system design: `forge/skills/forge-schema/SKILL.md`"))
     print(_bullet("pre-build architecture review: `forge/skills/forge-review/SKILL.md`"))

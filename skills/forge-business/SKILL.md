@@ -16,6 +16,7 @@ Prefer when available:
 - web research with cited sources
 - `forge crawl --format json` when a Forge workspace already exists
 - `forge context` when reviewing an existing Forge model
+- `forge knowledge list` when a Forge knowledge layer exists
 
 ## Purpose
 
@@ -38,6 +39,13 @@ handoff is clear business intent, candidate business actions, target users,
 constraints, risks, and a recommended MVP sequence.
 
 The primary output artifact is `business-plan.md`.
+
+## Knowledge Layer
+
+When available, inspect `forge knowledge list` for domain notes, customer
+notes, glossaries, strategy notes, and prior discovery artifacts. Use these as
+supporting evidence. If they conflict with current business direction or Forge
+schema, call out the conflict instead of silently resolving it.
 
 ## Research Standard
 

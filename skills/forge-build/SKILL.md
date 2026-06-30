@@ -17,6 +17,7 @@ Prefer when available:
 
 - `forge list`
 - `forge context`
+- `forge knowledge list`
 - `forge crawl --format json`
 - `forge audit`
 
@@ -30,6 +31,14 @@ This skill has two modes:
 2. `test`: act as a QA testing agent and generate focused tests from the V4 model.
 
 Do not redesign the system here. If implementation proves the system, containers, entities, flows, or security posture are wrong, route the change back through `forge-schema`, `forge-review`, or `forge-security`.
+
+## Knowledge Layer
+
+When available, use `forge knowledge list --ref <kind>:<id>` for runbooks,
+test suites, deployment notes, operational notes, and domain docs related to
+the selected slice. Treat knowledge docs as supporting context, not canonical
+architecture truth. If a doc contradicts Forge schema or annotations, report
+drift and route to `forge-review` before building from it.
 
 ## YAGNI Build Discipline
 

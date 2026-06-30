@@ -14,6 +14,7 @@ Prefer when available:
 
 - `forge crawl --format json`
 - `forge context`
+- `forge knowledge list`
 - `forge audit`
 
 ## Purpose
@@ -30,6 +31,14 @@ central C1/C2 schema
 
 This skill should find risks and defects. It should not silently redesign the
 system. If a fix requires new architecture, route back to `forge-schema`.
+
+## Knowledge Layer
+
+When reviewing a system, container, flow, entity, component, or operation, use
+`forge knowledge list --ref <kind>:<id>` to inspect attached runbooks, test
+suites, deployment notes, security notes, incidents, migrations, and guides.
+Review stale or contradictory docs as drift findings. Knowledge docs support
+the review but do not override the merged Forge model.
 
 ## Decision Log
 

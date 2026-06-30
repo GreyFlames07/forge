@@ -20,6 +20,7 @@ Prefer when available:
 - `forge crawl --format json`
 - `forge list`
 - `forge context`
+- `forge knowledge list`
 - `forge audit`
 
 ## Purpose
@@ -38,6 +39,14 @@ code, tests, routes, schemas, storage, jobs, UI, runtime behavior
 Hydration documents what exists. Do not turn it into product strategy or a
 future-state redesign. If business intent is missing, mark it as inferred or
 route to `forge-business` later.
+
+## Knowledge Layer
+
+When available, inspect `forge knowledge list` and relevant `forge knowledge
+list --ref <kind>:<id>` output. Runbooks, testing docs, deployment notes, and
+glossaries are supporting evidence for hydration, especially when code alone is
+ambiguous. Do not infer canonical architecture from prose without code, tests,
+or explicit Forge schema support.
 
 ## Evidence Standard
 

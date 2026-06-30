@@ -1,0 +1,4 @@
+interface:
+  display_name: "Forge Orchestrator"
+  short_description: "Coordinate Forge skills and context"
+  default_prompt: "Use $forge-orchestrator to choose the right Forge skill, CLI commands, and knowledge context for this work."

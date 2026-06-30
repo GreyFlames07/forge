@@ -21,6 +21,8 @@ scoped context, validation, and audit artifacts to the active skill.
 - `forge crawl`: extract the merged V4 model from central files and code annotations
 - `forge context`: render scoped context for a system, flow, container, entity,
   component, operation, or data shape
+- `forge knowledge`: list supporting Markdown knowledge docs attached to Forge
+  refs such as containers, flows, entities, components, and operations
 - `forge audit`: generate a self-contained architecture audit dashboard
 
 ## What Forge Is
@@ -29,6 +31,8 @@ scoped context, validation, and audit artifacts to the active skill.
 - a skills-first workflow for moving from business discovery to one thin build slice
 - a scoped context generator for build, review, and security tasks
 - an audit artifact generator for human review
+- a lightweight index for repo-native delivery knowledge such as runbooks,
+  testing notes, security notes, operations notes, and domain glossaries
 
 ## What Forge Is Not
 

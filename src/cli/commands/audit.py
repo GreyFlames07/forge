@@ -5,6 +5,7 @@ import errno
 import hashlib
 import json
 import platform
+import re
 import subprocess
 from argparse import Namespace
 from html import escape
@@ -134,6 +135,7 @@ def render_v4_audit_html(result: ForgeCrawlResult) -> str:
         {"id": "system-overview", "group": "System", "label": "System"},
         {"id": "runtime-overview", "group": "Runtime", "label": "Runtime Overview"},
         {"id": "data-overview", "group": "Data", "label": "Entities & Data"},
+        {"id": "knowledge-overview", "group": "Knowledge", "label": "Knowledge"},
         {"id": "verticals-overview", "group": "Validation", "label": "Findings"},
         {"id": "quality-assurance-overview", "group": "Quality Assurance", "label": "Quality Assurance"},
     ]
@@ -147,7 +149,7 @@ def render_v4_audit_html(result: ForgeCrawlResult) -> str:
                 "Flows",
                 f"Flow: {flow['id']}",
                 "Container-level flow across runtime boundaries.",
-                _render_v4_flow_section(flow, model),
+                _render_v4_flow_section(flow, model) + _render_related_knowledge(model, [f"flow:{flow['id']}"]),
                 str(system.get("id", "forge")),
                 with_header=False,
             )
@@ -161,7 +163,7 @@ def render_v4_audit_html(result: ForgeCrawlResult) -> str:
                 "Runtime",
                 f"Container: {container['id']}",
                 "Source-root components, data shapes, and extracted operations.",
-                _render_v4_container_section(container),
+                _render_v4_container_section(container) + _render_related_knowledge(model, [f"container:{container['id']}"]),
                 str(system.get("id", "forge")),
                 with_header=False,
             )
@@ -175,7 +177,7 @@ def render_v4_audit_html(result: ForgeCrawlResult) -> str:
                 "Data",
                 f"Entity: {entity['id']}",
                 "Business state, canonical shape, ownership, and persistence.",
-                _render_v4_entity_section(entity, model),
+                _render_v4_entity_section(entity, model) + _render_related_knowledge(model, [f"entity:{entity['id']}"]),
                 str(system.get("id", "forge")),
                 with_header=False,
             )
@@ -215,6 +217,7 @@ def render_v4_audit_html(result: ForgeCrawlResult) -> str:
         "__SYSTEM_BODY__": _render_v4_system_section(model),
         "__RUNTIME_BODY__": _render_v4_runtime_section(model),
         "__DATA_BODY__": _render_v4_data_section(model),
+        "__KNOWLEDGE_BODY__": _render_v4_knowledge_section(model),
         "__VERTICALS_BODY__": _render_v4_findings_overview(model),
         "__QUALITY_ASSURANCE_BODY__": _render_quality_assurance_overview(str(system.get("id", "forge"))),
         "__DEPLOYMENT_BODY__": "",
@@ -238,6 +241,7 @@ def _render_v4_overview_section(model: dict[str, object]) -> str:
         ("System", str(system.get("id", "forge")), "system-overview"),
         ("Containers", str(summary.get("containers", 0)), "runtime-overview"),
         ("Flows", str(summary.get("container_flows", 0)), "flow-" + str(model["container_flows"][0]["id"]) if model["container_flows"] else "runtime-overview"),
+        ("Knowledge", str(summary.get("knowledge", 0)), "knowledge-overview"),
         ("Findings", str(summary.get("validation_findings", 0)), "verticals-overview"),
     ]
     summary_html = "".join(
@@ -334,6 +338,217 @@ def _render_v4_data_section(model: dict[str, object]) -> str:
             "</button>"
         )
     return '<div class="record-list">' + "".join(rows) + "</div>"
+
+
+def _render_v4_knowledge_section(model: dict[str, object]) -> str:
+    knowledge = [doc for doc in model.get("knowledge", []) if isinstance(doc, dict)]
+    if not knowledge:
+        return (
+            _section_header(
+                "knowledge-overview",
+                f"{model['system'].get('id', 'forge')} / Knowledge",
+                "Knowledge",
+                "Supporting Markdown docs attached to Forge objects.",
+            )
+            + '<div class="card"><p>No knowledge docs found under <code>forge/knowledge</code>.</p></div>'
+        )
+    types = sorted({str(doc.get("type", "unknown") or "unknown") for doc in knowledge})
+    summary_cards = "".join(
+        '<div class="card card-defined">'
+        f'<h3>{escape(type_)}</h3>'
+        f'<p>{sum(1 for doc in knowledge if str(doc.get("type", "unknown") or "unknown") == type_)}</p>'
+        '</div>'
+        for type_ in types
+    )
+    docs = _knowledge_doc_groups(knowledge, expanded=True)
+    return (
+        _section_header(
+            "knowledge-overview",
+            f"{model['system'].get('id', 'forge')} / Knowledge",
+            "Knowledge",
+            "Runbooks, test suites, security notes, operations notes, glossaries, and guides attached to Forge refs.",
+        )
+        + f'<div class="knowledge-type-grid">{summary_cards}</div>'
+        + f'<div class="knowledge-doc-grid">{docs}</div>'
+    )
+
+
+def _render_related_knowledge(model: dict[str, object], refs: list[str]) -> str:
+    knowledge = _knowledge_for_refs(model, refs)
+    if not knowledge:
+        return ""
+    return (
+        '<section class="related-knowledge-block">'
+        '<div class="section-header knowledge-inline-header">'
+        '<h3 class="section-title">Related Knowledge</h3>'
+        '<p class="section-description">Supporting docs attached to this Forge object.</p>'
+        '</div>'
+        f'{_knowledge_cards(knowledge, expanded=False)}'
+        '</section>'
+    )
+
+
+def _knowledge_for_refs(model: dict[str, object], refs: list[str]) -> list[dict[str, object]]:
+    wanted = set(refs)
+    return [
+        doc
+        for doc in model.get("knowledge", [])
+        if isinstance(doc, dict) and wanted.intersection(doc.get("refs", []))
+    ]
+
+
+def _knowledge_doc_groups(knowledge: list[dict[str, object]], *, expanded: bool) -> str:
+    grouped: dict[str, list[dict[str, object]]] = {}
+    for doc in knowledge:
+        type_ = str(doc.get("type", "unknown") or "unknown")
+        grouped.setdefault(type_, []).append(doc)
+
+    blocks: list[str] = []
+    for type_ in sorted(grouped):
+        docs = grouped[type_]
+        if len(docs) == 1:
+            blocks.append(_knowledge_cards(docs, expanded=expanded))
+            continue
+        open_attr = " open" if expanded else ""
+        blocks.append(
+            f'<details class="knowledge-type-group"{open_attr}>'
+            '<summary class="knowledge-type-group-summary">'
+            f'<span>{escape(type_)}</span>'
+            f'<strong>{len(docs)}</strong>'
+            '<span class="entity-shape-chevron" aria-hidden="true"></span>'
+            '</summary>'
+            '<div class="knowledge-type-group-docs">'
+            f'{_knowledge_cards(docs, expanded=expanded)}'
+            '</div>'
+            '</details>'
+        )
+    return "".join(blocks)
+
+
+def _knowledge_cards(knowledge: list[dict[str, object]], *, expanded: bool) -> str:
+    if not knowledge:
+        return "<p>No related knowledge docs.</p>"
+    cards: list[str] = []
+    for doc in sorted(knowledge, key=lambda item: str(item.get("title") or item.get("path", "")).casefold()):
+        type_ = str(doc.get("type", "") or "unknown")
+        status = str(doc.get("status", "") or "")
+        refs = doc.get("refs", [])
+        tags = doc.get("tags", [])
+        body = str(doc.get("body") or doc.get("excerpt") or "").strip()
+        body_html = _markdown_to_html(body)
+        summary = (
+            '<div class="knowledge-doc-identity">'
+            f'<h4>{escape(str(doc.get("title") or doc.get("path", "")))}</h4>'
+            f'{_knowledge_doc_meta_row("Refs", refs)}'
+            f'{_knowledge_doc_meta_row("Tags", tags)}'
+            '</div>'
+            '<div class="knowledge-doc-meta">'
+            f'<strong>{escape(type_)}</strong>'
+            f'{f"<em>{escape(status)}</em>" if status else ""}'
+            '</div>'
+            f'<span class="knowledge-doc-file">{escape(str(doc.get("path", "")))}</span>'
+            '<span class="entity-shape-chevron" aria-hidden="true"></span>'
+        )
+        open_attr = " open" if expanded else ""
+        cards.append(
+            f'<details class="card knowledge-doc-card"{open_attr}>'
+            '<summary class="knowledge-doc-summary">'
+            f'{summary}'
+            '</summary>'
+            f'<article class="knowledge-doc-body">{body_html}</article>'
+            '</details>'
+        )
+    return "".join(cards)
+
+
+def _knowledge_doc_meta_row(label: str, values: object) -> str:
+    if not isinstance(values, list):
+        return ""
+    value_text = ", ".join(
+        str(value)
+        for value in values
+        if str(value).strip()
+    )
+    if not value_text:
+        return ""
+    return (
+        '<div class="knowledge-doc-meta-row">'
+        f'<span>{escape(label)}</span>'
+        f'<p>{escape(value_text)}</p>'
+        '</div>'
+    )
+
+
+def _markdown_to_html(markdown: str) -> str:
+    lines = markdown.splitlines()
+    html: list[str] = []
+    paragraph: list[str] = []
+    list_items: list[str] = []
+    list_tag = "ul"
+    code_lines: list[str] = []
+    in_code = False
+
+    def flush_paragraph() -> None:
+        if paragraph:
+            html.append(f"<p>{escape(' '.join(paragraph))}</p>")
+            paragraph.clear()
+
+    def flush_list() -> None:
+        if list_items:
+            html.append(f"<{list_tag}>" + "".join(f"<li>{escape(item)}</li>" for item in list_items) + f"</{list_tag}>")
+            list_items.clear()
+
+    for line in lines:
+        stripped = line.strip()
+        ordered_match = re.match(r"^(\d+)\.\s+(.*)$", stripped)
+        if stripped.startswith("```"):
+            flush_paragraph()
+            flush_list()
+            if in_code:
+                html.append(f"<pre><code>{escape(chr(10).join(code_lines))}</code></pre>")
+                code_lines.clear()
+                in_code = False
+            else:
+                in_code = True
+            continue
+        if in_code:
+            code_lines.append(line)
+            continue
+        if not stripped:
+            flush_paragraph()
+            flush_list()
+            continue
+        if list_items and (line.startswith("  ") or line.startswith("\t")) and not stripped.startswith(("- ", "* ")) and not ordered_match:
+            list_items[-1] = f"{list_items[-1]} {stripped}"
+            continue
+        if stripped.startswith("#"):
+            flush_paragraph()
+            flush_list()
+            level = min(len(stripped) - len(stripped.lstrip("#")), 4)
+            title = stripped[level:].strip()
+            html.append(f"<h{level}>{escape(title)}</h{level}>")
+            continue
+        if stripped.startswith(("- ", "* ")):
+            flush_paragraph()
+            if list_items and list_tag != "ul":
+                flush_list()
+            list_tag = "ul"
+            list_items.append(stripped[2:].strip())
+            continue
+        if ordered_match:
+            flush_paragraph()
+            if list_items and list_tag != "ol":
+                flush_list()
+            list_tag = "ol"
+            list_items.append(ordered_match.group(2).strip())
+            continue
+        flush_list()
+        paragraph.append(stripped)
+    flush_paragraph()
+    flush_list()
+    if in_code:
+        html.append(f"<pre><code>{escape(chr(10).join(code_lines))}</code></pre>")
+    return "".join(html) if html else "<p>No content.</p>"
 
 
 def _v4_data_overview_chips(entity: dict[str, object], persistence: dict[str, object] | None) -> str:
@@ -2153,6 +2368,7 @@ def _toolbar_sections(sections: list[dict[str, str]]) -> list[dict[str, str]]:
         "system-overview",
         "runtime-overview",
         "data-overview",
+        "knowledge-overview",
         "verticals-overview",
         "quality-assurance-overview",
         "deployment-overview",

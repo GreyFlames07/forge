@@ -18,6 +18,7 @@ DOC_FILES = (
 )
 
 SKILL_NAMES = (
+    "forge-orchestrator",
     "forge-build",
     "forge-business",
     "forge-hydrate",

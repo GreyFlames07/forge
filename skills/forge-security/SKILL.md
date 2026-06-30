@@ -14,6 +14,7 @@ Prefer when available:
 
 - `forge crawl --format json`
 - `forge context`
+- `forge knowledge list`
 - `forge audit`
 
 ## Purpose
@@ -34,6 +35,14 @@ This skill should produce security findings and concrete obligations. It should
 not silently redesign the system. Route architecture changes to `forge-schema`,
 contract/model correctness issues to `forge-review`, and implementation work to
 `forge-build`.
+
+## Knowledge Layer
+
+When available, use `forge knowledge list --ref <kind>:<id>` and filters such
+as `--type runbook`, `--type incident`, or `--tag security` to inspect
+supporting security notes, incident docs, auth runbooks, compliance notes, and
+operational procedures. Treat contradictions with the Forge model as security
+or review drift, not as silent truth.
 
 ## Decision Log
 

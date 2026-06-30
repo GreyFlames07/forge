@@ -15,6 +15,31 @@ from cli.yaml_io import dump_yaml, read_yaml
 V4_ROOT_FILES = ("system.yaml", "containers.yaml", "entities.yaml")
 DEFAULT_DECISIONS: dict[str, Any] = {"schema": "forge.decisions", "decisions": []}
 ANNOTATION_KINDS = {"component", "type", "persistence", "operation"}
+KNOWLEDGE_TYPES = {
+    "runbook",
+    "test_suite",
+    "checklist",
+    "guide",
+    "note",
+    "glossary",
+    "incident",
+    "migration",
+    "review",
+}
+KNOWLEDGE_STATUSES = {"draft", "accepted", "stale"}
+KNOWLEDGE_REF_KINDS = {
+    "system",
+    "actor",
+    "external_dependency",
+    "business_action",
+    "container",
+    "flow",
+    "entity",
+    "component",
+    "operation",
+    "data_shape",
+    "decision",
+}
 
 
 DEFAULT_CRAWLER_CONFIG: dict[str, Any] = {
@@ -168,6 +193,36 @@ class ForgeAnnotation:
 
 
 @dataclass(frozen=True)
+class ForgeKnowledgeDoc:
+    """Markdown knowledge document attached to the Forge model."""
+
+    path: Path
+    title: str | None
+    type: str | None
+    refs: tuple[str, ...] = ()
+    tags: tuple[str, ...] = ()
+    status: str | None = None
+    updated: date | None = None
+    frontmatter: dict[str, Any] = field(default_factory=dict)
+    excerpt: str | None = None
+    body: str = ""
+
+    def to_dict(self, root: Path) -> dict[str, Any]:
+        return {
+            "path": _relative_path(self.path, root),
+            "title": self.title,
+            "type": self.type,
+            "refs": list(self.refs),
+            "tags": list(self.tags),
+            "status": self.status,
+            "updated": self.updated,
+            "frontmatter": self.frontmatter,
+            "excerpt": self.excerpt,
+            "body": self.body,
+        }
+
+
+@dataclass(frozen=True)
 class ForgeCrawlResult:
     """Merged V4 crawl result from central Forge files and code annotations."""
 
@@ -181,6 +236,7 @@ class ForgeCrawlResult:
     annotations: list[ForgeAnnotation] = field(default_factory=list)
     skipped_file_types: dict[str, int] = field(default_factory=dict)
     forge_docs: list[Path] = field(default_factory=list)
+    knowledge_docs: list[ForgeKnowledgeDoc] = field(default_factory=list)
 
     def annotations_by_kind(self, kind: str) -> list[ForgeAnnotation]:
         return [annotation for annotation in self.annotations if annotation.kind == kind]
@@ -213,6 +269,7 @@ class ForgeCrawlResult:
             "entities": _collection(self.entities, "entities"),
             "decisions": _collection(self.decisions, "decisions"),
             "persistence": [annotation.to_dict(self.workspace_root) for annotation in self.persistence],
+            "knowledge": [doc.to_dict(self.workspace_root) for doc in self.knowledge_docs],
             "warnings": _warnings(self),
             "findings": _validation_findings(self),
             "forge_docs": [
@@ -228,6 +285,7 @@ class ForgeCrawlResult:
                 "data_shapes": len(self.data_shapes),
                 "persistence": len(self.persistence),
                 "operations": len(self.operations),
+                "knowledge": len(self.knowledge_docs),
                 "warnings": len(_warnings(self)["skipped_file_types"]),
                 "duplicate_findings": len(_validation_findings(self)["duplicates"]),
                 "validation_findings": _validation_finding_count(_validation_findings(self)),
@@ -290,6 +348,7 @@ def crawl_project(root: Path) -> ForgeCrawlResult:
         annotations=sorted(annotations, key=lambda item: (str(item.source), item.line)),
         skipped_file_types=dict(sorted(skipped_file_types.items())),
         forge_docs=_forge_markdown_docs(forge_root),
+        knowledge_docs=_knowledge_docs(forge_root),
     )
 
 
@@ -346,6 +405,7 @@ def dump_crawl_result(result: ForgeCrawlResult, format_: str) -> str:
             f"- data shapes: `{summary['data_shapes']}`",
             f"- persistence annotations: `{summary['persistence']}`",
             f"- operations: `{summary['operations']}`",
+            f"- knowledge docs: `{summary['knowledge']}`",
             f"- warnings: `{summary['warnings']}`",
             f"- duplicate findings: `{summary['duplicate_findings']}`",
             f"- validation findings: `{summary['validation_findings']}`",
@@ -661,6 +721,7 @@ def _validation_findings(result: ForgeCrawlResult) -> dict[str, Any]:
         "missing_required_fields": _missing_required_field_findings(result),
         "unresolved_references": _unresolved_reference_findings(result),
         "invalid_flow_steps": _invalid_flow_step_findings(result),
+        "knowledge": _knowledge_findings(result),
         "config": _config_findings(result.config),
     }
 
@@ -928,6 +989,82 @@ def _config_findings(config: CrawlerConfig) -> list[dict[str, Any]]:
     return findings
 
 
+def _knowledge_findings(result: ForgeCrawlResult) -> list[dict[str, Any]]:
+    findings: list[dict[str, Any]] = []
+    known_refs = _known_knowledge_refs(result)
+    for doc in result.knowledge_docs:
+        source = _relative_path(doc.path, result.workspace_root)
+        if not doc.type:
+            findings.append({"kind": "knowledge", "source": source, "field": "type", "message": "`type` is required."})
+        elif doc.type not in KNOWLEDGE_TYPES:
+            findings.append(
+                {
+                    "kind": "knowledge",
+                    "source": source,
+                    "field": "type",
+                    "value": doc.type,
+                    "message": f"`type` must be one of: {', '.join(sorted(KNOWLEDGE_TYPES))}.",
+                }
+            )
+        if not doc.title:
+            findings.append({"kind": "knowledge", "source": source, "field": "title", "message": "`title` is required."})
+        if doc.status and doc.status not in KNOWLEDGE_STATUSES:
+            findings.append(
+                {
+                    "kind": "knowledge",
+                    "source": source,
+                    "field": "status",
+                    "value": doc.status,
+                    "message": f"`status` must be one of: {', '.join(sorted(KNOWLEDGE_STATUSES))}.",
+                }
+            )
+        for ref in doc.refs:
+            ref_kind, separator, ref_id = ref.partition(":")
+            if not separator or not ref_kind or not ref_id:
+                findings.append({"kind": "knowledge", "source": source, "field": "refs", "reference": ref, "message": "Knowledge refs use `<kind>:<id>`."})
+                continue
+            if ref_kind not in KNOWLEDGE_REF_KINDS:
+                findings.append(
+                    {
+                        "kind": "knowledge",
+                        "source": source,
+                        "field": "refs",
+                        "reference": ref,
+                        "message": f"Unknown knowledge ref kind `{ref_kind}`.",
+                    }
+                )
+                continue
+            if ref not in known_refs:
+                findings.append(
+                    {
+                        "kind": "knowledge",
+                        "source": source,
+                        "field": "refs",
+                        "reference": ref,
+                        "message": f"`{ref}` does not resolve to a known Forge object.",
+                    }
+                )
+    return findings
+
+
+def _known_knowledge_refs(result: ForgeCrawlResult) -> set[str]:
+    system = result.system.get("system", result.system)
+    refs: set[str] = set()
+    if isinstance(system.get("id"), str):
+        refs.add(f"system:{system['id']}")
+    refs.update(f"actor:{item}" for item in _ids(system.get("actors", [])))
+    refs.update(f"external_dependency:{item}" for item in _ids(system.get("external_dependencies", [])))
+    refs.update(f"business_action:{item}" for item in _ids(system.get("business_actions", [])))
+    refs.update(f"container:{item}" for item in _ids(_collection(result.containers, "containers")))
+    refs.update(f"flow:{item}" for item in _ids(_collection(result.containers, "container_flows")))
+    refs.update(f"entity:{item}" for item in _ids(_collection(result.entities, "entities")))
+    refs.update(f"component:{annotation.id}" for annotation in result.components if annotation.id)
+    refs.update(f"operation:{annotation.id}" for annotation in result.operations if annotation.id)
+    refs.update(f"data_shape:{annotation.id}" for annotation in result.data_shapes if annotation.id)
+    refs.update(f"decision:{item}" for item in _ids(_collection(result.decisions, "decisions")))
+    return refs
+
+
 def _annotation_finding(annotation: ForgeAnnotation, result: ForgeCrawlResult, message: str) -> dict[str, Any]:
     return {
         "kind": annotation.kind,
@@ -984,6 +1121,59 @@ def _extract_refs(value: Any) -> set[str]:
 
 def _forge_markdown_docs(forge_root: Path) -> list[Path]:
     return sorted(path for path in forge_root.glob("*.md") if path.is_file())
+
+
+def _knowledge_docs(forge_root: Path) -> list[ForgeKnowledgeDoc]:
+    knowledge_root = forge_root / "knowledge"
+    if not knowledge_root.exists():
+        return []
+    return [_parse_knowledge_doc(path) for path in sorted(knowledge_root.rglob("*.md")) if path.is_file()]
+
+
+def _parse_knowledge_doc(path: Path) -> ForgeKnowledgeDoc:
+    text = path.read_text(encoding="utf-8")
+    frontmatter, body = _split_frontmatter(text)
+    return ForgeKnowledgeDoc(
+        path=path.resolve(),
+        title=frontmatter.get("title") if isinstance(frontmatter.get("title"), str) else None,
+        type=frontmatter.get("type") if isinstance(frontmatter.get("type"), str) else None,
+        refs=tuple(_string_list(frontmatter.get("refs", []))),
+        tags=tuple(_string_list(frontmatter.get("tags", []))),
+        status=frontmatter.get("status") if isinstance(frontmatter.get("status"), str) else None,
+        updated=frontmatter.get("updated") if isinstance(frontmatter.get("updated"), date) else None,
+        frontmatter=frontmatter,
+        excerpt=_markdown_excerpt(body),
+        body=body,
+    )
+
+
+def _split_frontmatter(text: str) -> tuple[dict[str, Any], str]:
+    if not text.startswith("---\n"):
+        return {}, text
+    end = text.find("\n---", 4)
+    if end == -1:
+        return {}, text
+    raw_frontmatter = text[4:end]
+    body = text[end + 4 :].lstrip("\n")
+    loaded = yaml.safe_load(raw_frontmatter) if raw_frontmatter.strip() else {}
+    return loaded if isinstance(loaded, dict) else {}, body
+
+
+def _markdown_excerpt(text: str) -> str | None:
+    lines: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            if lines:
+                break
+            continue
+        lines.append(stripped)
+        if len(" ".join(lines)) > 240:
+            break
+    excerpt = " ".join(lines).strip()
+    if not excerpt:
+        return None
+    return excerpt[:240].rstrip()
 
 
 def _markdown_title(path: Path) -> str:

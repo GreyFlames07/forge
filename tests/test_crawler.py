@@ -29,6 +29,7 @@ def test_crawler_reads_v4_central_files_and_annotations() -> None:
         "data_shapes": 33,
         "persistence": 3,
         "operations": 31,
+        "knowledge": 10,
         "warnings": 0,
         "duplicate_findings": 0,
         "validation_findings": 0,
@@ -38,6 +39,17 @@ def test_crawler_reads_v4_central_files_and_annotations() -> None:
         "frontend_ui",
         "backend_api",
         "notes_db",
+    }
+    assert {doc["type"] for doc in payload["knowledge"]} == {
+        "checklist",
+        "glossary",
+        "guide",
+        "incident",
+        "migration",
+        "note",
+        "review",
+        "runbook",
+        "test_suite",
     }
 
 
@@ -147,7 +159,67 @@ def test_crawl_command_outputs_json(capsys) -> None:
     assert payload["schema"] == "forge.extracted_model"
     assert payload["summary"]["components"] == 12
     assert payload["summary"]["operations"] == 31
+    assert payload["summary"]["knowledge"] == 10
     assert payload["summary"]["validation_findings"] == 0
+
+
+def test_crawler_reads_knowledge_docs(tmp_path: Path) -> None:
+    copied_root = _copy_v4_example(tmp_path)
+    knowledge = copied_root / "forge" / "knowledge" / "runbooks" / "backend_api_drain.md"
+    knowledge.parent.mkdir(parents=True, exist_ok=True)
+    knowledge.write_text(
+        """---
+type: runbook
+title: Backend API Drain
+refs:
+  - container:backend_api
+tags:
+  - production
+status: accepted
+updated: 2026-06-30
+---
+
+# Backend API Drain
+
+Restart the backend API after draining traffic.
+""",
+        encoding="utf-8",
+    )
+
+    payload = crawl_project(copied_root).to_dict()
+
+    assert payload["summary"]["knowledge"] == 11
+    assert any(
+        doc["title"] == "Backend API Drain"
+        and doc["refs"] == ["container:backend_api"]
+        and doc["updated"] == "2026-06-30"
+        for doc in payload["knowledge"]
+    )
+    assert payload["findings"]["knowledge"] == []
+
+
+def test_crawler_reports_invalid_knowledge_refs(tmp_path: Path) -> None:
+    copied_root = _copy_v4_example(tmp_path)
+    knowledge = copied_root / "forge" / "knowledge" / "testing" / "broken.md"
+    knowledge.parent.mkdir(parents=True, exist_ok=True)
+    knowledge.write_text(
+        """---
+type: test_suite
+title: Broken Knowledge
+refs:
+  - container:missing_api
+  - bad-ref
+---
+
+Body.
+""",
+        encoding="utf-8",
+    )
+
+    findings = crawl_project(copied_root).to_dict()["findings"]["knowledge"]
+
+    assert any(item["reference"] == "container:missing_api" for item in findings)
+    assert any(item["reference"] == "bad-ref" for item in findings)
 
 
 def test_crawler_reports_skipped_file_types_by_default(tmp_path: Path) -> None:

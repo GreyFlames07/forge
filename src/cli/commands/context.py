@@ -75,10 +75,16 @@ def build_v4_context_payload(result: ForgeCrawlResult, args: Namespace) -> dict[
     target_kind = _selected_target(args)
     model = result.to_dict()
     if target_kind == "system":
-        return _v4_payload("system", model["system"].get("id", "system"), args.mode, {"model": model})
+        system_id = model["system"].get("id", "system")
+        return _v4_payload("system", system_id, args.mode, {"model": model, "knowledge": _knowledge_for_refs(model, [f"system:{system_id}"])})
     if target_kind == "container":
         container = _v4_find(model["containers"], args.container, "container")
-        return _v4_payload("container", args.container, args.mode, {"container": container, "findings": model["findings"]})
+        return _v4_payload(
+            "container",
+            args.container,
+            args.mode,
+            {"container": container, "knowledge": _knowledge_for_refs(model, [f"container:{args.container}"]), "findings": model["findings"]},
+        )
     if target_kind == "flow":
         flow = _v4_find(model["container_flows"], args.flow, "container_flow")
         involved = {
@@ -97,7 +103,13 @@ def build_v4_context_payload(result: ForgeCrawlResult, args: Namespace) -> dict[
             "container_flow",
             args.flow,
             args.mode,
-            {"container_flow": flow, "containers": containers, "operations": operations, "findings": model["findings"]},
+            {
+                "container_flow": flow,
+                "containers": containers,
+                "operations": operations,
+                "knowledge": _knowledge_for_refs(model, [f"flow:{args.flow}"] + [f"container:{item}" for item in involved]),
+                "findings": model["findings"],
+            },
         )
     if target_kind == "entity":
         entity = _v4_find(model["entities"], args.entity, "entity")
@@ -107,7 +119,13 @@ def build_v4_context_payload(result: ForgeCrawlResult, args: Namespace) -> dict[
             "entity",
             args.entity,
             args.mode,
-            {"entity": entity, "data_shapes": data_shapes, "persistence": persistence, "findings": model["findings"]},
+            {
+                "entity": entity,
+                "data_shapes": data_shapes,
+                "persistence": persistence,
+                "knowledge": _knowledge_for_refs(model, [f"entity:{args.entity}"]),
+                "findings": model["findings"],
+            },
         )
     if target_kind == "component":
         component = _v4_find_nested(model["containers"], "components", args.component, "component")
@@ -116,15 +134,35 @@ def build_v4_context_payload(result: ForgeCrawlResult, args: Namespace) -> dict[
             "component",
             args.component,
             args.mode,
-            {"component": component, "container": container, "findings": model["findings"]},
+            {
+                "component": component,
+                "container": container,
+                "knowledge": _knowledge_for_refs(model, [f"component:{args.component}"]),
+                "findings": model["findings"],
+            },
         )
     if target_kind == "operation":
         operation = _v4_find_nested(model["containers"], "operations", args.operation, "operation")
         container = _v4_find(model["containers"], operation["container"], "container") if operation.get("container") else None
-        return _v4_payload("operation", args.operation, args.mode, {"operation": operation, "container": container, "findings": model["findings"]})
+        return _v4_payload(
+            "operation",
+            args.operation,
+            args.mode,
+            {
+                "operation": operation,
+                "container": container,
+                "knowledge": _knowledge_for_refs(model, [f"operation:{args.operation}"]),
+                "findings": model["findings"],
+            },
+        )
     if target_kind == "data_shape":
         data_shape = _v4_find_nested(model["containers"], "data_shapes", args.data_shape, "data_shape")
-        return _v4_payload("data_shape", args.data_shape, args.mode, {"data_shape": data_shape, "findings": model["findings"]})
+        return _v4_payload(
+            "data_shape",
+            args.data_shape,
+            args.mode,
+            {"data_shape": data_shape, "knowledge": _knowledge_for_refs(model, [f"data_shape:{args.data_shape}"]), "findings": model["findings"]},
+        )
     raise ValueError(
         "No context target selected. Choose one of --system, --flow, --container, "
         "--entity, --component, --operation, or --data-shape."
@@ -169,6 +207,15 @@ def _v4_data_shapes_for_entity(model: dict[str, Any], entity_id: str) -> list[di
             if shape.get("payload", {}).get("entity") == entity_id:
                 shapes.append(shape)
     return shapes
+
+
+def _knowledge_for_refs(model: dict[str, Any], refs: list[str]) -> list[dict[str, Any]]:
+    wanted = set(refs)
+    return [
+        doc
+        for doc in model.get("knowledge", [])
+        if isinstance(doc, dict) and wanted.intersection(doc.get("refs", []))
+    ]
 
 
 def _testing_expectations(mode: str) -> dict[str, Any]:

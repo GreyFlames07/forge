@@ -50,6 +50,33 @@ def test_container_context_yaml(capsys) -> None:
     assert payload["artifacts"]["container"]["id"] == "backend_api"
 
 
+def test_container_context_includes_attached_knowledge(tmp_path: Path, capsys) -> None:
+    root = _copy_example(tmp_path)
+    knowledge = root / "forge" / "knowledge" / "runbooks" / "backend_api_restart.md"
+    knowledge.parent.mkdir(parents=True, exist_ok=True)
+    knowledge.write_text(
+        """---
+type: runbook
+title: Backend API Restart
+refs:
+  - container:backend_api
+tags:
+  - production
+---
+
+# Backend API Restart
+
+Restart after draining traffic.
+""",
+        encoding="utf-8",
+    )
+
+    assert main(["context", "--project-dir", str(root), "--container", "backend_api"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+
+    assert any(doc["title"] == "Backend API Restart" for doc in payload["artifacts"]["knowledge"])
+
+
 def test_component_context_json(capsys) -> None:
     assert main(
         [
@@ -94,6 +121,7 @@ def test_init_scaffolds_traversable_repo(tmp_path: Path, capsys) -> None:
     assert "Use Forge In This Order" in output
     assert "How To Get The Most Out Of The Framework" in output
     assert "forge/skills/forge-schema/SKILL.md" in output
+    assert "forge/skills/forge-orchestrator/SKILL.md" in output
     assert "forge/skills/forge-review/SKILL.md" in output
     assert "forge/skills/forge-security/SKILL.md" in output
     assert "Run `forge-review` and `forge-security` before building." in output
@@ -105,12 +133,14 @@ def test_init_scaffolds_traversable_repo(tmp_path: Path, capsys) -> None:
     assert (forge_root / "entities.yaml").exists()
     assert (forge_root / "decisions.yaml").exists()
     assert (forge_root / "crawler.yaml").exists()
+    assert (forge_root / "knowledge" / "index.md").exists()
     assert (root / "business-plan.md").exists()
     assert "Business Plan: Demo System" in (root / "business-plan.md").read_text(encoding="utf-8")
     assert (forge_root / "SCHEMA_REFERENCE_V4.md").exists()
     assert (forge_root / "FRAMEWORK_V4.md").exists()
     assert (forge_root / "USING_FORGE.md").exists()
     assert (forge_root / "skills" / "forge-business" / "SKILL.md").exists()
+    assert (forge_root / "skills" / "forge-orchestrator" / "SKILL.md").exists()
     assert (forge_root / "skills" / "forge-schema" / "SKILL.md").exists()
     assert (forge_root / "skills" / "forge-hydrate" / "SKILL.md").exists()
     assert "dist/" in (root / ".gitignore").read_text(encoding="utf-8")
@@ -126,6 +156,7 @@ def test_init_scaffolds_traversable_repo(tmp_path: Path, capsys) -> None:
     assert "forge/USING_FORGE.md" in surfaced_skill
     assert "../forge-schema/SKILL.md" in surfaced_skill
     assert (root / ".claude" / "skills" / "forge-business").is_symlink()
+    assert (root / ".claude" / "skills" / "forge-orchestrator").is_symlink()
     assert (root / ".claude" / "skills" / "forge-schema").is_symlink()
     assert (root / ".claude" / "skills" / "forge-hydrate").is_symlink()
     assert (root / ".agents" / "skills" / "forge-review").is_symlink()
@@ -152,6 +183,34 @@ def test_init_scaffolds_traversable_repo(tmp_path: Path, capsys) -> None:
     assert main(["crawl", "--project-dir", str(root), "--format", "json"]) == 0
     crawl_payload = json.loads(capsys.readouterr().out)
     assert crawl_payload["decisions"] == []
+
+
+def test_knowledge_command_filters_by_ref(tmp_path: Path, capsys) -> None:
+    root = _copy_example(tmp_path)
+    knowledge = root / "forge" / "knowledge" / "testing" / "backend_api_tests.md"
+    knowledge.parent.mkdir(parents=True, exist_ok=True)
+    knowledge.write_text(
+        """---
+type: test_suite
+title: Backend API Tests
+refs:
+  - container:backend_api
+tags:
+  - qa
+---
+
+# Backend API Tests
+
+Contract tests for the backend API.
+""",
+        encoding="utf-8",
+    )
+
+    assert main(["knowledge", "list", "--project-dir", str(root), "--ref", "container:backend_api", "--format", "json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["summary"]["knowledge"] >= 1
+    assert any(doc["title"] == "Backend API Tests" for doc in payload["knowledge"])
 
 
 def test_packaged_init_docs_exist() -> None:
@@ -217,6 +276,12 @@ def test_audit_generates_html(tmp_path: Path, capsys) -> None:
     assert 'data-group="Deployment"' not in text
     assert "container-backend_api" in text
     assert 'id="flow-create_note"' in text
+    assert "knowledge-doc-card" in text
+    assert "knowledge-type-group" in text
+    assert "Frontend UI Restart" in text
+    assert "Backend API Restart" in text
+    assert "Restart the backend API after confirming no local migrations" in text
+    assert "Related Knowledge" in text
     assert "validate_create_note" in text
     assert "&quot;session_token&quot;: &quot;string&quot;" in text
     assert "&quot;status&quot;: &quot;enum[active, archived]&quot;" in text
@@ -224,6 +289,48 @@ def test_audit_generates_html(tmp_path: Path, capsys) -> None:
     assert "Lifecycle" in text
     assert "Data Shapes" in text
     assert "Persistence" in text
+
+
+def test_audit_groups_repeated_knowledge_types() -> None:
+    html = audit_command._render_v4_knowledge_section(
+        {
+            "system": {"id": "demo"},
+            "knowledge": [
+                {
+                    "type": "runbook",
+                    "title": "Restart API",
+                    "path": "forge/knowledge/runbooks/restart_api.md",
+                    "refs": ["container:api"],
+                    "tags": ["ops"],
+                    "status": "accepted",
+                    "body": "# Restart API\n\nSteps.",
+                },
+                {
+                    "type": "runbook",
+                    "title": "Rotate Worker",
+                    "path": "forge/knowledge/runbooks/rotate_worker.md",
+                    "refs": ["container:worker"],
+                    "tags": ["ops"],
+                    "status": "draft",
+                    "body": "# Rotate Worker\n\nSteps.",
+                },
+                {
+                    "type": "review",
+                    "title": "Security Note",
+                    "path": "forge/knowledge/security/session.md",
+                    "refs": ["entity:session"],
+                    "tags": ["security"],
+                    "status": "draft",
+                    "body": "# Security Note\n\nNotes.",
+                },
+            ],
+        }
+    )
+
+    assert 'class="knowledge-type-group" open' in html
+    assert 'class="knowledge-type-group-summary"><span>runbook</span><strong>2</strong>' in html
+    assert html.count('class="card knowledge-doc-card" open') == 3
+    assert html.count('class="knowledge-type-group" open') == 1
 
 
 def test_audit_no_open_suppresses_live_browser(monkeypatch) -> None:
@@ -398,3 +505,9 @@ def test_edge_label_caps_descriptions_to_five_words() -> None:
         "Order record persisted for reconciliation"
     )
     assert _edge_label("depends on") == "depends on"
+
+
+def _copy_example(tmp_path: Path) -> Path:
+    copied_root = tmp_path / "forge_minimal_web_app"
+    shutil.copytree(EXAMPLE_ROOT, copied_root)
+    return copied_root

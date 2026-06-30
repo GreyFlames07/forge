@@ -22,6 +22,7 @@ Prefer when available:
 - `forge init`
 - `forge crawl`
 - `forge context`
+- `forge knowledge list`
 - `forge audit`
 
 ## Purpose
@@ -31,6 +32,14 @@ architecture.
 
 This skill owns C1/C2 system design and central Forge schema authoring. It does
 not validate the business idea; that belongs to `forge-business`.
+
+## Knowledge Layer
+
+When available, use `forge knowledge list` and `forge knowledge list --ref
+<kind>:<id>` to inspect supporting domain glossaries, operations notes,
+runbooks, migration notes, and testing docs. Use them as design evidence only.
+Do not let unstructured knowledge define canonical architecture unless the
+central Forge schema is intentionally updated.
 
 Core rule:
 
